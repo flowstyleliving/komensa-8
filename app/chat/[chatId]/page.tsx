@@ -14,7 +14,7 @@ import { MessageCircle, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRef, useEffect, useState, useMemo } from 'react';
+import { useRef, useEffect, useState, useMemo, use } from 'react';
 import { isDemoSession } from '@/utils/demo';
 
 interface MessageData {
@@ -22,20 +22,23 @@ interface MessageData {
   senderId: string;
 }
 
-export default function ChatPage({ params }: { params: { chatId: string } }) {
+export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
+  // Unwrap the params Promise using React.use()
+  const { chatId } = use(params);
+  
   // Efficiently detect demo mode once and memoize the result
   const isDemoDetected = useMemo(() => isDemoSession(), []);
 
   // Use appropriate hook based on demo detection
-  const regularChat = useChat(params.chatId);
-  const demoChat = useDemoChat(params.chatId, isDemoDetected);
+  const regularChat = useChat(chatId);
+  const demoChat = useDemoChat(chatId, isDemoDetected);
   
   const chat = isDemoDetected ? demoChat : regularChat;
   const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage } = chat;
   
   // Extension system for viz cues
   const { getVizCueContent } = useExtensions({
-    chatId: params.chatId,
+    chatId: chatId,
     userId: 'current-user', // TODO: Get from auth
     isUserTyping: typingUsers.size > 0,
     isAiTyping: isAssistantTyping,

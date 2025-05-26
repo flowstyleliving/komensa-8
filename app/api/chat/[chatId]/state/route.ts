@@ -5,8 +5,8 @@ import { auth } from '@/lib/auth';
 import { TurnManager } from '@/features/chat/services/turnManager';
 
 // GET: Fetch chat state
-export async function GET(request: NextRequest, { params }: { params: { chatId: string } }) {
-  const chatId = params.chatId;
+export async function GET(request: NextRequest, { params }: { params: Promise<{ chatId: string }> }) {
+  const { chatId } = await params;
   const session = await auth() as { user?: { id: string } };
   
   // Check for demo user cookie
@@ -100,7 +100,8 @@ export async function GET(request: NextRequest, { params }: { params: { chatId: 
 }
 
 // PATCH: Update chat settings
-export async function PATCH(request: NextRequest, { params }: { params: { chatId: string } }) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ chatId: string }> }) {
+  const { chatId } = await params;
   const session = await auth() as { user?: { id: string } };
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -111,7 +112,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { chatId
 
   try {
     const chat = await prisma.chat.update({
-      where: { id: params.chatId },
+      where: { id: chatId },
       data: {
         mediator_style,
         turn_taking,
