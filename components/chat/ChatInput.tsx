@@ -5,9 +5,10 @@ interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  topContent?: React.ReactNode;
 }
 
-export function ChatInput({ onSend, disabled = false, placeholder = "Share your thoughts..." }: ChatInputProps) {
+export function ChatInput({ onSend, disabled = false, placeholder = "Share your thoughts...", topContent }: ChatInputProps) {
   const [content, setContent] = useState('');
   const [hasPreFilled, setHasPreFilled] = useState(false);
 
@@ -30,12 +31,12 @@ export function ChatInput({ onSend, disabled = false, placeholder = "Share your 
 
   return (
     <div className="space-y-3">
-      {disabled && (
+      {topContent || (disabled && (
         <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
           <Heart className="h-4 w-4 text-[#D8A7B1]" />
           <span>The AI is preparing a thoughtful response...</span>
         </div>
-      )}
+      ))}
       <form onSubmit={handleSubmit} className="flex gap-3">
         <input
           type="text"

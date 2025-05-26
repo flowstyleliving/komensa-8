@@ -2,6 +2,8 @@
 
 import { useChat } from '@/features/chat/hooks/useChat';
 import { useDemoChat } from '@/hooks/useDemoChat';
+import { useExtensions } from '@/hooks/useExtensions';
+import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -31,12 +33,43 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
   const chat = isDemoDetected ? demoChat : regularChat;
   const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage } = chat;
   
+  // Extension system for viz cues
+  const { getVizCueContent } = useExtensions({
+    chatId: params.chatId,
+    userId: 'current-user', // TODO: Get from auth
+    isUserTyping: typingUsers.size > 0,
+    isAiTyping: isAssistantTyping,
+    currentTurn: isAssistantTyping ? 'ai' : 'user',
+    messageCount: messages.length
+  });
+  
+  // Notification sounds for messages
+  const { playReceiveNotification, playSendNotification } = useNotificationSound();
+  const previousMessageCount = useRef(messages.length);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAssistantTyping, typingUsers]);
+
+  // Play notification sounds for new messages
+  useEffect(() => {
+    if (messages.length > previousMessageCount.current) {
+      const newMessages = messages.slice(previousMessageCount.current);
+      
+      newMessages.forEach(message => {
+        const data = message.data as MessageData;
+        
+        if (data.senderId !== 'current-user') {
+          playReceiveNotification();
+        }
+      });
+      
+      previousMessageCount.current = messages.length;
+    }
+  }, [messages, playReceiveNotification, playSendNotification]);
 
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
@@ -119,6 +152,7 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
               onSend={sendMessage}
               disabled={!canSendMessage()}
               placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
+              topContent={getVizCueContent()}
             />
           </div>
         </div>
