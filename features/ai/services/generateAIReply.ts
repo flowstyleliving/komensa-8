@@ -35,28 +35,40 @@ export async function generateAIReply({
   userId: string;
   userMessage: string;
 }) {
-  console.log('[AI Reply] Starting AI reply generation...', { chatId, userId });
-  
+  console.log('[AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
+
   const channelName = getChatChannelName(chatId);
   const turnManager = new TurnManager(chatId);
-  
-  try {
-    // Set typing indicator in Redis and emit via Pusher
-    console.log('[AI Reply] Setting typing indicator...');
-    await setTypingIndicator(chatId, 'assistant', true);
-    
-    // Add robust try-catch around the Pusher trigger
-    console.log('[AI Reply] Emitting typing indicator...');
+
+  // Add overall timeout to prevent hanging
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      console.error('[AI Reply] TIMEOUT: AI reply generation timed out after 90 seconds (internal)');
+      reject(new Error('AI reply generation timed out after 90 seconds'));
+    }, 90000); // 90 second timeout
+  });
+
+  const replyPromise = (async () => {
     try {
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
-      console.log('[AI Reply] Typing indicator emitted successfully');
-    } catch (pusherError) {
-      console.error('[AI Reply] ERROR: Failed to trigger Pusher typing indicator:', pusherError);
-      // Don't re-throw yet, let's see if the function continues
-    }
-    
-    // Immediately add another log here to see if execution continues past the try-catch
-    console.log('[AI Reply] After typing indicator attempt - proceeding to format state.');
+      // Set typing indicator in Redis first
+      console.log('[AI Reply] Setting typing indicator in Redis...');
+      await setTypingIndicator(chatId, 'assistant', true);
+      console.log('[AI Reply] Redis typing indicator set successfully');
+      
+      // START: CRITICAL DEBUGGING AREA
+      console.log('[AI Reply] Attempting to emit typing indicator via Pusher...');
+      try {
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
+        console.log('[AI Reply] SUCCESSFULLY emitted typing indicator via Pusher.');
+             } catch (pusherTriggerError) {
+         console.error('[AI Reply] ERROR: Failed to emit typing indicator via Pusher:', pusherTriggerError);
+         console.error('[AI Reply] Pusher error details:', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
+         // IMPORTANT: Re-throw this error for now to see if Vercel logs it
+         const errorMessage = pusherTriggerError instanceof Error ? pusherTriggerError.message : 'Unknown error';
+         throw new Error(`Pusher typing trigger failed: ${errorMessage}`, { cause: pusherTriggerError });
+       }
+      console.log('[AI Reply] Proceeding after typing indicator attempt.'); // This log is key!
+      // END: CRITICAL DEBUGGING AREA
     
     // Get current state
     console.log('[AI Reply] Formatting state for prompt...');
@@ -284,23 +296,20 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     console.log('[AI Reply] Generation complete');
     return { content: cleanedMessage };
     
-  } catch (error) {
-    console.error('[AI Reply] CRITICAL ERROR in generateAIReply:', error);
-    
-    // Ensure typing indicator is always reset on any error
-    try {
-      console.log('[AI Reply] Resetting typing indicator due to error...');
-      await setTypingIndicator(chatId, 'assistant', false);
+    } catch (mainError) {
+      console.error('[AI Reply] Main AI reply generation failed:', mainError);
+      console.error('[AI Reply] Main error details:', JSON.stringify(mainError, Object.getOwnPropertyNames(mainError)));
+      // Attempt to stop typing indicator on main error as well
       try {
+        await setTypingIndicator(chatId, 'assistant', false);
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-        console.log('[AI Reply] Typing indicator reset via Pusher successfully');
-      } catch (pusherError) {
-        console.error('[AI Reply] ERROR: Failed to reset typing indicator via Pusher in final catch:', pusherError);
+        console.log('[AI Reply] Typing indicator stopped successfully due to main error.');
+      } catch (cleanupError) {
+        console.error('[AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);
       }
-    } catch (redisError) {
-      console.error('[AI Reply] ERROR: Failed to reset typing indicator in Redis:', redisError);
+      throw mainError; // Re-throw to ensure Vercel sees the error
     }
-    
-    throw error;
-  }
+  })();
+
+  return Promise.race([replyPromise, timeoutPromise]);
 }
