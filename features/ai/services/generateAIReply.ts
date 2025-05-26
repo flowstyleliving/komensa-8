@@ -6,6 +6,7 @@
 import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
+import { setTypingIndicator } from '@/lib/redis';
 import { formatStateForPrompt } from './formatStateForPrompt';
 import { parseStateUpdate, parseStateUpdateAndCleanMessage } from './parseStateUpdate';
 import { generateJordanReply } from './generateJordanReply';
@@ -40,8 +41,9 @@ export async function generateAIReply({
   const turnManager = new TurnManager(chatId);
   
   try {
-    // Emit typing indicator
+    // Set typing indicator in Redis and emit via Pusher
     console.log('[AI Reply] Setting typing indicator...');
+    await setTypingIndicator(chatId, 'assistant', true);
     await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
     console.log('[AI Reply] Typing indicator set successfully');
     
@@ -162,12 +164,14 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     } catch (error) {
       console.error('[AI Reply] Failed to generate AI response:', error);
       // Stop typing indicator on error
+      await setTypingIndicator(chatId, 'assistant', false);
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       throw error;
     }
 
     // Stop typing indicator
     console.log('[AI Reply] Stopping typing indicator...');
+    await setTypingIndicator(chatId, 'assistant', false);
     await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
     console.log('[AI Reply] Typing indicator stopped');
 
@@ -262,6 +266,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Ensure typing indicator is always reset on any error
     try {
       console.log('[AI Reply] Resetting typing indicator due to error...');
+      await setTypingIndicator(chatId, 'assistant', false);
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       console.log('[AI Reply] Typing indicator reset successfully');
     } catch (pusherError) {

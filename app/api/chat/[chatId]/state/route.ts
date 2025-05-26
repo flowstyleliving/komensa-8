@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { redis } from '@/lib/redis';
+import { getTypingUsers } from '@/lib/redis';
 import { auth } from '@/lib/auth';
 import { TurnManager } from '@/features/chat/services/turnManager';
 
@@ -83,11 +83,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   }
 
-  // Optionally, fetch isAssistantTyping from Redis (or set to false if not used)
+  // Get typing users from Redis
+  let typingUsers: string[] = [];
   let isAssistantTyping = false;
   try {
-    const typing = await redis.get(`chat:${chatId}:assistant_typing`);
-    isAssistantTyping = Boolean(typing);
+    typingUsers = await getTypingUsers(chatId);
+    isAssistantTyping = typingUsers.includes('assistant');
   } catch {
     // ignore redis errors for now
   }
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     messages,
     currentTurn: turnState,
     isAssistantTyping,
+    typingUsers,
   });
 }
 

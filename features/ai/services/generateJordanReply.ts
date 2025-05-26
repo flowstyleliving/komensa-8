@@ -6,6 +6,7 @@
 import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
+import { setTypingIndicator } from '@/lib/redis';
 import { parseStateUpdateAndCleanMessage } from './parseStateUpdate';
 import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
@@ -27,7 +28,8 @@ export async function generateJordanReply({
   const channelName = getChatChannelName(chatId);
   const turnManager = new TurnManager(chatId);
   
-  // Emit typing indicator for Jordan
+  // Set typing indicator in Redis and emit via Pusher for Jordan
+  await setTypingIndicator(chatId, jordanUserId, true);
   await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
     userId: jordanUserId, 
     isTyping: true 
@@ -137,6 +139,7 @@ Respond naturally as Jordan. Keep your response conversational and authentic to 
   } catch (error) {
     console.error('[Jordan AI] Failed to generate Jordan response:', error);
     // Stop typing indicator on error
+    await setTypingIndicator(chatId, jordanUserId, false);
     await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
       userId: jordanUserId, 
       isTyping: false 
@@ -145,6 +148,7 @@ Respond naturally as Jordan. Keep your response conversational and authentic to 
   }
 
   // Stop typing indicator
+  await setTypingIndicator(chatId, jordanUserId, false);
   await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
     userId: jordanUserId, 
     isTyping: false 
