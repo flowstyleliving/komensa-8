@@ -8,3 +8,4 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({ message: 'Stripe API endpoint' });
 }
+

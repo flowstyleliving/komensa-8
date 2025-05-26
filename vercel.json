@@ -1,5 +1,31 @@
 {
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
   "env": {
-    "OPENAI_API_KEY": "@openai_api_key"
-  }
+    "OPENAI_API_KEY": "@openai_api_key",
+    "STRIPE_SECRET_KEY": "@stripe_secret_key",
+    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
+    "UPSTASH_REDIS_REST_URL": "@upstash_redis_rest_url",
+    "UPSTASH_REDIS_REST_TOKEN": "@upstash_redis_rest_token",
+    "DATABASE_URL": "@database_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "NEXTAUTH_URL": "@nextauth_url",
+    "PUSHER_KEY": "@pusher_key",
+    "PUSHER_CLUSTER": "@pusher_cluster",
+    "PUSHER_SECRET": "@pusher_secret",
+    "PUSHER_APP_ID": "@pusher_app_id",
+    "S3_UPLOAD_KEY": "@s3_upload_key",
+    "S3_UPLOAD_SECRET": "@s3_upload_secret",
+    "S3_UPLOAD_REGION": "@s3_upload_region",
+    "S3_UPLOAD_BUCKET": "@s3_upload_bucket",
+    "NODE_ENV": "production",
+    "VERCEL_ENV": "production"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"],
+  "framework": "nextjs"
 } 
