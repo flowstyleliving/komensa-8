@@ -22,7 +22,7 @@ class ExtensionRegistry {
       config: {
         phrases: [
           "Imagine how awesome this person can be!",
-          "Inhale then exhale with a sigh",
+          "Inhale, 1, 2, 3...",
           "What can you appreciate about them right now?"
         ],
         triggerCondition: 'user-typing'
