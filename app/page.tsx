@@ -29,10 +29,10 @@ export default function SplashPage() {
               <a href="#testimonials" className="text-[#3C4858] hover:text-[#D9C589] transition-colors">
                 Stories
               </a>
-              <Button variant="outline" className="border-[#3C4858]/20 text-[#3C4858] rounded-full">
+              <Button variant="outline" className="border-[#3C4858]/20 text-[#3C4858] rounded-xl">
                 Sign In
               </Button>
-              <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-full">Get Started</Button>
+              <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-xl">Get Started</Button>
             </div>
           </div>
         </div>
@@ -57,7 +57,7 @@ export default function SplashPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <Button
                 size="lg"
-                className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-8 py-4 text-lg rounded-full"
+                className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-8 py-4 text-lg rounded-xl"
               >
                 Start Your First Chat
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -65,7 +65,7 @@ export default function SplashPage() {
               <Button
                 size="lg"
                 variant="outline"
-                className="border-[#3C4858]/20 text-[#3C4858] px-8 py-4 text-lg rounded-full"
+                className="border-[#3C4858]/20 text-[#3C4858] px-8 py-4 text-lg rounded-xl"
               >
                 <Play className="mr-2 h-5 w-5" />
                 Watch Demo
@@ -74,7 +74,7 @@ export default function SplashPage() {
 
             {/* Hero Image/Preview */}
             <div className="relative max-w-4xl mx-auto">
-              <div className="bg-white rounded-2xl shadow-2xl border border-[#3C4858]/10 overflow-hidden">
+              <div className="bg-white rounded-xl shadow-2xl border border-[#3C4858]/10 overflow-hidden">
                 <div className="bg-gradient-to-r from-[#D8A7B1]/10 to-[#7BAFB0]/10 p-4 border-b border-[#3C4858]/10">
                   <div className="flex items-center space-x-2">
                     <div className="w-3 h-3 rounded-full bg-red-400"></div>
@@ -88,7 +88,7 @@ export default function SplashPage() {
                     <div className="w-8 h-8 rounded-full bg-[#D8A7B1] flex items-center justify-center text-white text-sm font-medium">
                       J
                     </div>
-                    <div className="bg-[#D8A7B1]/15 p-3 rounded-lg border-l-4 border-[#D8A7B1] flex-1">
+                    <div className="bg-[#D8A7B1]/15 p-3 rounded-xl border-l-4 border-[#D8A7B1] flex-1">
                       <div className="text-sm text-[#3C4858]">
                         I think we should set aside 20% of our income for savings each month.
                       </div>
@@ -98,7 +98,7 @@ export default function SplashPage() {
                     <div className="w-8 h-8 rounded-full bg-[#7BAFB0] flex items-center justify-center text-white text-sm font-medium">
                       A
                     </div>
-                    <div className="bg-[#7BAFB0]/15 p-3 rounded-lg border-l-4 border-[#7BAFB0] flex-1">
+                    <div className="bg-[#7BAFB0]/15 p-3 rounded-xl border-l-4 border-[#7BAFB0] flex-1">
                       <div className="text-sm text-[#3C4858]">
                         That seems high. Maybe 10% would be more realistic with our current expenses?
                       </div>
@@ -108,7 +108,7 @@ export default function SplashPage() {
                     <div className="w-8 h-8 rounded-full bg-[#D9C589] flex items-center justify-center text-white text-sm font-medium">
                       AI
                     </div>
-                    <div className="bg-[#D9C589]/15 p-3 rounded-lg border-l-4 border-[#D9C589] flex-1">
+                    <div className="bg-[#D9C589]/15 p-3 rounded-xl border-l-4 border-[#D9C589] flex-1">
                       <div className="text-sm text-[#3C4858]">
                         I understand both perspectives. Let's explore a middle ground that works for both of you...
                       </div>
@@ -180,7 +180,7 @@ export default function SplashPage() {
               </div>
               <h3 className="text-xl font-semibold text-[#3C4858] mb-2">Choose a Topic</h3>
               <p className="text-[#3C4858]/70">
-                Select from common relationship topics or create your own discussion theme
+                Select your own discussion theme from shared chores to parenting.
               </p>
             </div>
 
