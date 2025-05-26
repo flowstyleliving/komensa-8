@@ -1,0 +1,243 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Komensa "Balanced Harmony" Color Palette */
+  --color-dusty-rose: #d8a7b1;
+  --color-teal: #7bafb0;
+  --color-soft-gold: #d9c589;
+  --color-charcoal: #3c4858;
+  --color-off-white: #f9f7f4;
+
+  /* State colors */
+  --color-success: #6db0ad;
+  --color-warning: #e5c068;
+  --color-error: #e39aa7;
+
+  /* Functional assignments */
+  --color-background: var(--color-off-white);
+  --color-text: var(--color-charcoal);
+  --color-partner-a: var(--color-dusty-rose);
+  --color-partner-b: var(--color-teal);
+  --color-moderator: var(--color-soft-gold);
+
+  /* Dark mode variants (if needed) */
+  --color-dark-bg: #2a333f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: var(--color-dark-bg);
+    --color-text: var(--color-off-white);
+    --color-dusty-rose: #e0a1ae;
+    --color-teal: #6bb3b5;
+    --color-soft-gold: #e6c869;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Custom scrollbar for chat areas */
+  .chat-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .chat-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-charcoal);
+    opacity: 0.2;
+    border-radius: 3px;
+  }
+
+  .chat-scroll::-webkit-scrollbar-thumb:hover {
+    opacity: 0.4;
+  }
+}
+
+@layer components {
+  /* Custom gradient backgrounds */
+  .gradient-partner-a {
+    background: linear-gradient(135deg, var(--color-dusty-rose), var(--color-soft-gold));
+  }
+
+  .gradient-partner-b {
+    background: linear-gradient(135deg, var(--color-teal), var(--color-soft-gold));
+  }
+
+  .gradient-balanced {
+    background: linear-gradient(135deg, var(--color-dusty-rose), var(--color-teal));
+  }
+
+  /* Message bubble animations */
+  .message-enter {
+    animation: messageSlideIn 0.3s ease-out;
+  }
+
+  @keyframes messageSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Typing indicator animation */
+  .typing-dot {
+    animation: typingBounce 1.4s infinite ease-in-out;
+  }
+
+  .typing-dot:nth-child(1) {
+    animation-delay: -0.32s;
+  }
+
+  .typing-dot:nth-child(2) {
+    animation-delay: -0.16s;
+  }
+
+  @keyframes typingBounce {
+    0%,
+    80%,
+    100% {
+      transform: scale(0);
+    }
+    40% {
+      transform: scale(1);
+    }
+  }
+
+  /* Focus states for accessibility */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .focus-ring-partner-a {
+    @apply focus-ring focus:ring-[#D8A7B1];
+  }
+
+  .focus-ring-partner-b {
+    @apply focus-ring focus:ring-[#7BAFB0];
+  }
+
+  .focus-ring-moderator {
+    @apply focus-ring focus:ring-[#D9C589];
+  }
+}
+
+@layer utilities {
+  /* Text color utilities for brand colors */
+  .text-partner-a {
+    color: var(--color-dusty-rose);
+  }
+
+  .text-partner-b {
+    color: var(--color-teal);
+  }
+
+  .text-moderator {
+    color: var(--color-soft-gold);
+  }
+
+  /* Background color utilities */
+  .bg-partner-a {
+    background-color: var(--color-dusty-rose);
+  }
+
+  .bg-partner-b {
+    background-color: var(--color-teal);
+  }
+
+  .bg-moderator {
+    background-color: var(--color-soft-gold);
+  }
+
+  /* Border color utilities */
+  .border-partner-a {
+    border-color: var(--color-dusty-rose);
+  }
+
+  .border-partner-b {
+    border-color: var(--color-teal);
+  }
+
+  .border-moderator {
+    border-color: var(--color-soft-gold);
+  }
+
+  /* Opacity variants */
+  .bg-partner-a-10 {
+    background-color: rgb(216 167 177 / 0.1);
+  }
+
+  .bg-partner-a-15 {
+    background-color: rgb(216 167 177 / 0.15);
+  }
+
+  .bg-partner-a-20 {
+    background-color: rgb(216 167 177 / 0.2);
+  }
+
+  .bg-partner-b-10 {
+    background-color: rgb(123 175 176 / 0.1);
+  }
+
+  .bg-partner-b-15 {
+    background-color: rgb(123 175 176 / 0.15);
+  }
+
+  .bg-partner-b-20 {
+    background-color: rgb(123 175 176 / 0.2);
+  }
+
+  .bg-moderator-10 {
+    background-color: rgb(217 197 137 / 0.1);
+  }
+
+  .bg-moderator-15 {
+    background-color: rgb(217 197 137 / 0.15);
+  }
+
+  .bg-moderator-20 {
+    background-color: rgb(217 197 137 / 0.2);
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .message-enter,
+  .typing-dot {
+    animation: none;
+  }
+
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
