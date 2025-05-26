@@ -1,55 +1,40 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { DEMO_CONSTANTS } from '@/components/demo/constants';
 
 interface DemoModalState {
-  showModal: boolean;
   showCalendlyModal: boolean;
-  aiResponseCount: number;
-  dismissModal: () => void;
+  userAResponseCount: number;
   dismissCalendlyModal: () => void;
   checkShouldShowModal: (messages: any[]) => void;
 }
 
 export function useDemoModal(): DemoModalState {
-  const [showModal, setShowModal] = useState(false);
   const [showCalendlyModal, setShowCalendlyModal] = useState(false);
-  const [aiResponseCount, setAiResponseCount] = useState(0);
-
-  const dismissModal = () => {
-    setShowModal(false);
-  };
+  const [userAResponseCount, setUserAResponseCount] = useState(0);
 
   const dismissCalendlyModal = () => {
     setShowCalendlyModal(false);
   };
 
   const checkShouldShowModal = (messages: any[]) => {
-    // Count AI responses (messages from 'assistant')
-    const aiResponses = messages.filter(
-      msg => msg.data?.senderId === 'assistant'
+    // Count User A responses (messages from 'user_a')
+    const userAResponses = messages.filter(
+      msg => msg.data?.senderId === 'user_a'
     );
     
-    const newCount = aiResponses.length;
-    setAiResponseCount(newCount);
+    const newCount = userAResponses.length;
+    setUserAResponseCount(newCount);
     
-    // Show first modal after 3 AI responses
-    if (newCount >= DEMO_CONSTANTS.AI_RESPONSE_THRESHOLD && !showModal) {
-      setShowModal(true);
-    }
-    
-    // Show Calendly modal after 7 AI responses
-    if (newCount >= DEMO_CONSTANTS.CALENDLY_THRESHOLD && !showCalendlyModal) {
+    // Show Calendly modal after 3rd User A response
+    if (newCount >= 3 && !showCalendlyModal) {
       setShowCalendlyModal(true);
     }
   };
 
   return {
-    showModal,
     showCalendlyModal,
-    aiResponseCount,
-    dismissModal,
+    userAResponseCount,
     dismissCalendlyModal,
     checkShouldShowModal
   };

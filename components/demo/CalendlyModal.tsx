@@ -7,10 +7,10 @@ import { DEMO_CONSTANTS } from './constants';
 
 interface CalendlyModalProps {
   onClose: () => void;
-  aiResponseCount: number;
+  userAResponseCount: number;
 }
 
-export function CalendlyModal({ onClose, aiResponseCount }: CalendlyModalProps) {
+export function CalendlyModal({ onClose, userAResponseCount }: CalendlyModalProps) {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-4xl h-[90vh] shadow-2xl border border-[#3C4858]/10 overflow-hidden">
@@ -32,7 +32,7 @@ export function CalendlyModal({ onClose, aiResponseCount }: CalendlyModalProps) 
                 Ready to Experience Komensa?
               </h2>
               <p className="text-white/90 text-sm">
-                You've seen {aiResponseCount} AI responses in action. Let's discuss how Komensa can help your team.
+                You've made {userAResponseCount} responses in this demo. Let's discuss how Komensa can help your team.
               </p>
             </div>
           </div>

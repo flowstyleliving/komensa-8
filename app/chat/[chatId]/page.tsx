@@ -5,7 +5,6 @@ import { useDemoChat } from '@/hooks/useDemoChat';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { DemoModal } from '@/components/demo/DemoModal';
 import { CalendlyModal } from '@/components/demo/CalendlyModal';
 import type { Event } from '@prisma/client';
 import { MessageCircle, Users, ArrowLeft } from 'lucide-react';
@@ -131,19 +130,11 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
         </div>
       </div>
 
-      {/* Demo Modal */}
-      {isDemoDetected && 'showModal' in chat && chat.showModal && (
-        <DemoModal 
-          onClose={chat.dismissModal}
-          aiResponseCount={chat.aiResponseCount}
-        />
-      )}
-
       {/* Calendly Modal */}
       {isDemoDetected && 'showCalendlyModal' in chat && chat.showCalendlyModal && (
         <CalendlyModal 
           onClose={chat.dismissCalendlyModal}
-          aiResponseCount={chat.aiResponseCount}
+          userAResponseCount={chat.userAResponseCount}
         />
       )}
     </div>

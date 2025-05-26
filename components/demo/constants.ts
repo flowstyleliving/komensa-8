@@ -2,8 +2,7 @@
 
 export const DEMO_CONSTANTS = {
   // Modal thresholds
-  AI_RESPONSE_THRESHOLD: 3,        // Show first demo modal after 3 AI responses
-  CALENDLY_THRESHOLD: 7,           // Show Calendly modal after 7 AI responses
+  USER_A_RESPONSE_THRESHOLD: 3,    // Show Calendly modal after 3 User A responses
   
   // User display names
   USER_A_DISPLAY_NAME: 'User A',
@@ -11,7 +10,7 @@ export const DEMO_CONSTANTS = {
   MEDIATOR_DISPLAY_NAME: 'AI Mediator',
   
   // Calendly configuration
-  CALENDLY_URL: 'https://calendly.com/your-calendly-link', // TODO: Replace with your actual Calendly link
+  CALENDLY_URL: 'https://calendly.com/msrkittty-proton/25min', // TODO: Replace with your actual Calendly link
   
   // Demo detection
   DEMO_URL_PARAM: 'demo=true',
