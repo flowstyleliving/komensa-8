@@ -1,4 +1,8 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
   "/demo/page": "app/demo/page.js",
-  "/chat/[chatId]/page": "app/chat/[chatId]/page.js"
+  "/api/demo/seed/route": "app/api/demo/seed/route.js",
+  "/api/auth/[...nextauth]/route": "app/api/auth/[...nextauth]/route.js",
+  "/chat/[chatId]/page": "app/chat/[chatId]/page.js",
+  "/api/chat/[chatId]/state/route": "app/api/chat/[chatId]/state/route.js"
 }
