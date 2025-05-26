@@ -144,6 +144,21 @@ export async function POST(req: NextRequest) {
   generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
     console.error('[AI] Failed to generate reply:', err);
     
+    // Enhanced error logging
+    if (err instanceof Error) {
+      console.error('[AI] Error message:', err.message);
+      console.error('[AI] Error stack:', err.stack);
+      if (err.cause) {
+        console.error('[AI] Error cause:', err.cause);
+      }
+      // Log all enumerable properties
+      for (const key in err) {
+        console.error(`[AI] Error property ${key}:`, (err as any)[key]);
+      }
+    } else {
+      console.error('[AI] Error (not an Error object):', err);
+    }
+    
     // Ensure typing indicator is reset on error (both Redis and Pusher)
     try {
       await setTypingIndicator(chatId, 'assistant', false);

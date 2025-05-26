@@ -55,19 +55,19 @@ export async function generateAIReply({
       await setTypingIndicator(chatId, 'assistant', true);
       console.log('[AI Reply] Redis typing indicator set successfully');
       
-      // START: CRITICAL DEBUGGING AREA
-      console.log('[AI Reply] Attempting to emit typing indicator via Pusher...');
-      try {
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
-        console.log('[AI Reply] SUCCESSFULLY emitted typing indicator via Pusher.');
-             } catch (pusherTriggerError) {
-         console.error('[AI Reply] ERROR: Failed to emit typing indicator via Pusher:', pusherTriggerError);
-         console.error('[AI Reply] Pusher error details:', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
-         // IMPORTANT: Re-throw this error for now to see if Vercel logs it
-         const errorMessage = pusherTriggerError instanceof Error ? pusherTriggerError.message : 'Unknown error';
-         throw new Error(`Pusher typing trigger failed: ${errorMessage}`, { cause: pusherTriggerError });
-       }
-      console.log('[AI Reply] Proceeding after typing indicator attempt.'); // This log is key!
+            // START: CRITICAL DEBUGGING AREA - NON-AWAIT TEST
+      console.log('[AI Reply] Attempting to emit typing indicator via Pusher (NON-AWAIT TEST)...');
+      // IMPORTANT: Temporarily remove await and add a .catch to it directly
+      pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true })
+        .catch(pusherTriggerError => {
+          console.error('[AI Reply] Caught Pusher trigger error (non-await):', pusherTriggerError);
+          console.error('[AI Reply] Pusher error details (non-await):', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
+          if (pusherTriggerError instanceof Error) {
+            console.error('[AI Reply] Pusher error message (non-await):', pusherTriggerError.message);
+            console.error('[AI Reply] Pusher error stack (non-await):', pusherTriggerError.stack);
+          }
+        });
+      console.log('[AI Reply] Proceeding immediately after non-await Pusher trigger attempt.'); // This log is key!
       // END: CRITICAL DEBUGGING AREA
     
     // Get current state
@@ -298,7 +298,22 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     
     } catch (mainError) {
       console.error('[AI Reply] Main AI reply generation failed:', mainError);
-      console.error('[AI Reply] Main error details:', JSON.stringify(mainError, Object.getOwnPropertyNames(mainError)));
+      
+      // Enhanced error logging
+      if (mainError instanceof Error) {
+        console.error('[AI Reply] Main error message:', mainError.message);
+        console.error('[AI Reply] Main error stack:', mainError.stack);
+        if (mainError.cause) {
+          console.error('[AI Reply] Main error cause:', mainError.cause);
+        }
+        // Log all enumerable properties
+        for (const key in mainError) {
+          console.error(`[AI Reply] Main error property ${key}:`, (mainError as any)[key]);
+        }
+      } else {
+        console.error('[AI Reply] Main error (not an Error object):', mainError);
+      }
+      
       // Attempt to stop typing indicator on main error as well
       try {
         await setTypingIndicator(chatId, 'assistant', false);
