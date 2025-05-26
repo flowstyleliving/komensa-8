@@ -48,7 +48,7 @@ export function ChatInput({ onSend, disabled = false, placeholder = "Share your 
         <button
           type="submit"
           disabled={disabled || !content.trim()}
-          className="px-6 py-3 bg-gradient-to-r from-[#D8A7B1] to-[#D9C589] text-white rounded-xl hover:from-[#C99BA4] hover:to-[#CDB876] focus:outline-none focus:ring-2 focus:ring-[#D8A7B1]/50 disabled:from-[#D8A7B1]/50 disabled:to-[#D9C589]/50 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-sm transition-all duration-200 transform hover:scale-105 active:scale-95"
+          className="px-6 py-3 bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white rounded-xl hover:from-[#6D9E9F] hover:to-[#C99BA4] focus:outline-none focus:ring-2 focus:ring-[#7BAFB0]/30 focus:ring-offset-2 focus:ring-offset-white disabled:from-[#7BAFB0]/40 disabled:to-[#D8A7B1]/40 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md active:scale-[0.98] active:shadow-sm"
         >
           <Send className="h-4 w-4" />
           Send
