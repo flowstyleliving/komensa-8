@@ -272,6 +272,7 @@ export default function SplashPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="flex-1 bg-white border-[#3C4858]/20"
+              disabled
             />
             <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-6">Get Started</Button>
           </div>
