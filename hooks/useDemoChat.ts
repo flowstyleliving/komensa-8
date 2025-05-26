@@ -11,8 +11,11 @@ interface DemoChatReturn {
   sendMessage: (content: string) => Promise<void>;
   canSendMessage: () => boolean;
   // Demo-specific additions
+  showModal: boolean;
   showCalendlyModal: boolean;
+  aiResponseCount: number;
   userAResponseCount: number;
+  dismissModal: () => void;
   dismissCalendlyModal: () => void;
   isDemoChat: boolean;
 }
@@ -40,8 +43,11 @@ export function useDemoChat(chatId: string): DemoChatReturn {
 
   return {
     ...chat,
+    showModal: modal.showModal,
     showCalendlyModal: modal.showCalendlyModal,
+    aiResponseCount: modal.aiResponseCount,
     userAResponseCount: modal.userAResponseCount,
+    dismissModal: modal.dismissModal,
     dismissCalendlyModal: modal.dismissCalendlyModal,
     isDemoChat
   };

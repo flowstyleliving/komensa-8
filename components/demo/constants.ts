@@ -2,7 +2,7 @@
 
 export const DEMO_CONSTANTS = {
   // Modal thresholds
-  USER_A_RESPONSE_THRESHOLD: 3,    // Show Calendly modal after 3 User A responses
+  USER_A_CALENDLY_THRESHOLD: 3,    // Show Calendly modal after 3 User A responses
   
   // User display names
   USER_A_DISPLAY_NAME: 'User A',
