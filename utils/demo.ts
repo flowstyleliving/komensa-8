@@ -1,22 +1,51 @@
 // Demo-related constants and utilities
 
-export const DEMO_CONSTANTS = {
-  AI_RESPONSE_THRESHOLD: 3,
-  USER_A_DISPLAY_NAME: 'User A',
-  PARTNER_DISPLAY_NAME: 'Jordan',
-  MEDIATOR_DISPLAY_NAME: 'AI Mediator'
-} as const;
+import { DEMO_CONSTANTS } from '@/components/demo/constants';
+
+// Cache demo detection result to avoid repeated checks
+let demoDetectionCache: boolean | null = null;
 
 /**
- * Detects if the current session is a demo chat
+ * Efficiently detect if the current session is a demo
+ * Uses caching to avoid repeated URL/cookie parsing
  */
-export function isDemoChat(): boolean {
-  if (typeof window === 'undefined') return false;
+export function isDemoSession(): boolean {
+  // Return cached result if available
+  if (demoDetectionCache !== null) {
+    return demoDetectionCache;
+  }
+
+  // Server-side rendering check
+  if (typeof window === 'undefined') {
+    demoDetectionCache = false;
+    return false;
+  }
+
+  // Check URL parameters and cookies
+  const urlHasDemo = window.location.search.includes(DEMO_CONSTANTS.DEMO_URL_PARAM);
+  const cookieHasDemo = document.cookie.includes(DEMO_CONSTANTS.DEMO_COOKIE_NAME);
   
-  return (
-    window.location.search.includes('demo=true') ||
-    document.cookie.includes('demo_user=')
-  );
+  demoDetectionCache = urlHasDemo || cookieHasDemo;
+  return demoDetectionCache;
+}
+
+/**
+ * Reset demo detection cache (useful for testing or when demo state changes)
+ */
+export function resetDemoDetection(): void {
+  demoDetectionCache = null;
+}
+
+/**
+ * Set demo mode programmatically
+ */
+export function setDemoMode(isDemo: boolean): void {
+  demoDetectionCache = isDemo;
+  
+  if (isDemo && typeof window !== 'undefined') {
+    // Set demo cookie for persistence
+    document.cookie = `${DEMO_CONSTANTS.DEMO_COOKIE_NAME}=true; path=/; max-age=86400`; // 24 hours
+  }
 }
 
 /**

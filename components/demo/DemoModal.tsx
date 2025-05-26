@@ -2,13 +2,14 @@
 
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Sparkles, ArrowRight } from 'lucide-react';
+import { memo } from 'react';
 
 interface DemoModalProps {
   onClose: () => void;
   aiResponseCount: number;
 }
 
-export function DemoModal({ onClose, aiResponseCount }: DemoModalProps) {
+export const DemoModal = memo(function DemoModal({ onClose, aiResponseCount }: DemoModalProps) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl p-8 max-w-md w-full shadow-2xl border border-[#3C4858]/10">
@@ -65,4 +66,4 @@ export function DemoModal({ onClose, aiResponseCount }: DemoModalProps) {
       </div>
     </div>
   );
-} 
+}); 

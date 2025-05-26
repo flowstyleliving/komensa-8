@@ -12,7 +12,8 @@ import { MessageCircle, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
+import { isDemoSession } from '@/utils/demo';
 
 interface MessageData {
   content: string;
@@ -20,20 +21,12 @@ interface MessageData {
 }
 
 export default function ChatPage({ params }: { params: { chatId: string } }) {
-  const [isDemoDetected, setIsDemoDetected] = useState(false);
-  
-  // Detect if this is a demo chat
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const isDemo = window.location.search.includes('demo=true') || 
-                     document.cookie.includes('demo_user=');
-      setIsDemoDetected(isDemo);
-    }
-  }, []);
+  // Efficiently detect demo mode once and memoize the result
+  const isDemoDetected = useMemo(() => isDemoSession(), []);
 
   // Use appropriate hook based on demo detection
   const regularChat = useChat(params.chatId);
-  const demoChat = useDemoChat(params.chatId);
+  const demoChat = useDemoChat(params.chatId, isDemoDetected);
   
   const chat = isDemoDetected ? demoChat : regularChat;
   const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage } = chat;
@@ -143,7 +136,7 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
       {isDemoDetected && 'showCalendlyModal' in chat && chat.showCalendlyModal && (
         <CalendlyModal 
           onClose={chat.dismissCalendlyModal}
-          userAResponseCount={chat.userAResponseCount}
+          aiResponseCount={chat.aiResponseCount}
         />
       )}
     </div>
