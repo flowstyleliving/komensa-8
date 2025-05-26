@@ -7,8 +7,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .yarn/
-.next/ # Next.js build output
-.vercel/ # Vercel specific build output / cache
+.next/ 
+.vercel/ 
 
 # Environment variables
 .env
