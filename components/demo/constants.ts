@@ -2,8 +2,8 @@
 
 export const DEMO_CONSTANTS = {
   // Modal thresholds
-  AI_RESPONSE_THRESHOLD: 3,        // Show first demo modal after 3 AI responses
-  CALENDLY_THRESHOLD: 4,           // Show Calendly modal after 7 AI responses
+  AI_RESPONSE_THRESHOLD: 3,        // Legacy - no longer used
+  CALENDLY_THRESHOLD: 4,           // Show Calendly modal after 4 AI responses
   
   // User display names
   USER_A_DISPLAY_NAME: 'User A',
