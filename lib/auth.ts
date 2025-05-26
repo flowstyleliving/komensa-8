@@ -1,10 +1,28 @@
 // GPT CONTEXT:
-// This file provides a helper for retrieving the current authenticated session using NextAuth.
+// This file provides NextAuth configuration and session helpers.
 // Related modules: /app/api/messages/route.ts, /lib/prisma.ts
-// Do NOT modify NextAuth config directly here.
 
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/[...nextauth]/route';
+import { PrismaAdapter } from '@auth/prisma-adapter'
+import { prisma } from '@/lib/prisma'
+import { NextAuthOptions } from 'next-auth'
+import GoogleProvider from 'next-auth/providers/google';
+
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    })
+  ],
+  session: {
+    strategy: 'jwt'
+  },
+  pages: {
+    signIn: '/login'
+  }
+}
 
 export async function auth() {
   return await getServerSession(authOptions);
