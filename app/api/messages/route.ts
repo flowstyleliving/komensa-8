@@ -139,9 +139,17 @@ export async function POST(req: NextRequest) {
     await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: 'assistant' });
   }
 
-  // Begin AI response
-  generateAIReply({ chatId, userId: senderId, userMessage: content }).catch((err) => {
+  // Begin AI response with better error handling
+  generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
     console.error('[AI] Failed to generate reply:', err);
+    
+    // Ensure typing indicator is reset on error
+    try {
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+      console.log('[AI] Typing indicator reset after error');
+    } catch (pusherError) {
+      console.error('[AI] Failed to reset typing indicator:', pusherError);
+    }
   });
   console.log('[Messages API] AI reply generation started');
 

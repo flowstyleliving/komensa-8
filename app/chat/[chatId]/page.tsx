@@ -9,7 +9,6 @@ import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { DemoModal } from '@/components/demo/DemoModal';
 import { CalendlyModal } from '@/components/demo/CalendlyModal';
-import type { Event } from '@prisma/client';
 import { MessageCircle, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';

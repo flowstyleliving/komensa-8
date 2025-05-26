@@ -112,7 +112,17 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     );
     console.log('[AI Reply] Initial run status:', completedRun.status);
     
+    // Add timeout to prevent infinite polling (max 2 minutes)
+    const maxWaitTime = 120000; // 2 minutes
+    const startTime = Date.now();
+    
     while (completedRun.status === 'in_progress' || completedRun.status === 'queued') {
+      // Check timeout
+      if (Date.now() - startTime > maxWaitTime) {
+        console.error('[AI Reply] Run timed out after 2 minutes');
+        throw new Error('AI run timed out after 2 minutes');
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
       try {
         completedRun = await runWithRetries(() =>
