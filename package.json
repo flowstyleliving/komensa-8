@@ -14,6 +14,7 @@
     "lint": "next lint",
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
+    "postinstall": "prisma generate",
     "seed": "tsx prisma/seed.ts",
     "load:extensions": "tsx scripts/loadExtensionsFromNode.ts",
     "test": "jest --runInBand",
