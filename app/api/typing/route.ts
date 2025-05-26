@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { setTypingIndicator } from '@/lib/redis';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { auth } from '@/lib/auth';
+import { TurnManager } from '@/features/chat/services/turnManager';
+import { prisma } from '@/lib/prisma';
 
 // Helper function to get user ID from session or demo cookie
 function getUserId(req: NextRequest, session: any) {
@@ -39,6 +41,23 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Check if this is a demo chat and validate turn-taking
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { origin: true }
+    });
+
+    if (chat?.origin === 'demo' && isTyping) {
+      // For demo chats, only allow typing if it's the user's turn
+      const turnManager = new TurnManager(chatId);
+      const canType = await turnManager.canUserSendMessage(userId);
+      
+      if (!canType) {
+        console.log('[Typing API] User cannot type - not their turn:', { userId, chatId });
+        return NextResponse.json({ error: 'Not your turn to type' }, { status: 403 });
+      }
+    }
+
     // Set typing indicator in Redis
     await setTypingIndicator(chatId, userId, isTyping);
     

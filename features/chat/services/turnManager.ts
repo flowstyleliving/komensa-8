@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
+import { setTypingIndicator, getTypingUsers } from '@/lib/redis';
 
 // Define the roles in the demo chat
 export const DEMO_ROLES = {
@@ -155,6 +156,28 @@ export class TurnEventEmitter {
       next_user_id: state.next_user_id 
     });
   }
+
+  // Clear typing indicators for users who are no longer in turn
+  async clearStaleTypingIndicators(newActiveUserId?: string): Promise<void> {
+    try {
+      const typingUsers = await getTypingUsers(this.chatId);
+      const channelName = getChatChannelName(this.chatId);
+      
+      for (const userId of typingUsers) {
+        // Clear typing for users who are not the new active user
+        if (userId !== newActiveUserId && userId !== 'assistant') {
+          await setTypingIndicator(this.chatId, userId, false);
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, {
+            userId,
+            isTyping: false
+          });
+          console.log('[TurnEventEmitter] Cleared stale typing indicator for user:', userId);
+        }
+      }
+    } catch (error) {
+      console.error('[TurnEventEmitter] Failed to clear stale typing indicators:', error);
+    }
+  }
 }
 
 // Main turn manager - orchestrates the components
@@ -222,6 +245,9 @@ export class TurnManager {
     };
 
     await this.stateManager.updateTurnState(newState);
+    
+    // Clear stale typing indicators before emitting turn update
+    await this.eventEmitter.clearStaleTypingIndicators(nextUserId || undefined);
     await this.eventEmitter.emitTurnUpdate(newState);
 
     return newState;
@@ -252,6 +278,9 @@ export class TurnManager {
     };
 
     await this.stateManager.updateTurnState(newState);
+    
+    // Clear stale typing indicators before emitting turn update
+    await this.eventEmitter.clearStaleTypingIndicators(userId || undefined);
     await this.eventEmitter.emitTurnUpdate(newState);
 
     return newState;
@@ -281,6 +310,8 @@ export class TurnManager {
   async getUserIdForRole(role: string): Promise<string | null> {
     return this.roleResolver.getUserIdForRole(this.chatId, role);
   }
+
+
 }
 
 // Factory functions for different chat types

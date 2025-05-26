@@ -9,6 +9,7 @@ import { auth } from '@/lib/auth';
 import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
+import { setTypingIndicator } from '@/lib/redis';
 
 // Helper function to get user ID from session or demo cookie
 function getUserId(req: NextRequest, session: any) {
@@ -143,8 +144,9 @@ export async function POST(req: NextRequest) {
   generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
     console.error('[AI] Failed to generate reply:', err);
     
-    // Ensure typing indicator is reset on error
+    // Ensure typing indicator is reset on error (both Redis and Pusher)
     try {
+      await setTypingIndicator(chatId, 'assistant', false);
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       console.log('[AI] Typing indicator reset after error');
     } catch (pusherError) {
