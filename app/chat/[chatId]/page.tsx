@@ -128,7 +128,7 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
       {isDemoDetected && 'showModal' in chat && chat.showModal && (
         <DemoModal 
           onClose={chat.dismissModal}
-          aiResponseCount={chat.userAResponseCount}
+          aiResponseCount={chat.aiResponseCount}
         />
       )}
 
@@ -136,7 +136,7 @@ export default function ChatPage({ params }: { params: { chatId: string } }) {
       {isDemoDetected && 'showCalendlyModal' in chat && chat.showCalendlyModal && (
         <CalendlyModal 
           onClose={chat.dismissCalendlyModal}
-          aiResponseCount={chat.userAResponseCount}
+          aiResponseCount={chat.aiResponseCount}
         />
       )}
     </div>

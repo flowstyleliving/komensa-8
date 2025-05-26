@@ -14,7 +14,7 @@ interface DemoChatReturn {
   // Demo-specific additions
   showModal: boolean;
   showCalendlyModal: boolean;
-  userAResponseCount: number;
+  aiResponseCount: number;
   dismissModal: () => void;
   dismissCalendlyModal: () => void;
   isDemoChat: boolean;
@@ -37,7 +37,7 @@ export function useDemoChat(chatId: string, isDemoChat: boolean): DemoChatReturn
     ...chat,
     showModal: modal.showModal,
     showCalendlyModal: modal.showCalendlyModal,
-    userAResponseCount: modal.userAResponseCount,
+    aiResponseCount: modal.aiResponseCount,
     dismissModal: modal.dismissModal,
     dismissCalendlyModal: modal.dismissCalendlyModal,
     isDemoChat
@@ -45,7 +45,7 @@ export function useDemoChat(chatId: string, isDemoChat: boolean): DemoChatReturn
     chat, 
     modal.showModal,
     modal.showCalendlyModal, 
-    modal.userAResponseCount, 
+    modal.aiResponseCount, 
     modal.dismissModal,
     modal.dismissCalendlyModal, 
     isDemoChat

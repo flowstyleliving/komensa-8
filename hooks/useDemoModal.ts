@@ -6,7 +6,7 @@ import { DEMO_CONSTANTS } from '@/components/demo/constants';
 interface DemoModalState {
   showModal: boolean;
   showCalendlyModal: boolean;
-  userAResponseCount: number;
+  aiResponseCount: number;
   dismissModal: () => void;
   dismissCalendlyModal: () => void;
   checkShouldShowModal: (messages: any[]) => void;
@@ -15,7 +15,7 @@ interface DemoModalState {
 export function useDemoModal(): DemoModalState {
   const [showModal, setShowModal] = useState(false);
   const [showCalendlyModal, setShowCalendlyModal] = useState(false);
-  const [userAResponseCount, setUserAResponseCount] = useState(0);
+  const [aiResponseCount, setAiResponseCount] = useState(0);
   const [modalDismissed, setModalDismissed] = useState(false);
   const [calendlyDismissed, setCalendlyDismissed] = useState(false);
 
@@ -34,26 +34,26 @@ export function useDemoModal(): DemoModalState {
     // Early return if no messages
     if (!messages || messages.length === 0) return;
     
-    // Count User A responses efficiently
-    let userACount = 0;
+    // Count AI responses efficiently
+    let aiCount = 0;
     
     for (const msg of messages) {
-      if (msg.data?.senderId === 'user_a') {
-        userACount++;
+      if (msg.data?.senderId === 'assistant') {
+        aiCount++;
         // Early exit optimization - no need to count beyond threshold
-        if (userACount >= DEMO_CONSTANTS.CALENDLY_THRESHOLD) break;
+        if (aiCount >= DEMO_CONSTANTS.CALENDLY_THRESHOLD) break;
       }
     }
     
-    setUserAResponseCount(userACount);
+    setAiResponseCount(aiCount);
     
-    // Show first modal after 3 User A responses (if not dismissed)
-    if (userACount >= DEMO_CONSTANTS.AI_RESPONSE_THRESHOLD && !showModal && !modalDismissed) {
+    // Show first modal after 5 AI responses (if not dismissed)
+    if (aiCount >= DEMO_CONSTANTS.AI_RESPONSE_THRESHOLD && !showModal && !modalDismissed) {
       setShowModal(true);
     }
     
-    // Show Calendly modal after 4 User A responses (if not dismissed)
-    if (userACount >= DEMO_CONSTANTS.CALENDLY_THRESHOLD && !showCalendlyModal && !calendlyDismissed) {
+    // Show Calendly modal after 7 AI responses (if not dismissed)
+    if (aiCount >= DEMO_CONSTANTS.CALENDLY_THRESHOLD && !showCalendlyModal && !calendlyDismissed) {
       setShowCalendlyModal(true);
     }
   }, [showModal, showCalendlyModal, modalDismissed, calendlyDismissed]);
@@ -62,9 +62,9 @@ export function useDemoModal(): DemoModalState {
   return useMemo(() => ({
     showModal,
     showCalendlyModal,
-    userAResponseCount,
+    aiResponseCount,
     dismissModal,
     dismissCalendlyModal,
     checkShouldShowModal
-  }), [showModal, showCalendlyModal, userAResponseCount, dismissModal, dismissCalendlyModal, checkShouldShowModal]);
+  }), [showModal, showCalendlyModal, aiResponseCount, dismissModal, dismissCalendlyModal, checkShouldShowModal]);
 } 
