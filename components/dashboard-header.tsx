@@ -1,6 +1,5 @@
 import { Bell, Search } from "lucide-react"
 import Image from "next/image"
-import KomensaLogo from "@/public/icons/komensa-logo.png"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -10,7 +9,7 @@ export function DashboardHeader() {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <Image src={KomensaLogo} alt="Komensa" width={120} height={40} className="h-8 w-auto" />
+            <Image src="/images/komensa-logo.png" alt="Komensa" width={120} height={40} className="h-8 w-auto" />
             <div className="hidden md:flex ml-8 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#3C4858]/50" />
               <Input
