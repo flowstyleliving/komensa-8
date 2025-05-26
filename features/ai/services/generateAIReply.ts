@@ -44,8 +44,19 @@ export async function generateAIReply({
     // Set typing indicator in Redis and emit via Pusher
     console.log('[AI Reply] Setting typing indicator...');
     await setTypingIndicator(chatId, 'assistant', true);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
-    console.log('[AI Reply] Typing indicator set successfully');
+    
+    // Add robust try-catch around the Pusher trigger
+    console.log('[AI Reply] Emitting typing indicator...');
+    try {
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
+      console.log('[AI Reply] Typing indicator emitted successfully');
+    } catch (pusherError) {
+      console.error('[AI Reply] ERROR: Failed to trigger Pusher typing indicator:', pusherError);
+      // Don't re-throw yet, let's see if the function continues
+    }
+    
+    // Immediately add another log here to see if execution continues past the try-catch
+    console.log('[AI Reply] After typing indicator attempt - proceeding to format state.');
     
     // Get current state
     console.log('[AI Reply] Formatting state for prompt...');
@@ -165,15 +176,24 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.error('[AI Reply] Failed to generate AI response:', error);
       // Stop typing indicator on error
       await setTypingIndicator(chatId, 'assistant', false);
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+      try {
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+        console.log('[AI Reply] Typing indicator reset via Pusher after error');
+      } catch (pusherError) {
+        console.error('[AI Reply] ERROR: Failed to reset typing indicator via Pusher:', pusherError);
+      }
       throw error;
     }
 
     // Stop typing indicator
     console.log('[AI Reply] Stopping typing indicator...');
     await setTypingIndicator(chatId, 'assistant', false);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-    console.log('[AI Reply] Typing indicator stopped');
+    try {
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+      console.log('[AI Reply] Typing indicator stopped via Pusher');
+    } catch (pusherError) {
+      console.error('[AI Reply] ERROR: Failed to stop typing indicator via Pusher:', pusherError);
+    }
 
     // Process the message (no longer need to parse STATE_UPDATE_JSON)
     console.log('[AI Reply] Processing message...');
@@ -195,15 +215,19 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
 
     // Emit new message event
     console.log('[AI Reply] Emitting new message event...');
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
-      id: newMessage.id,
-      created_at: newMessage.created_at.toISOString(),
-      data: {
-        content: cleanedMessage,
-        senderId: 'assistant'
-      }
-    });
-    console.log('[AI Reply] New message event emitted');
+    try {
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
+        id: newMessage.id,
+        created_at: newMessage.created_at.toISOString(),
+        data: {
+          content: cleanedMessage,
+          senderId: 'assistant'
+        }
+      });
+      console.log('[AI Reply] New message event emitted successfully');
+    } catch (pusherError) {
+      console.error('[AI Reply] ERROR: Failed to emit new message event via Pusher:', pusherError);
+    }
 
     // Check if this is a demo chat and handle the conversation flow
     console.log('[AI Reply] Checking chat type and managing turns...');
@@ -267,10 +291,14 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     try {
       console.log('[AI Reply] Resetting typing indicator due to error...');
       await setTypingIndicator(chatId, 'assistant', false);
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      console.log('[AI Reply] Typing indicator reset successfully');
-    } catch (pusherError) {
-      console.error('[AI Reply] Failed to reset typing indicator:', pusherError);
+      try {
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+        console.log('[AI Reply] Typing indicator reset via Pusher successfully');
+      } catch (pusherError) {
+        console.error('[AI Reply] ERROR: Failed to reset typing indicator via Pusher in final catch:', pusherError);
+      }
+    } catch (redisError) {
+      console.error('[AI Reply] ERROR: Failed to reset typing indicator in Redis:', redisError);
     }
     
     throw error;
