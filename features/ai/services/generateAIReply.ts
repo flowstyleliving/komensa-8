@@ -40,8 +40,9 @@ export async function generateAIReply({
   const turnManager = new TurnManager(chatId);
 
   // Add overall timeout to prevent hanging
+  let timeoutId: NodeJS.Timeout | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       console.error('[AI Reply] TIMEOUT: AI reply generation timed out after 90 seconds (internal)');
       reject(new Error('AI reply generation timed out after 90 seconds'));
     }, 90000); // 90 second timeout
@@ -178,11 +179,23 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Attempting to create run with assistant ID:', OPENAI_ASSISTANT_ID);
       let run: Run;
       try {
-        run = await runWithRetries(() =>
+        console.log('[AI Reply] About to call runWithRetries for OpenAI run creation...');
+        
+        // Add a timeout specifically for run creation
+        const runCreationPromise = runWithRetries(() =>
           openai.beta.threads.runs.create(threadId, {
             assistant_id: OPENAI_ASSISTANT_ID
           })
-        ) as Run;
+        ) as Promise<Run>;
+        
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            console.error('[AI Reply] TIMEOUT: OpenAI run creation timed out after 30 seconds');
+            reject(new Error('OpenAI run creation timed out after 30 seconds'));
+          }, 30000); // 30 second timeout for run creation
+        });
+        
+        run = await Promise.race([runCreationPromise, timeoutPromise]);
         console.log('[AI Reply] SUCCESSFULLY created run:', run.id);
       } catch (runCreateError) {
         console.error('[AI Reply] ERROR: Failed to create run:', runCreateError);
@@ -191,8 +204,19 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
           console.error('[AI Reply] Run create error stack:', runCreateError.stack);
           if ((runCreateError as any).code) console.error('[AI Reply] Run create error code:', (runCreateError as any).code);
           if ((runCreateError as any).statusCode) console.error('[AI Reply] Run create error statusCode:', (runCreateError as any).statusCode);
-          if ((runCreateError as any).response) console.error('[AI Reply] Run create error response:', (runCreateError as any).response);
+          if ((runCreateError as any).status) console.error('[AI Reply] Run create error status:', (runCreateError as any).status);
+          if ((runCreateError as any).response) {
+            console.error('[AI Reply] Run create error response:', (runCreateError as any).response);
+            if ((runCreateError as any).response?.data) {
+              console.error('[AI Reply] Run create error response data:', (runCreateError as any).response.data);
+            }
+          }
+          if ((runCreateError as any).body) console.error('[AI Reply] Run create error body:', (runCreateError as any).body);
           if (runCreateError.cause) console.error('[AI Reply] Run create error cause:', runCreateError.cause);
+          // Log all enumerable properties
+          console.error('[AI Reply] Run create error all properties:', JSON.stringify(runCreateError, Object.getOwnPropertyNames(runCreateError)));
+        } else {
+          console.error('[AI Reply] Run create error (not an Error object):', String(runCreateError));
         }
         throw runCreateError;
       }
@@ -356,9 +380,15 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     }
 
     console.log('[AI Reply] Generation complete');
+    
+    // Clear the timeout since we completed successfully
+    if (timeoutId) clearTimeout(timeoutId);
+    
     return { content: cleanedMessage };
     
     } catch (mainError) {
+      // Clear the timeout on error as well
+      if (timeoutId) clearTimeout(timeoutId);
       console.error('[AI Reply] Main AI reply generation failed:', mainError);
       
       // Enhanced error logging
