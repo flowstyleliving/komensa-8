@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { TurnManager } from '@/features/chat/services/turnManager';
+import { DemoTurnManager } from '@/features/chat/services/demoTurnManager';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Initialize turn management
-    const turnManager = new TurnManager(chat.id);
+    const turnManager = new DemoTurnManager(chat.id);
     await turnManager.initializeDemoTurns(user1.id);
 
     // Add initial AI message
