@@ -52,8 +52,22 @@ export async function generateAIReply({
     try {
       // Set typing indicator in Redis first
       console.log('[AI Reply] Setting typing indicator in Redis...');
-      await setTypingIndicator(chatId, 'assistant', true);
-      console.log('[AI Reply] Redis typing indicator set successfully');
+      try {
+        await setTypingIndicator(chatId, 'assistant', true);
+        console.log('[AI Reply] Redis typing indicator set successfully');
+      } catch (redisError) {
+        console.error('[AI Reply] REDIS ERROR: Failed to set typing indicator in Redis:', redisError);
+        console.error('[AI Reply] Redis error details:', JSON.stringify(redisError, Object.getOwnPropertyNames(redisError)));
+        if (redisError instanceof Error) {
+          console.error('[AI Reply] Redis error message:', redisError.message);
+          console.error('[AI Reply] Redis error stack:', redisError.stack);
+          if (redisError.cause) {
+            console.error('[AI Reply] Redis error cause:', redisError.cause);
+          }
+        }
+        // Continue without Redis typing indicator
+        console.log('[AI Reply] Continuing without Redis typing indicator...');
+      }
       
             // START: CRITICAL DEBUGGING AREA - NON-AWAIT TEST
       console.log('[AI Reply] Attempting to emit typing indicator via Pusher (NON-AWAIT TEST)...');
