@@ -130,22 +130,33 @@ export async function POST(req: NextRequest) {
     const targetUrl = `${req.nextUrl.origin}/api/demo/gen-ai-reply`;
     console.log(`[Messages API] Attempting fire-and-forget fetch to: ${targetUrl}`);
 
-    // Fire-and-forget call to the new API endpoint
-    fetch(targetUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ chatId, userId: senderId, userMessage: content }),
-    }).catch(err => {
-      // This catch is for network errors or issues initiating the fetch itself
-      console.error(`[Messages API] Error initiating fetch to ${targetUrl}:`, err);
-      if (err instanceof Error) {
-        console.error('[Messages API] Fetch initiation error message:', err.message);
-        console.error('[Messages API] Fetch initiation error stack:', err.stack);
+    // Temporarily await for debugging in Vercel
+    try {
+      console.log(`[Messages API] Attempting to AWAIT fetch to: ${targetUrl} for debugging...`);
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ chatId, userId: senderId, userMessage: content }),
+      });
+      console.log(`[Messages API] AWAITED fetch response status: ${response.status}`);
+      const responseBody = await response.text();
+      console.log(`[Messages API] AWAITED fetch response body: ${responseBody}`);
+      if (!response.ok) {
+        console.error(`[Messages API] AWAITED fetch response not OK: ${response.status}`, responseBody);
       }
-    });
-    console.log(`[Messages API] Fire-and-forget fetch to ${targetUrl} initiated from messages API.`);
+    } catch (err: any) { // Explicitly type err as any for accessing properties
+      console.error(`[Messages API] Error during AWAITED fetch to ${targetUrl}:`, err);
+      if (err instanceof Error) {
+        console.error('[Messages API] AWAITED Fetch error message:', err.message);
+        console.error('[Messages API] AWAITED Fetch error stack:', err.stack);
+        if (err.cause) console.error('[Messages API] AWAITED Fetch error cause:', err.cause);
+      } else {
+        console.error('[Messages API] AWAITED Fetch error (not an Error object):', err);
+      }
+    }
+    console.log(`[Messages API] AWAITED fetch attempt to ${targetUrl} completed.`);
 
   } else {
     console.log('[Messages API] Non-demo chat: Setting turn to assistant and triggering standard AI reply');
