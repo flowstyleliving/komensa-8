@@ -164,7 +164,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         })
       );
       console.log('[Demo AI Reply] SUCCESSFULLY added message to thread.');
-    } catch (openaiMessageError) {
+    } catch (openaiMessageError: any) {
       console.error('[Demo AI Reply] ERROR: Failed to add message to thread:', openaiMessageError);
       if (openaiMessageError instanceof Error) {
           console.error('[Demo AI Reply] OpenAI message error message:', openaiMessageError.message);
@@ -190,6 +190,9 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       let run: Run;
       try {
         console.log('[Demo AI Reply] About to call runWithRetries for OpenAI run creation...');
+        if (!OPENAI_ASSISTANT_ID) {
+            throw new Error('LINTER_GUARD: OPENAI_ASSISTANT_ID is undefined before run creation.');
+        }
         const runCreationPromise = runWithRetries(() =>
           openai.beta.threads.runs.create(threadId, {
             assistant_id: OPENAI_ASSISTANT_ID
@@ -205,7 +208,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         
         run = await Promise.race([runCreationPromise, runCreationTimeoutPromise]);
         console.log('[Demo AI Reply] SUCCESSFULLY created run:', run.id);
-      } catch (runCreateError) {
+      } catch (runCreateError: any) {
         console.error('[Demo AI Reply] ERROR: Failed to create run:', runCreateError);
         if (runCreateError instanceof Error) {
           console.error('[Demo AI Reply] Run create error message:', runCreateError.message);
@@ -313,7 +316,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         }
       });
       console.log('[Demo AI Reply] Message stored in database');
-    } catch (dbError) {
+    } catch (dbError: any) {
       console.error('[Demo AI Reply] DATABASE ERROR: Failed to store new message:', dbError);
       if (dbError instanceof Error) {
         console.error('[Demo AI Reply] DB create error message:', dbError.message);
@@ -340,7 +343,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     try {
       userRole = await turnManager.getRoleForUserId(userId);
       console.log('[Demo AI Reply] User role who triggered mediator:', userRole);
-    } catch (turnError) {
+    } catch (turnError: any) {
       console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to get user role:', turnError);
       if (turnError instanceof Error) {
         console.error('[Demo AI Reply] Get user role error message:', turnError.message);
@@ -353,7 +356,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[Demo AI Reply] Mediator responded to User A, setting turn to Jordan...');
       try {
         await turnManager.setTurnToRole(DEMO_ROLES.JORDAN);
-      } catch (turnError) {
+      } catch (turnError: any) {
         console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to set turn to Jordan:', turnError);
         if (turnError instanceof Error) {
           console.error('[Demo AI Reply] Set turn (Jordan) error message:', turnError.message);
@@ -365,7 +368,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       let jordanUserId;
       try {
         jordanUserId = await turnManager.getUserIdForRole(DEMO_ROLES.JORDAN);
-      } catch (turnError) {
+      } catch (turnError: any) {
         console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to get Jordan user ID:', turnError);
         // Log and continue, as User A's turn is set if this fails.
       }
@@ -389,7 +392,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to User A...');
       try {
         await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
-      } catch (turnError) {
+      } catch (turnError: any) {
         console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to set turn to User A (after Jordan):', turnError);
         if (turnError instanceof Error) {
           console.error('[Demo AI Reply] Set turn (User A) error message:', turnError.message);
@@ -404,7 +407,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     if (timeoutId) clearTimeout(timeoutId);
     return { content: cleanedMessage };
     
-    } catch (mainError) {
+    } catch (mainError: any) {
       if (timeoutId) clearTimeout(timeoutId);
       console.error('[Demo AI Reply] Main AI reply generation failed:', mainError);
       if (mainError instanceof Error) {
