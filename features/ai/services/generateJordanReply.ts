@@ -212,7 +212,7 @@ Respond naturally as Jordan based on the Mediator's last message and the recent 
   
   // MODIFIED: Call the /api/demo/gen-ai-reply endpoint using fetch, fire-and-forget
   try {
-    fetch(`${apiBaseUrl}/api/demo/gen-ai-reply`, {
+    await fetch(`${apiBaseUrl}/api/demo/gen-ai-reply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
