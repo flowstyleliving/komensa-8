@@ -13,7 +13,7 @@ import { setTypingIndicator } from '@/lib/redis';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 // Validate critical environment variables
-const OPENAI_ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID1;
+const OPENAI_ASSISTANT_ID = process.env.OPENAI_ASSISTANT_ID;
 if (!OPENAI_ASSISTANT_ID) {
   throw new Error('OPENAI_ASSISTANT_ID environment variable is not set');
 }

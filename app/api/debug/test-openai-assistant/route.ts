@@ -4,12 +4,12 @@ import { openai } from '@/lib/openai';
 export async function GET() {
   console.log('[OpenAI Assistant Test] Starting OpenAI Assistant validation test...');
   
-  const assistantId = process.env.OPENAI_ASSISTANT_ID1;
+  const assistantId = process.env.OPENAI_ASSISTANT_ID;
   
   if (!assistantId) {
     return NextResponse.json({ 
       success: false,
-      error: 'OPENAI_ASSISTANT_ID1 environment variable is not set'
+      error: 'OPENAI_ASSISTANT_ID environment variable is not set'
     }, { status: 500 });
   }
 

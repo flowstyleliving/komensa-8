@@ -130,10 +130,10 @@ export async function GET(req: Request) {
     // 5. Configure AI assistants for this demo
     console.log('[Demo Seed] Configuring AI assistants...');
     // Keep the mediator assistant from .env
-    if (process.env.OPENAI_ASSISTANT_ID1) {
-      console.log(`[Demo Seed] AI Mediator configured: ${process.env.OPENAI_ASSISTANT_ID1}`);
+    if (process.env.OPENAI_ASSISTANT_ID) {
+      console.log(`[Demo Seed] AI Mediator configured: ${process.env.OPENAI_ASSISTANT_ID}`);
     } else {
-      console.warn("[Demo Seed] OPENAI_ASSISTANT_ID1 is not set. AI mediation will not work.");
+      console.warn("[Demo Seed] OPENAI_ASSISTANT_ID is not set. AI mediation will not work.");
     }
     
     // Set Jordan's assistant ID for user responses
