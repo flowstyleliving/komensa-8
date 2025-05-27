@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTypingUsers } from '@/lib/redis';
 import { auth } from '@/lib/auth';
 import { TurnManager } from '@/features/chat/services/turnManager';
+import { DemoTurnManager } from '@/features/chat/services/demoTurnManager';
 
 // GET: Fetch chat state
 export async function GET(request: NextRequest, { params }: { params: Promise<{ chatId: string }> }) {
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // For demo chats, initialize role-based turn management if needed
   if (chat?.origin === 'demo' && (!turnState || !(turnState as any).next_role)) {
     console.log('[Chat State] Initializing demo turn management');
-    const turnManager = new TurnManager(chatId);
+    const turnManager = new DemoTurnManager(chatId);
     
     // Get participants and identify User A and Jordan by display name
     const userA = chat.participants.find((p: any) => p.user?.display_name === 'User A');
@@ -64,13 +65,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       });
     }
   } else if (!turnState && userId) {
-    // For non-demo chats, create basic turn state
-    await prisma.chatTurnState.create({
-      data: {
-        chat_id: chatId,
-        next_user_id: userId,
-      },
-    });
+    // For non-demo chats, create basic turn state or use TurnManager
+    console.log('[Chat State] Initializing non-demo turn management');
+    const turnManager = new TurnManager(chatId);
+    await turnManager.initializeTurn(userId);
+    
     // Update turn state after creation
     turnState = await prisma.chatTurnState.findUnique({
       where: { chat_id: chatId },

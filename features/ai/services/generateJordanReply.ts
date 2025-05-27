@@ -8,7 +8,7 @@ import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
 import { parseStateUpdateAndCleanMessage } from './parseStateUpdate';
-import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
+import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 // Jordan's assistant ID (hardcoded for demo)
@@ -26,7 +26,7 @@ export async function generateJordanReply({
   console.log('[Jordan AI] Starting Jordan reply generation...', { chatId, jordanUserId });
   
   const channelName = getChatChannelName(chatId);
-  const turnManager = new TurnManager(chatId);
+  const turnManager = new DemoTurnManager(chatId);
   
   // Set typing indicator in Redis and emit via Pusher for Jordan
   await setTypingIndicator(chatId, jordanUserId, true);
