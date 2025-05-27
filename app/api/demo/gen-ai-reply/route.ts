@@ -4,6 +4,7 @@ import { setTypingIndicator } from '@/lib/redis';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 
 export async function POST(req: NextRequest) {
+  console.log('[Demo AI Gen API] ROUTE HIT - START of POST handler');
   try {
     const body = await req.json();
     const { chatId, userId, userMessage } = body;

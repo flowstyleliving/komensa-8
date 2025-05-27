@@ -127,8 +127,11 @@ export async function POST(req: NextRequest) {
     console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply via new API');
     await demoTurnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
 
+    const targetUrl = `${req.nextUrl.origin}/api/demo/gen-ai-reply`;
+    console.log(`[Messages API] Attempting fire-and-forget fetch to: ${targetUrl}`);
+
     // Fire-and-forget call to the new API endpoint
-    fetch(`${req.nextUrl.origin}/api/demo/gen-ai-reply`, {
+    fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -136,10 +139,13 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({ chatId, userId: senderId, userMessage: content }),
     }).catch(err => {
       // This catch is for network errors or issues initiating the fetch itself
-      console.error('[Messages API] Error calling /api/demo/gen-ai-reply:', err);
+      console.error(`[Messages API] Error initiating fetch to ${targetUrl}:`, err);
+      if (err instanceof Error) {
+        console.error('[Messages API] Fetch initiation error message:', err.message);
+        console.error('[Messages API] Fetch initiation error stack:', err.stack);
+      }
     });
-
-    console.log('[Messages API] Demo AI reply generation initiated via /api/demo/gen-ai-reply');
+    console.log(`[Messages API] Fire-and-forget fetch to ${targetUrl} initiated from messages API.`);
 
   } else {
     console.log('[Messages API] Non-demo chat: Setting turn to assistant and triggering standard AI reply');
