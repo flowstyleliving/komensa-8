@@ -4,7 +4,6 @@
 import { openai, runWithRetries } from '@/lib/openai';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
-import { formatStateForPrompt } from './formatStateForPrompt';
 import { parseStateUpdate, parseStateUpdateAndCleanMessage } from './parseStateUpdate';
 import { generateJordanReply } from './generateJordanReply';
 import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
@@ -42,16 +41,11 @@ export async function generateAIReplyNoPusher({
     await setTypingIndicator(chatId, 'assistant', true);
     console.log('[AI Reply NO PUSHER] Typing indicator set in Redis successfully');
     
-    // Get current state
-    console.log('[AI Reply NO PUSHER] Formatting state for prompt...');
-    const state = await formatStateForPrompt({ chatId, userId, userMessage });
-    console.log('[AI Reply NO PUSHER] State formatted successfully');
-
-    // Add state update instruction to the prompt
-    const fullPrompt = `${state}
+    // Construct the prompt using userMessage and the static instruction
+    const fullPrompt = `${userMessage}
 
 Respond thoughtfully as a mediator, drawing from the current emotional and conversational state.`;
-    console.log('[AI Reply NO PUSHER] Full prompt prepared');
+    console.log('[AI Reply NO PUSHER] Full prompt prepared using userMessage directly.');
 
     // Get or create thread
     console.log('[AI Reply NO PUSHER] Getting or creating thread...');
