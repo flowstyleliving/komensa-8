@@ -375,7 +375,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
 
       if (jordanUserId) {
         console.log('[Demo AI Reply] Triggering Jordan response...');
-        generateJordanReply({ chatId, jordanUserId, conversationContext: cleanedMessage })
+        await generateJordanReply({ chatId, jordanUserId, conversationContext: cleanedMessage })
           .catch(error => {
             console.error('[Demo AI Reply] ERROR: Failed to generate Jordan reply (async):', error);
             if (error instanceof Error) {
