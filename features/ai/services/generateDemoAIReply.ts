@@ -28,13 +28,15 @@ function assertAssistantId(id: string | undefined): asserts id is string {
 export async function generateDemoAIReply({ // Renamed function
   chatId,
   userId,
-  userMessage
+  userMessage,
+  apiBaseUrl
 }: {
   chatId: string;
   userId: string;
   userMessage: string;
+  apiBaseUrl: string;
 }) {
-  console.log('[Demo AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
+  console.log('[Demo AI Reply] Starting AI reply generation...', { chatId, userId, userMessage, apiBaseUrl });
 
   const channelName = getChatChannelName(chatId);
   const turnManager = new DemoTurnManager(chatId);
@@ -374,19 +376,18 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       }
 
       if (jordanUserId) {
-        console.log('[Demo AI Reply] Triggering Jordan response...');
-        await generateJordanReply({ chatId, jordanUserId, conversationContext: cleanedMessage })
-          .catch(error => {
-            console.error('[Demo AI Reply] ERROR: Failed to generate Jordan reply (async):', error);
-            if (error instanceof Error) {
-              console.error('[Demo AI Reply] Jordan reply error message:', error.message);
-              console.error('[Demo AI Reply] Jordan reply error stack:', error.stack);
-              if (error.cause) console.error('[Demo AI Reply] Jordan reply error cause:', error.cause);
-              for (const key in error) { console.error(`[Demo AI Reply] Jordan reply error property ${key}:`, (error as any)[key]); }
-            } else {
-              console.error('[Demo AI Reply] Jordan reply error (not an Error object):', error);
-            }
-          });
+        console.log('[Demo AI Reply] Triggering Jordan response via API call...');
+        // Fire-and-forget call to the new Jordan reply API endpoint
+        fetch(`${apiBaseUrl}/api/demo/gen-jordan-reply`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ chatId, jordanUserId, conversationContext: cleanedMessage, apiBaseUrl }),
+        }).catch(err => {
+          // This catch is for network errors or issues initiating the fetch itself
+          console.error('[Demo AI Reply] Error calling /api/demo/gen-jordan-reply:', err);
+        });
       }
     } else if (userRole === DEMO_ROLES.JORDAN) {
       console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to User A...');

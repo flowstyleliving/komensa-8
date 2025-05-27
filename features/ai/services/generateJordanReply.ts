@@ -18,13 +18,15 @@ const JORDAN_ASSISTANT_ID = 'asst_NaNyg64IlU3rbkA9kdldzZJC';
 export async function generateJordanReply({
   chatId,
   jordanUserId,
-  conversationContext // This is the Mediator's message to User A
+  conversationContext, // Keep this for context if needed, but Jordan will primarily use recent messages
+  apiBaseUrl // Added to call gen-ai-reply API
 }: {
   chatId: string;
   jordanUserId: string;
   conversationContext: string; // Keep this for context if needed, but Jordan will primarily use recent messages
+  apiBaseUrl: string; // Added to call gen-ai-reply API
 }) {
-  console.log('[Jordan AI] Starting Jordan reply generation...', { chatId, jordanUserId, conversationContext });
+  console.log('[Jordan AI] Starting Jordan reply generation...', { chatId, jordanUserId, conversationContext, apiBaseUrl });
   
   const channelName = getChatChannelName(chatId);
   // const turnManager = new DemoTurnManager(chatId); // turnManager instance not strictly needed here anymore for setTurnToRole
@@ -206,29 +208,29 @@ Respond naturally as Jordan based on the Mediator's last message and the recent 
     }
   });
 
-  console.log('[Jordan AI] Jordan responded. Now triggering Mediator (generateDemoAIReply) to respond to Jordan.');
+  console.log('[Jordan AI] Jordan responded. Now triggering Mediator (generateDemoAIReply) to respond to Jordan via API.');
   
-  // MODIFIED: Instead of just setting turn, now trigger the Mediator's response to Jordan.
-  // The Mediator (generateDemoAIReply) will then handle setting the turn to User A.
-  // We pass jordanUserId as the 'userId' that triggered the Mediator.
-  // We pass Jordan's message as the 'userMessage' for the Mediator.
+  // MODIFIED: Call the /api/demo/gen-ai-reply endpoint using fetch, fire-and-forget
   try {
-    await generateDemoAIReply({
-      chatId,
-      userId: jordanUserId, // Mediator is responding TO Jordan
-      userMessage: cleanedJordanMessage // Jordan's message that Mediator will respond to
+    fetch(`${apiBaseUrl}/api/demo/gen-ai-reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        chatId,
+        userId: jordanUserId, // Mediator is responding TO Jordan
+        userMessage: cleanedJordanMessage, // Jordan's message that Mediator will respond to
+        apiBaseUrl // Pass this through for further nested calls if any (though not currently used by gen-ai-reply itself for new calls)
+      }),
+    }).catch(err => {
+      console.error('[Jordan AI] Fetch error triggering Mediator via API:', err);
     });
-    console.log('[Jordan AI] Successfully triggered Mediator response to Jordan.');
+    console.log('[Jordan AI] Successfully initiated Mediator response to Jordan via API.');
   } catch (mediatorError) {
-    console.error('[Jordan AI] ERROR: Failed to trigger Mediator response after Jordan reply:', mediatorError);
-    // If Mediator fails, what should the turn be? This is a critical error in demo flow.
-    // For now, log and let the error propagate if generateDemoAIReply throws.
+    // This catch block might be less relevant for fetch unless synchronous error, but good for safety.
+    console.error('[Jordan AI] ERROR: Failed to initiate Mediator response after Jordan reply (pre-fetch issue?):', mediatorError);
   }
-
-  // REMOVED: Explicit turn setting here, as generateDemoAIReply will handle it.
-  // console.log('[Jordan AI] Jordan responded, setting turn to mediator...');
-  // await turnManager.setTurnToRole(DEMO_ROLES.MEDIATOR); 
-  // console.log('[Jordan AI] Turn set to mediator - waiting for natural trigger...');
 
   console.log('[Jordan AI] Jordan reply generation and Mediator trigger complete');
   return { content: cleanedJordanMessage }; // Return Jordan's message

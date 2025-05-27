@@ -124,27 +124,22 @@ export async function POST(req: NextRequest) {
 
   if (chat?.origin === 'demo') {
     const demoTurnManager = new DemoTurnManager(chatId);
-    console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply');
+    console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply via new API');
     await demoTurnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
-      await generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
-    console.error('[Demo AI] Failed to generate demo reply:', err);
-    if (err instanceof Error) {
-      console.error('[Demo AI] Error message:', err.message);
-    console.error('[Demo AI] Error stack:', err.stack);
-    if (err.cause) console.error('[Demo AI] Error cause:', err.cause);
-    for (const key in err) console.error(`[Demo AI] Error property ${key}:`, (err as any)[key]);
-  } else {
-    console.error('[Demo AI] Error (not an Error object):', err);
-  }
-  try {
-    await setTypingIndicator(chatId, 'assistant', false);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-    console.log('[Demo AI] Typing indicator reset after error');
-  } catch (cleanupError) {
-    console.error('[Demo AI] Failed to reset typing indicator:', cleanupError);
-  }
-      });
-    console.log('[Messages API] Demo AI reply generation started');
+
+    // Fire-and-forget call to the new API endpoint
+    fetch(`${req.nextUrl.origin}/api/demo/gen-ai-reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ chatId, userId: senderId, userMessage: content }),
+    }).catch(err => {
+      // This catch is for network errors or issues initiating the fetch itself
+      console.error('[Messages API] Error calling /api/demo/gen-ai-reply:', err);
+    });
+
+    console.log('[Messages API] Demo AI reply generation initiated via /api/demo/gen-ai-reply');
 
   } else {
     console.log('[Messages API] Non-demo chat: Setting turn to assistant and triggering standard AI reply');
