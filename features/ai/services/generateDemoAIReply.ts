@@ -53,8 +53,8 @@ export async function generateDemoAIReply({ // Renamed function
       // Set typing indicator in Redis first
       console.log('[Demo AI Reply] Setting typing indicator in Redis...');
       try {
-        await setTypingIndicator(chatId, 'assistant', true);
-        console.log('[Demo AI Reply] Redis typing indicator set successfully');
+        // await setTypingIndicator(chatId, 'assistant', true); // BYPASSED
+        console.log('[Demo AI Reply] Redis typing indicator set successfully (BYPASSED)');
       } catch (redisError) {
         console.error('[Demo AI Reply] REDIS ERROR: Failed to set typing indicator in Redis:', redisError);
         console.error('[Demo AI Reply] Redis error details:', JSON.stringify(redisError, Object.getOwnPropertyNames(redisError)));
@@ -275,7 +275,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[Demo AI Reply] Message retrieved:', fullMessage);
     } catch (error) {
       console.error('[Demo AI Reply] Failed to generate AI response:', error);
-      await setTypingIndicator(chatId, 'assistant', false); // Ensure typing indicator is off
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED Ensure typing indicator is off
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       } catch (pusherError) {
@@ -287,7 +287,8 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Stop typing indicator
     console.log('[Demo AI Reply] Stopping typing indicator...');
     try {
-      await setTypingIndicator(chatId, 'assistant', false);
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
+      console.log('[Demo AI Reply] Typing indicator stopped in Redis (BYPASSED)');
     } catch (redisError) {
        console.error('[Demo AI Reply] REDIS ERROR: Failed to stop typing indicator in Redis:', redisError);
     }
@@ -420,9 +421,9 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       }
       
       try {
-        await setTypingIndicator(chatId, 'assistant', false);
+        // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-        console.log('[Demo AI Reply] Typing indicator stopped successfully due to main error.');
+        console.log('[Demo AI Reply] Typing indicator stopped successfully due to main error (Redis BYPASSED).');
       } catch (cleanupError) {
         console.error('[Demo AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);
       }

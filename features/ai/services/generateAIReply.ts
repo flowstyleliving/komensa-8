@@ -53,8 +53,8 @@ export async function generateAIReply({
       // Set typing indicator in Redis first
       console.log('[AI Reply] Setting typing indicator in Redis...');
       try {
-        await setTypingIndicator(chatId, 'assistant', true);
-        console.log('[AI Reply] Redis typing indicator set successfully');
+        // await setTypingIndicator(chatId, 'assistant', true); // BYPASSED
+        console.log('[AI Reply] Redis typing indicator set successfully (BYPASSED)');
       } catch (redisError) {
         console.error('[AI Reply] REDIS ERROR: Failed to set typing indicator in Redis:', redisError);
         console.error('[AI Reply] Redis error details:', JSON.stringify(redisError, Object.getOwnPropertyNames(redisError)));
@@ -281,7 +281,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Message retrieved:', fullMessage);
     } catch (error) {
       console.error('[AI Reply] Failed to generate AI response:', error);
-      await setTypingIndicator(chatId, 'assistant', false);
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED Ensure typing indicator is off
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       } catch (pusherError) {
@@ -293,15 +293,17 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Stop typing indicator
     console.log('[AI Reply] Stopping typing indicator...');
     try {
-      await setTypingIndicator(chatId, 'assistant', false);
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
+      console.log('[AI Reply] Typing indicator stopped in Redis (BYPASSED)');
     } catch (redisError) {
        console.error('[AI Reply] REDIS ERROR: Failed to stop typing indicator in Redis:', redisError);
     }
     try {
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      console.log('[AI Reply] Typing indicator stopped via Pusher');
-    } catch (pusherError) {
-      console.error('[AI Reply] ERROR: Failed to stop typing indicator via Pusher:', pusherError);
+      console.log('[AI Reply] Typing indicator stopped successfully due to main error (Redis BYPASSED).');
+    } catch (cleanupError) {
+      console.error('[AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);
     }
 
     const cleanedMessage = fullMessage.trim();
@@ -388,7 +390,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       }
       
       try {
-        await setTypingIndicator(chatId, 'assistant', false);
+        // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       } catch (cleanupError) {
         console.error('[AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);

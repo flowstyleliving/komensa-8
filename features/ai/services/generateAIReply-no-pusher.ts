@@ -38,8 +38,8 @@ export async function generateAIReplyNoPusher({
   try {
     // Set typing indicator in Redis ONLY (no Pusher)
     console.log('[AI Reply NO PUSHER] Setting typing indicator in Redis only...');
-    await setTypingIndicator(chatId, 'assistant', true);
-    console.log('[AI Reply NO PUSHER] Typing indicator set in Redis successfully');
+    // await setTypingIndicator(chatId, 'assistant', true); // BYPASSED
+    console.log('[AI Reply NO PUSHER] Typing indicator set in Redis successfully (BYPASSED)');
     
     // Construct the prompt using userMessage and the static instruction
     const fullPrompt = `${userMessage}
@@ -153,15 +153,15 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     } catch (error) {
       console.error('[AI Reply NO PUSHER] Failed to generate AI response:', error);
       // Stop typing indicator on error (Redis only)
-      await setTypingIndicator(chatId, 'assistant', false);
-      console.log('[AI Reply NO PUSHER] Typing indicator reset in Redis after error');
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
+      console.log('[AI Reply NO PUSHER] Typing indicator reset in Redis after error (BYPASSED)');
       throw error;
     }
 
     // Stop typing indicator (Redis only)
     console.log('[AI Reply NO PUSHER] Stopping typing indicator...');
-    await setTypingIndicator(chatId, 'assistant', false);
-    console.log('[AI Reply NO PUSHER] Typing indicator stopped in Redis');
+    // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
+    console.log('[AI Reply NO PUSHER] Typing indicator stopped in Redis (BYPASSED)');
 
     // Process the message
     console.log('[AI Reply NO PUSHER] Processing message...');
@@ -244,8 +244,8 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Ensure typing indicator is always reset on any error (Redis only)
     try {
       console.log('[AI Reply NO PUSHER] Resetting typing indicator due to error...');
-      await setTypingIndicator(chatId, 'assistant', false);
-      console.log('[AI Reply NO PUSHER] Typing indicator reset in Redis successfully');
+      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
+      console.log('[AI Reply NO PUSHER] Typing indicator reset in Redis successfully (BYPASSED)');
     } catch (redisError) {
       console.error('[AI Reply NO PUSHER] ERROR: Failed to reset typing indicator in Redis:', redisError);
     }

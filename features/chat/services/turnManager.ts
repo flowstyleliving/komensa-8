@@ -100,7 +100,8 @@ export class TurnManager {
       for (const userId of typingUsers) {
         if (userId !== newActiveUserId && userId !== 'assistant') { 
           console.log('[TurnManager] Clearing stale typing for user:', userId);
-          await setTypingIndicator(this.chatId, userId, false);
+          // await setTypingIndicator(this.chatId, userId, false); // BYPASSED
+          console.log('[TurnManager] Stale typing indicator cleared in Redis (BYPASSED)');
           await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, {
             userId,
             isTyping: false

@@ -235,11 +235,9 @@ export class DemoTurnManager {
       for (const userId of typingUsers) {
         if (userId !== newActiveUserId && userId !== 'assistant') { 
           console.log('[DemoTurnManager] Clearing stale typing for user:', userId);
-          await setTypingIndicator(this.chatId, userId, false);
-          await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, {
-            userId,
-            isTyping: false
-          });
+          // await setTypingIndicator(this.chatId, userId, false); // BYPASSED
+          console.log('[DemoTurnManager] Stale typing indicator cleared in Redis (BYPASSED)');
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { userId, isTyping: false });
         }
       }
     } catch (error) {

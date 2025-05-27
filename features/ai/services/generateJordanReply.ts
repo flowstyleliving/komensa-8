@@ -29,7 +29,8 @@ export async function generateJordanReply({
   const turnManager = new DemoTurnManager(chatId);
   
   // Set typing indicator in Redis and emit via Pusher for Jordan
-  await setTypingIndicator(chatId, jordanUserId, true);
+  // await setTypingIndicator(chatId, jordanUserId, true); // BYPASSED
+  console.log('[Jordan AI] Typing indicator set in Redis (BYPASSED)');
   await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
     userId: jordanUserId, 
     isTyping: true 
@@ -139,7 +140,8 @@ Respond naturally as Jordan. Keep your response conversational and authentic to 
   } catch (error) {
     console.error('[Jordan AI] Failed to generate Jordan response:', error);
     // Stop typing indicator on error
-    await setTypingIndicator(chatId, jordanUserId, false);
+    // await setTypingIndicator(chatId, jordanUserId, false); // BYPASSED
+    console.log('[Jordan AI] Typing indicator stopped in Redis on error (BYPASSED)');
     await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
       userId: jordanUserId, 
       isTyping: false 
@@ -148,7 +150,8 @@ Respond naturally as Jordan. Keep your response conversational and authentic to 
   }
 
   // Stop typing indicator
-  await setTypingIndicator(chatId, jordanUserId, false);
+  // await setTypingIndicator(chatId, jordanUserId, false); // BYPASSED
+  console.log('[Jordan AI] Typing indicator stopped in Redis (BYPASSED)');
   await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
     userId: jordanUserId, 
     isTyping: false 
