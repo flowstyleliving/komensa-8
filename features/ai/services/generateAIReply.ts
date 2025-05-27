@@ -69,20 +69,32 @@ export async function generateAIReply({
         console.log('[AI Reply] Continuing without Redis typing indicator...');
       }
       
-            // START: CRITICAL DEBUGGING AREA - NON-AWAIT TEST
-      console.log('[AI Reply] Attempting to emit typing indicator via Pusher (NON-AWAIT TEST)...');
-      // IMPORTANT: Temporarily remove await and add a .catch to it directly
-      pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true })
-        .catch(pusherTriggerError => {
-          console.error('[AI Reply] Caught Pusher trigger error (non-await):', pusherTriggerError);
-          console.error('[AI Reply] Pusher error details (non-await):', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
-          if (pusherTriggerError instanceof Error) {
-            console.error('[AI Reply] Pusher error message (non-await):', pusherTriggerError.message);
-            console.error('[AI Reply] Pusher error stack (non-await):', pusherTriggerError.stack);
-          }
-        });
-      console.log('[AI Reply] Proceeding immediately after non-await Pusher trigger attempt.'); // This log is key!
-      // END: CRITICAL DEBUGGING AREA
+            // START: ROBUST PUSHER DEBUGGING WITH FULL ERROR LOGGING
+      console.log('[AI Reply] Attempting to emit typing indicator (Pusher trigger)...');
+      try {
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
+        console.log('[AI Reply] SUCCESSFULLY emitted typing indicator via Pusher.');
+      } catch (pusherTriggerError) {
+        console.error('[AI Reply] ERROR: Failed to emit typing indicator via Pusher:', pusherTriggerError);
+        // Log all properties of the error object
+        if (pusherTriggerError instanceof Error) {
+          console.error('[AI Reply] Pusher error message:', pusherTriggerError.message);
+          console.error('[AI Reply] Pusher error stack:', pusherTriggerError.stack);
+          if ((pusherTriggerError as any).code) console.error('[AI Reply] Pusher error code:', (pusherTriggerError as any).code);
+          if ((pusherTriggerError as any).statusCode) console.error('[AI Reply] Pusher error statusCode:', (pusherTriggerError as any).statusCode);
+          if ((pusherTriggerError as any).response) console.error('[AI Reply] Pusher error response:', (pusherTriggerError as any).response);
+          if ((pusherTriggerError as any).body) console.error('[AI Reply] Pusher error body:', (pusherTriggerError as any).body);
+          if (pusherTriggerError.cause) console.error('[AI Reply] Pusher error cause:', pusherTriggerError.cause);
+          // Log all enumerable properties
+          console.error('[AI Reply] Pusher error all properties:', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
+        } else {
+          console.error('[AI Reply] Pusher error (not an Error object):', String(pusherTriggerError));
+        }
+        // Continue execution instead of throwing - typing indicator failure shouldn't break AI response
+        console.log('[AI Reply] Continuing despite Pusher typing indicator failure...');
+      }
+      console.log('[AI Reply] Proceeding after Pusher typing indicator attempt.');
+      // END: ROBUST PUSHER DEBUGGING
     
     // Get current state
     console.log('[AI Reply] Formatting state for prompt...');
