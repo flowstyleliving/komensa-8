@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
+import Link from "next/link"
 
 export default function SplashPage() {
   const [email, setEmail] = useState("")
@@ -29,9 +30,11 @@ export default function SplashPage() {
               <a href="#testimonials" className="text-[#3C4858] hover:text-[#D9C589] transition-colors">
                 Stories
               </a>
-              <Button variant="outline" className="border-[#3C4858]/20 text-[#3C4858] rounded-xl">
-                Sign In
-              </Button>
+              <Link href="/auth/signin">
+                <Button variant="outline" className="border-[#3C4858]/20 text-[#3C4858] rounded-xl">
+                  Sign In
+                </Button>
+              </Link>
               <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-xl">Get Started</Button>
             </div>
           </div>
