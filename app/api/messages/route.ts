@@ -12,6 +12,7 @@ import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager } from '@/features/chat/services/turnManager';
 import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
 import { setTypingIndicator } from '@/lib/redis';
+import { setTimeout } from 'timers';
 
 // Helper function to get user ID from session or demo cookie
 function getUserId(req: NextRequest, session: any) {
@@ -125,25 +126,27 @@ export async function POST(req: NextRequest) {
     const demoTurnManager = new DemoTurnManager(chatId);
     console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply');
     await demoTurnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
-    
-    generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
-      console.error('[Demo AI] Failed to generate demo reply:', err);
-      if (err instanceof Error) {
-        console.error('[Demo AI] Error message:', err.message);
-        console.error('[Demo AI] Error stack:', err.stack);
-        if (err.cause) console.error('[Demo AI] Error cause:', err.cause);
-        for (const key in err) console.error(`[Demo AI] Error property ${key}:`, (err as any)[key]);
-      } else {
-        console.error('[Demo AI] Error (not an Error object):', err);
-      }
-      try {
-        await setTypingIndicator(chatId, 'assistant', false);
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-        console.log('[Demo AI] Typing indicator reset after error');
-      } catch (cleanupError) {
-        console.error('[Demo AI] Failed to reset typing indicator:', cleanupError);
-      }
-    });
+    setTimeout(() => {
+      generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
+    console.error('[Demo AI] Failed to generate demo reply:', err);
+    if (err instanceof Error) {
+      console.error('[Demo AI] Error message:', err.message);
+    console.error('[Demo AI] Error stack:', err.stack);
+    if (err.cause) console.error('[Demo AI] Error cause:', err.cause);
+    for (const key in err) console.error(`[Demo AI] Error property ${key}:`, (err as any)[key]);
+  } else {
+    console.error('[Demo AI] Error (not an Error object):', err);
+  }
+  try {
+    await setTypingIndicator(chatId, 'assistant', false);
+    await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+    console.log('[Demo AI] Typing indicator reset after error');
+  } catch (cleanupError) {
+    console.error('[Demo AI] Failed to reset typing indicator:', cleanupError);
+  }
+      });
+    }, 10);
+
     console.log('[Messages API] Demo AI reply generation started');
 
   } else {
