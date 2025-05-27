@@ -16,8 +16,11 @@ export async function POST(req: NextRequest) {
     console.log('[Demo AI Gen API] Received request:', { chatId, userId });
     const apiBaseUrl = req.nextUrl.origin;
 
-    // Intentionally not awaiting this promise
-    await generateDemoAIReply({ chatId, userId, userMessage, apiBaseUrl }).catch(async (err) => {
+    try {
+      const result = await generateDemoAIReply({ chatId, userId, userMessage, apiBaseUrl });
+      console.log('[Demo AI Gen API] Demo AI reply generation process completed.');
+      return NextResponse.json({ message: 'Demo AI reply generated successfully', result }, { status: 200 });
+    } catch (err) {
       const channelName = getChatChannelName(chatId);
       console.error('[Demo AI Gen API] Failed to generate demo reply:', err);
       if (err instanceof Error) {
@@ -35,11 +38,8 @@ export async function POST(req: NextRequest) {
       } catch (cleanupError) {
         console.error('[Demo AI Gen API] Failed to reset typing indicator:', cleanupError);
       }
-    });
-    console.log('[Demo AI Gen API] Demo AI reply generation process started in background');
-    
-    // Respond quickly to the client that initiated this background task
-    return NextResponse.json({ message: 'Demo AI reply generation initiated' }, { status: 202 });
+      return NextResponse.json({ error: 'Failed to generate demo AI reply after error in service', details: (err instanceof Error ? err.message : String(err)) }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('[Demo AI Gen API] Error in POST handler:', error);
