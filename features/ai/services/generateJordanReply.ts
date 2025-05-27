@@ -47,7 +47,7 @@ export async function generateJordanReply({
 
   const contextPrompt = `You are Jordan, a participant in a mediated conversation. 
 Recent conversation:
-${recentMessages.reverse().map(msg => {
+${recentMessages.reverse().map((msg: any) => {
   const data = msg.data as any;
   const sender = data.senderId === 'assistant' ? 'AI Mediator' : 
                 data.senderId === jordanUserId ? 'You (Jordan)' : 'User A';
@@ -187,22 +187,11 @@ Respond naturally as Jordan. Keep your response conversational and authentic to 
     }
   });
 
-  // Use role-based turn management
+  // Use role-based turn management - just set turn to mediator, don't auto-trigger
   console.log('[Jordan AI] Jordan responded, setting turn to mediator...');
   await turnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
-
-  // Trigger mediator response after Jordan responds
-  console.log('[Jordan AI] Triggering mediator response after Jordan...');
-  const { generateAIReply } = await import('./generateAIReply');
   
-  // The mediator is responding to Jordan's message, so pass Jordan's message and Jordan's ID
-  generateAIReply({
-    chatId,
-    userId: jordanUserId, // Jordan is the one who sent the message the mediator is responding to
-    userMessage: cleanedMessage // Jordan's message that the mediator is responding to
-  }).catch(error => {
-    console.error('[Jordan AI] Failed to generate mediator response after Jordan:', error);
-  });
+  console.log('[Jordan AI] Turn set to mediator - waiting for natural trigger...');
 
   console.log('[Jordan AI] Jordan reply generation complete');
   return { content: cleanedMessage };
