@@ -8,9 +8,8 @@ import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
-import { formatStateForPrompt } from './formatStateForPrompt';
 import { generateJordanReply } from './generateJordanReply';
-import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
+import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 // Validate critical environment variables
@@ -38,7 +37,7 @@ export async function generateDemoAIReply({ // Renamed function
   console.log('[Demo AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
 
   const channelName = getChatChannelName(chatId);
-  const turnManager = new TurnManager(chatId);
+  const turnManager = new DemoTurnManager(chatId);
 
   // Add overall timeout to prevent hanging
   let timeoutId: NodeJS.Timeout | undefined;

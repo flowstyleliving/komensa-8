@@ -1,3 +1,5 @@
+// GPT CONTEXT:\n// Turn management system specifically for DEMO CHATS in Komensa.\n// Handles role-based turn transitions (User A, Jordan, Mediator)
+
 // GPT CONTEXT:
 // Simplified turn management system for Komensa chat application
 // Handles regular (non-demo) chats, primarily user-based turns.
@@ -13,7 +15,7 @@ export interface TurnState {
   // current_turn_index?: number; // Probably not needed for non-demo
 }
 
-export class TurnManager {
+export class DemoTurnManager {
   constructor(private chatId: string) {}
 
   // Get current turn state (simplified for non-demo)

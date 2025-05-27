@@ -9,7 +9,8 @@ import { auth } from '@/lib/auth';
 import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { generateDemoAIReply } from '@/features/ai/services/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
-import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
+import { TurnManager } from '@/features/chat/services/turnManager';
+import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
 import { setTypingIndicator } from '@/lib/redis';
 
 // Helper function to get user ID from session or demo cookie
@@ -67,22 +68,20 @@ export async function POST(req: NextRequest) {
   console.log('[Messages API] Sending message:', { chatId, senderId, content });
 
   const channelName = getChatChannelName(chatId);
-  const turnManager = new TurnManager(chatId);
 
-  // Check if this is a demo chat
   const chat = await prisma.chat.findUnique({
     where: { id: chatId },
     include: { participants: true }
   });
 
   if (chat?.origin === 'demo') {
-    // Use role-based turn management for demo chats
-    console.log('[Messages API] Demo chat detected, using role-based turn management');
+    const demoTurnManager = new DemoTurnManager(chatId);
+    console.log('[Messages API] Demo chat detected, using DemoTurnManager');
     
-    const canSend = await turnManager.canUserSendMessage(senderId);
+    const canSend = await demoTurnManager.canUserSendMessage(senderId);
     if (!canSend) {
-      const currentTurn = await turnManager.getCurrentTurn();
-      console.log('[Messages API] Not user turn (role-based):', { 
+      const currentTurn = await demoTurnManager.getCurrentTurn();
+      console.log('[Messages API] Not user turn (demo role-based):', { 
         senderId, 
         currentRole: currentTurn?.next_role,
         currentUserId: currentTurn?.next_user_id 
@@ -90,46 +89,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
     }
   } else {
-    // Use legacy turn management for non-demo chats
-    console.log('[Messages API] Non-demo chat, using legacy turn management');
+    const turnManager = new TurnManager(chatId);
+    console.log('[Messages API] Non-demo chat, using standard TurnManager');
     
-    const turn = await prisma.chatTurnState.findUnique({ where: { chat_id: chatId } });
-    console.log('[Messages API] Current turn state:', turn);
+    const turn = await turnManager.getCurrentTurn();
+    console.log('[Messages API] Current turn state (non-demo):', turn);
     
     if (turn?.next_user_id && turn.next_user_id !== senderId) {
-      console.log('[Messages API] Not user turn:', { expected: turn.next_user_id, actual: senderId });
+      console.log('[Messages API] Not user turn (non-demo):', { expected: turn.next_user_id, actual: senderId });
+      return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
+    } else if (!turn && (await prisma.event.count({ where: { chat_id: chatId, type: 'message' } })) > 0) {
+      console.log('[Messages API] Non-demo chat, no turn state after first message. Assuming not user turn.');
       return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
     }
   }
 
-  // Save message as event
   const newMessage = await prisma.event.create({
     data: {
       chat_id: chatId,
       type: 'message',
       data: { content, senderId },
       created_at: new Date(),
-      seq: 0, // placeholder, can use Redis for atomic seq if needed
+      seq: 0,
     },
   });
   console.log('[Messages API] Message saved to database');
 
-  // Emit new message event
   await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
     id: newMessage.id,
     created_at: newMessage.created_at.toISOString(),
-    data: {
-      content,
-      senderId
-    }
+    data: { content, senderId }
   });
 
-  // Decide which AI reply generator to use and manage turns accordingly
   if (chat?.origin === 'demo') {
+    const demoTurnManager = new DemoTurnManager(chatId);
     console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply');
-    await turnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
+    await demoTurnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
     
-    // Call the demo-specific AI reply generator
     generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
       console.error('[Demo AI] Failed to generate demo reply:', err);
       if (err instanceof Error) {
@@ -151,7 +147,6 @@ export async function POST(req: NextRequest) {
     console.log('[Messages API] Demo AI reply generation started');
 
   } else {
-    // Non-demo chat: Use legacy turn management and standard AI reply
     console.log('[Messages API] Non-demo chat: Setting turn to assistant and triggering standard AI reply');
     await prisma.chatTurnState.upsert({
       where: { chat_id: chatId },
@@ -159,11 +154,9 @@ export async function POST(req: NextRequest) {
       create: { chat_id: chatId, next_user_id: 'assistant' },
     });
     
-    // Emit turn update for non-demo chat
     await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: 'assistant' });
     console.log('[Messages API] Non-demo turn update emitted to assistant');
 
-    // Call the standard AI reply generator
     generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
       console.error('[Standard AI] Failed to generate reply:', err);
       if (err instanceof Error) {
