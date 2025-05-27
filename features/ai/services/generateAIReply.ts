@@ -7,9 +7,9 @@ import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
-import { formatStateForPrompt } from './formatStateForPrompt';
-import { generateJordanReply } from './generateJordanReply';
-import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
+// import { formatStateForPrompt } from './formatStateForPrompt'; // THIS LINE TO BE DELETED
+// import { generateJordanReply } from './generateJordanReply'; // No longer needed here
+// import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager'; // No longer needed here
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 // Validate critical environment variables
@@ -37,7 +37,7 @@ export async function generateAIReply({
   console.log('[AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
 
   const channelName = getChatChannelName(chatId);
-  const turnManager = new TurnManager(chatId);
+  // const turnManager = new TurnManager(chatId); // Not needed for generic reply
 
   // Add overall timeout to prevent hanging
   let timeoutId: NodeJS.Timeout | undefined;
@@ -65,18 +65,15 @@ export async function generateAIReply({
             console.error('[AI Reply] Redis error cause:', redisError.cause);
           }
         }
-        // Continue without Redis typing indicator
         console.log('[AI Reply] Continuing without Redis typing indicator...');
       }
       
-            // START: ROBUST PUSHER DEBUGGING WITH FULL ERROR LOGGING
       console.log('[AI Reply] Attempting to emit typing indicator (Pusher trigger)...');
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
         console.log('[AI Reply] SUCCESSFULLY emitted typing indicator via Pusher.');
       } catch (pusherTriggerError) {
         console.error('[AI Reply] ERROR: Failed to emit typing indicator via Pusher:', pusherTriggerError);
-        // Log all properties of the error object
         if (pusherTriggerError instanceof Error) {
           console.error('[AI Reply] Pusher error message:', pusherTriggerError.message);
           console.error('[AI Reply] Pusher error stack:', pusherTriggerError.stack);
@@ -85,35 +82,53 @@ export async function generateAIReply({
           if ((pusherTriggerError as any).response) console.error('[AI Reply] Pusher error response:', (pusherTriggerError as any).response);
           if ((pusherTriggerError as any).body) console.error('[AI Reply] Pusher error body:', (pusherTriggerError as any).body);
           if (pusherTriggerError.cause) console.error('[AI Reply] Pusher error cause:', pusherTriggerError.cause);
-          // Log all enumerable properties
           console.error('[AI Reply] Pusher error all properties:', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
         } else {
           console.error('[AI Reply] Pusher error (not an Error object):', String(pusherTriggerError));
         }
-        // Continue execution instead of throwing - typing indicator failure shouldn't break AI response
         console.log('[AI Reply] Continuing despite Pusher typing indicator failure...');
       }
       console.log('[AI Reply] Proceeding after Pusher typing indicator attempt.');
-      // END: ROBUST PUSHER DEBUGGING
     
-    // Get current state
-    console.log('[AI Reply] Formatting state for prompt...');
-    const state = await formatStateForPrompt({ chatId, userId, userMessage });
-    console.log('[AI Reply] State formatted successfully');
+    // Get current state -- THIS BLOCK WILL BE REMOVED
+    // console.log('[AI Reply] Formatting state for prompt...');
+    // let state;
+    // try {
+    //   state = await formatStateForPrompt({ chatId, userId, userMessage });
+    //   console.log('[AI Reply] State formatted successfully');
+    // } catch (formatStateError) {
+    //   console.error('[AI Reply] ERROR: Failed to format state for prompt:', formatStateError);
+    //   if (formatStateError instanceof Error) {
+    //     console.error('[AI Reply] Format state error message:', formatStateError.message);
+    //     console.error('[AI Reply] Format state error stack:', formatStateError.stack);
+    //     if (formatStateError.cause) console.error('[AI Reply] Format state error cause:', formatStateError.cause);
+    //   }
+    //   throw formatStateError;
+    // }
 
-    // Add state update instruction to the prompt
-    const fullPrompt = `${state}
+    // Construct the prompt using userMessage and the static instruction
+    const fullPrompt = `${userMessage}
 
 Respond thoughtfully as a mediator, drawing from the current emotional and conversational state.`;
-    console.log('[AI Reply] Full prompt prepared');
+    console.log('[AI Reply] Full prompt prepared using userMessage directly.');
 
     // Get or create thread
     console.log('[AI Reply] Getting or creating thread...');
     let threadId: string;
-    const existingThread = await prisma.chatTurnState.findUnique({
-      where: { chat_id: chatId },
-      select: { thread_id: true }
-    });
+    let existingThread;
+    try {
+      existingThread = await prisma.chatTurnState.findUnique({
+        where: { chat_id: chatId },
+        select: { thread_id: true }
+      });
+    } catch (dbError) {
+      console.error('[AI Reply] DATABASE ERROR: Failed to query existing thread:', dbError);
+      if (dbError instanceof Error) {
+        console.error('[AI Reply] DB query error message:', dbError.message);
+        console.error('[AI Reply] DB query error stack:', dbError.stack);
+      }
+      throw dbError;
+    }
 
     if (existingThread?.thread_id) {
       threadId = existingThread.thread_id;
@@ -125,23 +140,29 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       );
       threadId = thread.id;
       console.log('[AI Reply] Created new thread:', threadId);
-      
-      // Store thread ID for future use with proper initialization
-      await prisma.chatTurnState.upsert({
-        where: { chat_id: chatId },
-        update: { thread_id: threadId },
-        create: { 
-          chat_id: chatId,
-          thread_id: threadId,
-          next_user_id: 'assistant'
+      try {
+        await prisma.chatTurnState.upsert({
+          where: { chat_id: chatId },
+          update: { thread_id: threadId },
+          create: { 
+            chat_id: chatId,
+            thread_id: threadId,
+            next_user_id: 'assistant' 
+          }
+        });
+        console.log('[AI Reply] Thread ID stored in database');
+      } catch (dbError) {
+        console.error('[AI Reply] DATABASE ERROR: Failed to upsert thread ID:', dbError);
+        if (dbError instanceof Error) {
+          console.error('[AI Reply] DB upsert error message:', dbError.message);
+          console.error('[AI Reply] DB upsert error stack:', dbError.stack);
         }
-      });
-      console.log('[AI Reply] Thread ID stored in database');
+        throw dbError;
+      }
     }
 
     // Add message to thread
     console.log('[AI Reply] Adding message to thread...');
-    console.log('[AI Reply] Attempting to add message to thread...');
     try {
       await runWithRetries(() =>
         openai.beta.threads.messages.create(threadId, {
@@ -149,29 +170,26 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
           content: fullPrompt
         })
       );
-      console.log('[AI Reply] SUCCESSFULLY added message to thread.'); // This is the new success log
+      console.log('[AI Reply] SUCCESSFULLY added message to thread.');
     } catch (openaiMessageError) {
       console.error('[AI Reply] ERROR: Failed to add message to thread:', openaiMessageError);
-      // Log all properties of the error object for maximum detail
       if (openaiMessageError instanceof Error) {
           console.error('[AI Reply] OpenAI message error message:', openaiMessageError.message);
           console.error('[AI Reply] OpenAI message error stack:', openaiMessageError.stack);
-          // Add more specific properties if they exist, like from 'cause' or custom error codes
           if ((openaiMessageError as any).code) console.error('[AI Reply] OpenAI message error code:', (openaiMessageError as any).code);
           if ((openaiMessageError as any).statusCode) console.error('[AI Reply] OpenAI message error statusCode:', (openaiMessageError as any).statusCode);
-          if ((openaiMessageError as any).response) console.error('[AI Reply] OpenAI message error response:', (openaiMessageError as any).response.data || (openaiMessageError as any).response); // For Axios-like responses
+          if ((openaiMessageError as any).response) console.error('[AI Reply] OpenAI message error response:', (openaiMessageError as any).response.data || (openaiMessageError as any).response);
           if ((openaiMessageError as any).body) console.error('[AI Reply] OpenAI message error body:', (openaiMessageError as any).body);
           if (openaiMessageError.cause) console.error('[AI Reply] OpenAI message error cause:', openaiMessageError.cause);
-          // Log all enumerable properties
           console.error('[AI Reply] OpenAI message error all properties:', JSON.stringify(openaiMessageError, Object.getOwnPropertyNames(openaiMessageError)));
       } else {
           console.error('[AI Reply] OpenAI message error (not an Error object):', String(openaiMessageError));
       }
-      throw openaiMessageError; // Re-throw to ensure the main catch block also gets it
+      throw openaiMessageError;
     }
-    console.log('[AI Reply] Proceeding after adding message to thread.'); // Crucial progress log
+    console.log('[AI Reply] Proceeding after adding message to thread.');
 
-    // Start run (non-streaming for simplicity and speed)
+    // Start run
     let fullMessage = '';
     try {
       console.log('[AI Reply] Starting AI run...');
@@ -179,23 +197,20 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Attempting to create run with assistant ID:', OPENAI_ASSISTANT_ID);
       let run: Run;
       try {
-        console.log('[AI Reply] About to call runWithRetries for OpenAI run creation...');
-        
-        // Add a timeout specifically for run creation
         const runCreationPromise = runWithRetries(() =>
           openai.beta.threads.runs.create(threadId, {
             assistant_id: OPENAI_ASSISTANT_ID
           })
         ) as Promise<Run>;
         
-        const timeoutPromise = new Promise<never>((_, reject) => {
+        const runCreationTimeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => {
             console.error('[AI Reply] TIMEOUT: OpenAI run creation timed out after 30 seconds');
             reject(new Error('OpenAI run creation timed out after 30 seconds'));
-          }, 30000); // 30 second timeout for run creation
+          }, 30000);
         });
         
-        run = await Promise.race([runCreationPromise, timeoutPromise]);
+        run = await Promise.race([runCreationPromise, runCreationTimeoutPromise]);
         console.log('[AI Reply] SUCCESSFULLY created run:', run.id);
       } catch (runCreateError) {
         console.error('[AI Reply] ERROR: Failed to create run:', runCreateError);
@@ -213,7 +228,6 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
           }
           if ((runCreateError as any).body) console.error('[AI Reply] Run create error body:', (runCreateError as any).body);
           if (runCreateError.cause) console.error('[AI Reply] Run create error cause:', runCreateError.cause);
-          // Log all enumerable properties
           console.error('[AI Reply] Run create error all properties:', JSON.stringify(runCreateError, Object.getOwnPropertyNames(runCreateError)));
         } else {
           console.error('[AI Reply] Run create error (not an Error object):', String(runCreateError));
@@ -226,17 +240,14 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       );
       console.log('[AI Reply] Initial run status:', completedRun.status);
       
-      // Add timeout to prevent infinite polling (max 2 minutes)
-      const maxWaitTime = 120000; // 2 minutes
+      const maxWaitTime = 120000;
       const startTime = Date.now();
       
       while (completedRun.status === 'in_progress' || completedRun.status === 'queued') {
-        // Check timeout
         if (Date.now() - startTime > maxWaitTime) {
           console.error('[AI Reply] Run timed out after 2 minutes');
           throw new Error('AI run timed out after 2 minutes');
         }
-        
         await new Promise(resolve => setTimeout(resolve, 1000));
         try {
           completedRun = await runWithRetries(() =>
@@ -254,8 +265,6 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         throw new Error(`AI run failed: ${completedRun.last_error?.message}`);
       }
       
-      // Get messages
-      console.log('[AI Reply] Retrieving messages...');
       const messages = await runWithRetries(() =>
         openai.beta.threads.messages.list(threadId)
       );
@@ -272,20 +281,22 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Message retrieved:', fullMessage);
     } catch (error) {
       console.error('[AI Reply] Failed to generate AI response:', error);
-      // Stop typing indicator on error
       await setTypingIndicator(chatId, 'assistant', false);
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-        console.log('[AI Reply] Typing indicator reset via Pusher after error');
       } catch (pusherError) {
-        console.error('[AI Reply] ERROR: Failed to reset typing indicator via Pusher:', pusherError);
+        console.error('[AI Reply] ERROR: Failed to reset typing indicator via Pusher on error:', pusherError);
       }
       throw error;
     }
 
     // Stop typing indicator
     console.log('[AI Reply] Stopping typing indicator...');
-    await setTypingIndicator(chatId, 'assistant', false);
+    try {
+      await setTypingIndicator(chatId, 'assistant', false);
+    } catch (redisError) {
+       console.error('[AI Reply] REDIS ERROR: Failed to stop typing indicator in Redis:', redisError);
+    }
     try {
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       console.log('[AI Reply] Typing indicator stopped via Pusher');
@@ -293,23 +304,28 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.error('[AI Reply] ERROR: Failed to stop typing indicator via Pusher:', pusherError);
     }
 
-    // Process the message (no longer need to parse STATE_UPDATE_JSON)
-    console.log('[AI Reply] Processing message...');
     const cleanedMessage = fullMessage.trim();
 
     // Store message in database
     console.log('[AI Reply] Storing message in database...');
-    const newMessage = await prisma.event.create({
-      data: {
-        chat_id: chatId,
-        type: 'message',
+    let newMessage;
+    try {
+      newMessage = await prisma.event.create({
         data: {
-          content: cleanedMessage,
-          senderId: 'assistant'
+          chat_id: chatId,
+          type: 'message',
+          data: { content: cleanedMessage, senderId: 'assistant' }
         }
+      });
+      console.log('[AI Reply] Message stored in database');
+    } catch (dbError) {
+      console.error('[AI Reply] DATABASE ERROR: Failed to store new message:', dbError);
+      if (dbError instanceof Error) {
+        console.error('[AI Reply] DB create error message:', dbError.message);
+        console.error('[AI Reply] DB create error stack:', dbError.stack);
       }
-    });
-    console.log('[AI Reply] Message stored in database');
+      throw dbError;
+    }
 
     // Emit new message event
     console.log('[AI Reply] Emitting new message event...');
@@ -317,88 +333,53 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
         id: newMessage.id,
         created_at: newMessage.created_at.toISOString(),
-        data: {
-          content: cleanedMessage,
-          senderId: 'assistant'
-        }
+        data: { content: cleanedMessage, senderId: 'assistant' }
       });
       console.log('[AI Reply] New message event emitted successfully');
     } catch (pusherError) {
       console.error('[AI Reply] ERROR: Failed to emit new message event via Pusher:', pusherError);
     }
 
-    // Check if this is a demo chat and handle the conversation flow
-    console.log('[AI Reply] Checking chat type and managing turns...');
-    const chat = await prisma.chat.findUnique({
-      where: { id: chatId },
-      include: { participants: true }
-    });
-
-    if (chat?.origin === 'demo') {
-      console.log('[AI Reply] Demo chat detected, using role-based turn management...');
-      
-      // Get the role of the user who sent the message that triggered this mediator response
-      const userRole = await turnManager.getRoleForUserId(userId);
-      console.log('[AI Reply] User role who triggered mediator:', userRole);
-
-      if (userRole === DEMO_ROLES.USER_A) {
-        // Mediator just responded to User A → next turn should be Jordan
-        console.log('[AI Reply] Mediator responded to User A, setting turn to Jordan...');
-        await turnManager.setTurnToRole(DEMO_ROLES.JORDAN);
-        
-        // Trigger Jordan's response automatically
-        const jordanUserId = await turnManager.getUserIdForRole(DEMO_ROLES.JORDAN);
-        if (jordanUserId) {
-          console.log('[AI Reply] Triggering Jordan response...');
-          generateJordanReply({
-            chatId,
-            jordanUserId,
-            conversationContext: cleanedMessage
-          }).catch(error => {
-            console.error('[AI Reply] Failed to generate Jordan response:', error);
-          });
-        }
-      } else if (userRole === DEMO_ROLES.JORDAN) {
-        // Mediator just responded to Jordan → next turn should be User A
-        console.log('[AI Reply] Mediator responded to Jordan, setting turn to User A...');
-        await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
-      } else {
-        // Fallback: set turn to User A (since this is a demo chat)
-        console.log('[AI Reply] Unknown user role, setting turn to User A...');
-        await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
-      }
-    } else {
-      // For non-demo chats, use the old logic
-      console.log('[AI Reply] Non-demo chat, using legacy turn management...');
+    // THIS IS THE NON-DEMO (LEGACY) TURN MANAGEMENT LOGIC
+    // It was previously in an ELSE block, now it's the main path.
+    console.log('[AI Reply] Non-demo chat, using legacy turn management...');
+    try {
       await prisma.chatTurnState.update({
         where: { chat_id: chatId },
-        data: { next_user_id: userId }
+        data: { next_user_id: userId } // AI has responded, next turn is the user who messaged.
       });
-      
-      // Emit turn update
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: userId });
+      console.log('[AI Reply] Chat turn state updated in DB.');
+    } catch (dbError) {
+      console.error('[AI Reply] DATABASE ERROR: Failed to update legacy turn state:', dbError);
+      if (dbError instanceof Error) {
+        console.error('[AI Reply] DB update (legacy turn) error message:', dbError.message);
+        console.error('[AI Reply] DB update (legacy turn) error stack:', dbError.stack);
+      }
+      throw dbError; // Critical for turn management
     }
+    
+    try {
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: userId });
+      console.log('[AI Reply] Pusher turn update event emitted.');
+    } catch (pusherError) {
+      console.error('[AI Reply] PUSHER ERROR: Failed to emit legacy turn update:', pusherError);
+      // Log details, but don't re-throw as the main operation (DB update) succeeded.
+    }
+    // END OF NON-DEMO TURN MANAGEMENT
 
     console.log('[AI Reply] Generation complete');
-    
-    // Clear the timeout since we completed successfully
     if (timeoutId) clearTimeout(timeoutId);
-    
     return { content: cleanedMessage };
     
     } catch (mainError) {
-      // Clear the timeout on error as well
       if (timeoutId) clearTimeout(timeoutId);
       console.error('[AI Reply] Main AI reply generation failed:', mainError);
-      
-      // Enhanced error logging
       if (mainError instanceof Error) {
         console.error('[AI Reply] Main error message:', mainError.message);
         console.error('[AI Reply] Main error stack:', mainError.stack);
         if (mainError.cause) {
           console.error('[AI Reply] Main error cause:', mainError.cause);
         }
-        // Log all enumerable properties
         for (const key in mainError) {
           console.error(`[AI Reply] Main error property ${key}:`, (mainError as any)[key]);
         }
@@ -406,15 +387,13 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         console.error('[AI Reply] Main error (not an Error object):', mainError);
       }
       
-      // Attempt to stop typing indicator on main error as well
       try {
         await setTypingIndicator(chatId, 'assistant', false);
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-        console.log('[AI Reply] Typing indicator stopped successfully due to main error.');
       } catch (cleanupError) {
         console.error('[AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);
       }
-      throw mainError; // Re-throw to ensure Vercel sees the error
+      throw mainError;
     }
   })();
 

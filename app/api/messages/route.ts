@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { generateAIReply } from '@/features/ai/services/generateAIReply';
+import { generateDemoAIReply } from '@/features/ai/services/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
 import { setTypingIndicator } from '@/lib/redis';
@@ -123,52 +124,66 @@ export async function POST(req: NextRequest) {
     }
   });
 
+  // Decide which AI reply generator to use and manage turns accordingly
   if (chat?.origin === 'demo') {
-    // Use role-based turn management
-    console.log('[Messages API] Setting turn to mediator for demo chat');
+    console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply');
     await turnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
+    
+    // Call the demo-specific AI reply generator
+    generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
+      console.error('[Demo AI] Failed to generate demo reply:', err);
+      if (err instanceof Error) {
+        console.error('[Demo AI] Error message:', err.message);
+        console.error('[Demo AI] Error stack:', err.stack);
+        if (err.cause) console.error('[Demo AI] Error cause:', err.cause);
+        for (const key in err) console.error(`[Demo AI] Error property ${key}:`, (err as any)[key]);
+      } else {
+        console.error('[Demo AI] Error (not an Error object):', err);
+      }
+      try {
+        await setTypingIndicator(chatId, 'assistant', false);
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+        console.log('[Demo AI] Typing indicator reset after error');
+      } catch (cleanupError) {
+        console.error('[Demo AI] Failed to reset typing indicator:', cleanupError);
+      }
+    });
+    console.log('[Messages API] Demo AI reply generation started');
+
   } else {
-    // Use legacy turn management
-    console.log('[Messages API] Setting turn to assistant for non-demo chat');
+    // Non-demo chat: Use legacy turn management and standard AI reply
+    console.log('[Messages API] Non-demo chat: Setting turn to assistant and triggering standard AI reply');
     await prisma.chatTurnState.upsert({
       where: { chat_id: chatId },
       update: { next_user_id: 'assistant' },
       create: { chat_id: chatId, next_user_id: 'assistant' },
     });
     
-    // Emit turn update
+    // Emit turn update for non-demo chat
     await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: 'assistant' });
-  }
+    console.log('[Messages API] Non-demo turn update emitted to assistant');
 
-  // Begin AI response with better error handling
-  generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
-    console.error('[AI] Failed to generate reply:', err);
-    
-    // Enhanced error logging
-    if (err instanceof Error) {
-      console.error('[AI] Error message:', err.message);
-      console.error('[AI] Error stack:', err.stack);
-      if (err.cause) {
-        console.error('[AI] Error cause:', err.cause);
+    // Call the standard AI reply generator
+    generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
+      console.error('[Standard AI] Failed to generate reply:', err);
+      if (err instanceof Error) {
+        console.error('[Standard AI] Error message:', err.message);
+        console.error('[Standard AI] Error stack:', err.stack);
+        if (err.cause) console.error('[Standard AI] Error cause:', err.cause);
+        for (const key in err) console.error(`[Standard AI] Error property ${key}:`, (err as any)[key]);
+      } else {
+        console.error('[Standard AI] Error (not an Error object):', err);
       }
-      // Log all enumerable properties
-      for (const key in err) {
-        console.error(`[AI] Error property ${key}:`, (err as any)[key]);
+      try {
+        await setTypingIndicator(chatId, 'assistant', false);
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+        console.log('[Standard AI] Typing indicator reset after error');
+      } catch (cleanupError) {
+        console.error('[Standard AI] Failed to reset typing indicator:', cleanupError);
       }
-    } else {
-      console.error('[AI] Error (not an Error object):', err);
-    }
-    
-    // Ensure typing indicator is reset on error (both Redis and Pusher)
-    try {
-      await setTypingIndicator(chatId, 'assistant', false);
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      console.log('[AI] Typing indicator reset after error');
-    } catch (pusherError) {
-      console.error('[AI] Failed to reset typing indicator:', pusherError);
-    }
-  });
-  console.log('[Messages API] AI reply generation started');
+    });
+    console.log('[Messages API] Standard AI reply generation started');
+  }
 
   return NextResponse.json({ ok: true });
 }

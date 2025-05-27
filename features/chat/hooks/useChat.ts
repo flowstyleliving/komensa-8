@@ -97,77 +97,120 @@ export function useChat(chatId: string) {
     // Subscribe to Pusher channel
     const channelName = getChatChannelName(chatId);
     console.log('[useChat] Subscribing to Pusher channel:', channelName);
-    const channel = pusherClient.subscribe(channelName);
-    
-    // Handle new messages
-    channel.bind(PUSHER_EVENTS.NEW_MESSAGE, (message: ChatMessage) => {
-      console.log('[useChat] Received new message:', message);
-      if (message.data && message.data.content && message.data.content.trim().length > 0) {
-        setData(prev => ({
-          ...prev,
-          messages: [...prev.messages, message]
-        }));
-      }
-    });
-    
-    // Handle turn updates
-    channel.bind(PUSHER_EVENTS.TURN_UPDATE, (turnState: any) => {
-      console.log('[useChat] Received turn update:', turnState);
-      setData(prev => ({
-        ...prev,
-        currentTurn: {
-          next_user_id: turnState.next_user_id,
-          next_role: turnState.next_role
-        }
-      }));
-    });
-    
-    // Handle assistant typing
-    channel.bind(PUSHER_EVENTS.ASSISTANT_TYPING, (typingData: { isTyping: boolean }) => {
-      console.log('[useChat] Assistant typing status:', typingData.isTyping);
-      setData(prev => ({
-        ...prev,
-        isAssistantTyping: typingData.isTyping
-      }));
-    });
-    
-    // Handle user typing
-    channel.bind(PUSHER_EVENTS.USER_TYPING, (typingData: { userId: string; isTyping: boolean }) => {
-      console.log('[useChat] User typing status:', typingData);
-      setData(prev => {
-        const newTypingUsers = new Set(prev.typingUsers);
-        if (typingData.isTyping) {
-          newTypingUsers.add(typingData.userId);
-        } else {
-          newTypingUsers.delete(typingData.userId);
-        }
-        return {
-          ...prev,
-          typingUsers: newTypingUsers
-        };
-      });
-    });
-    
-    // Handle full state updates
-    channel.bind(PUSHER_EVENTS.STATE_UPDATE, (state: any) => {
-      console.log('[useChat] Received state update:', state);
-      // Filter out any empty messages
-      const filteredMessages = state.messages.filter((msg: any) => 
-        msg.data && msg.data.content && msg.data.content.trim().length > 0
-      );
+    try {
+      const channel = pusherClient.subscribe(channelName);
       
-      setData(prev => ({
-        ...prev,
-        ...state,
-        messages: filteredMessages
-      }));
-    });
-    
-    return () => {
-      console.log('[useChat] Cleaning up Pusher subscription');
-      channel.unbind_all();
-      pusherClient.unsubscribe(channelName);
-    };
+      // Handle new messages
+      channel.bind(PUSHER_EVENTS.NEW_MESSAGE, (message: ChatMessage) => {
+        try {
+          console.log('[useChat] Received new message:', message);
+          if (message && message.data && message.data.content && message.data.content.trim().length > 0) {
+            setData(prev => ({
+              ...prev,
+              messages: [...prev.messages, message]
+            }));
+          } else {
+            console.warn('[useChat] Received malformed or empty new message event:', message);
+          }
+        } catch (e) {
+          console.error('[useChat] Error processing NEW_MESSAGE event:', e, { receivedData: message });
+        }
+      });
+      
+      // Handle turn updates
+      channel.bind(PUSHER_EVENTS.TURN_UPDATE, (turnState: any) => {
+        try {
+          console.log('[useChat] Received turn update:', turnState);
+          if (turnState && turnState.next_user_id) {
+            setData(prev => ({
+              ...prev,
+              currentTurn: {
+                next_user_id: turnState.next_user_id,
+                next_role: turnState.next_role
+              }
+            }));
+          } else {
+            console.warn('[useChat] Received malformed turn update event:', turnState);
+          }
+        } catch (e) {
+          console.error('[useChat] Error processing TURN_UPDATE event:', e, { receivedData: turnState });
+        }
+      });
+      
+      // Handle assistant typing
+      channel.bind(PUSHER_EVENTS.ASSISTANT_TYPING, (typingData: { isTyping: boolean }) => {
+        try {
+          console.log('[useChat] Assistant typing status:', typingData);
+          if (typeof typingData?.isTyping === 'boolean') {
+            setData(prev => ({
+              ...prev,
+              isAssistantTyping: typingData.isTyping
+            }));
+          } else {
+            console.warn('[useChat] Received malformed assistant typing event:', typingData);
+          }
+        } catch (e) {
+          console.error('[useChat] Error processing ASSISTANT_TYPING event:', e, { receivedData: typingData });
+        }
+      });
+      
+      // Handle user typing
+      channel.bind(PUSHER_EVENTS.USER_TYPING, (typingData: { userId: string; isTyping: boolean }) => {
+        try {
+          console.log('[useChat] User typing status:', typingData);
+          if (typingData && typeof typingData.userId === 'string' && typeof typingData.isTyping === 'boolean') {
+            setData(prev => {
+              const newTypingUsers = new Set(prev.typingUsers);
+              if (typingData.isTyping) {
+                newTypingUsers.add(typingData.userId);
+              } else {
+                newTypingUsers.delete(typingData.userId);
+              }
+              return {
+                ...prev,
+                typingUsers: newTypingUsers
+              };
+            });
+          } else {
+            console.warn('[useChat] Received malformed user typing event:', typingData);
+          }
+        } catch (e) {
+          console.error('[useChat] Error processing USER_TYPING event:', e, { receivedData: typingData });
+        }
+      });
+      
+      // Handle full state updates
+      channel.bind(PUSHER_EVENTS.STATE_UPDATE, (state: any) => {
+        try {
+          console.log('[useChat] Received state update:', state);
+          if (state && state.messages) { // Basic check, can be more thorough
+            const filteredMessages = state.messages.filter((msg: any) => 
+              msg.data && msg.data.content && msg.data.content.trim().length > 0
+            );
+            setData(prev => ({
+              ...prev,
+              ...state,
+              messages: filteredMessages
+            }));
+          } else {
+            console.warn('[useChat] Received malformed state update event:', state);
+          }
+        } catch (e) {
+          console.error('[useChat] Error processing STATE_UPDATE event:', e, { receivedData: state });
+        }
+      });
+
+      return () => {
+        console.log('[useChat] Cleaning up Pusher subscription for channel:', channelName);
+        channel.unbind_all();
+        pusherClient.unsubscribe(channelName);
+      };
+
+    } catch (error) {
+      console.error('[useChat] FATAL: Failed to subscribe to Pusher channel or bind events:', channelName, error);
+      // Optionally, set an error state here to inform the user
+      return () => {}; // Return an empty cleanup function
+    }
   }, [chatId]);
 
   const canSendMessage = () => {
