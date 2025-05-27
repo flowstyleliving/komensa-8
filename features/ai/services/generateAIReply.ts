@@ -291,9 +291,9 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         console.log('[AI Reply] Mediator responded to Jordan, setting turn to User A...');
         await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
       } else {
-        // Fallback: advance to next turn in sequence
-        console.log('[AI Reply] Unknown user role, advancing turn normally...');
-        await turnManager.advanceTurn();
+        // Fallback: set turn to User A (since this is a demo chat)
+        console.log('[AI Reply] Unknown user role, setting turn to User A...');
+        await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
       }
     } else {
       // For non-demo chats, use the old logic
