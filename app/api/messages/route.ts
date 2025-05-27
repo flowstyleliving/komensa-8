@@ -126,8 +126,7 @@ export async function POST(req: NextRequest) {
     const demoTurnManager = new DemoTurnManager(chatId);
     console.log('[Messages API] Demo chat: Setting turn to mediator and triggering demo AI reply');
     await demoTurnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
-    setTimeout(() => {
-      generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
+      await generateDemoAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
     console.error('[Demo AI] Failed to generate demo reply:', err);
     if (err instanceof Error) {
       console.error('[Demo AI] Error message:', err.message);
@@ -145,8 +144,6 @@ export async function POST(req: NextRequest) {
     console.error('[Demo AI] Failed to reset typing indicator:', cleanupError);
   }
       });
-    }, 10);
-
     console.log('[Messages API] Demo AI reply generation started');
 
   } else {
