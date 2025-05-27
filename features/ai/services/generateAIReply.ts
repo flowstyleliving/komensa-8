@@ -8,7 +8,6 @@ import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
 import { formatStateForPrompt } from './formatStateForPrompt';
-import { parseStateUpdate, parseStateUpdateAndCleanMessage } from './parseStateUpdate';
 import { generateJordanReply } from './generateJordanReply';
 import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
@@ -141,25 +140,62 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
 
     // Add message to thread
     console.log('[AI Reply] Adding message to thread...');
-    await runWithRetries(() =>
-      openai.beta.threads.messages.create(threadId, {
-        role: 'user',
-        content: fullPrompt
-      })
-    );
-    console.log('[AI Reply] Message added to thread');
+    console.log('[AI Reply] Attempting to add message to thread...');
+    try {
+      await runWithRetries(() =>
+        openai.beta.threads.messages.create(threadId, {
+          role: 'user',
+          content: fullPrompt
+        })
+      );
+      console.log('[AI Reply] SUCCESSFULLY added message to thread.'); // This is the new success log
+    } catch (openaiMessageError) {
+      console.error('[AI Reply] ERROR: Failed to add message to thread:', openaiMessageError);
+      // Log all properties of the error object for maximum detail
+      if (openaiMessageError instanceof Error) {
+          console.error('[AI Reply] OpenAI message error message:', openaiMessageError.message);
+          console.error('[AI Reply] OpenAI message error stack:', openaiMessageError.stack);
+          // Add more specific properties if they exist, like from 'cause' or custom error codes
+          if ((openaiMessageError as any).code) console.error('[AI Reply] OpenAI message error code:', (openaiMessageError as any).code);
+          if ((openaiMessageError as any).statusCode) console.error('[AI Reply] OpenAI message error statusCode:', (openaiMessageError as any).statusCode);
+          if ((openaiMessageError as any).response) console.error('[AI Reply] OpenAI message error response:', (openaiMessageError as any).response.data || (openaiMessageError as any).response); // For Axios-like responses
+          if ((openaiMessageError as any).body) console.error('[AI Reply] OpenAI message error body:', (openaiMessageError as any).body);
+          if (openaiMessageError.cause) console.error('[AI Reply] OpenAI message error cause:', openaiMessageError.cause);
+          // Log all enumerable properties
+          console.error('[AI Reply] OpenAI message error all properties:', JSON.stringify(openaiMessageError, Object.getOwnPropertyNames(openaiMessageError)));
+      } else {
+          console.error('[AI Reply] OpenAI message error (not an Error object):', String(openaiMessageError));
+      }
+      throw openaiMessageError; // Re-throw to ensure the main catch block also gets it
+    }
+    console.log('[AI Reply] Proceeding after adding message to thread.'); // Crucial progress log
 
     // Start run (non-streaming for simplicity and speed)
     let fullMessage = '';
     try {
       console.log('[AI Reply] Starting AI run...');
       assertAssistantId(OPENAI_ASSISTANT_ID);
-      const run = await runWithRetries(() =>
-        openai.beta.threads.runs.create(threadId, {
-          assistant_id: OPENAI_ASSISTANT_ID
-        })
-      ) as Run;
-      console.log('[AI Reply] Run created:', run.id);
+      console.log('[AI Reply] Attempting to create run with assistant ID:', OPENAI_ASSISTANT_ID);
+      let run: Run;
+      try {
+        run = await runWithRetries(() =>
+          openai.beta.threads.runs.create(threadId, {
+            assistant_id: OPENAI_ASSISTANT_ID
+          })
+        ) as Run;
+        console.log('[AI Reply] SUCCESSFULLY created run:', run.id);
+      } catch (runCreateError) {
+        console.error('[AI Reply] ERROR: Failed to create run:', runCreateError);
+        if (runCreateError instanceof Error) {
+          console.error('[AI Reply] Run create error message:', runCreateError.message);
+          console.error('[AI Reply] Run create error stack:', runCreateError.stack);
+          if ((runCreateError as any).code) console.error('[AI Reply] Run create error code:', (runCreateError as any).code);
+          if ((runCreateError as any).statusCode) console.error('[AI Reply] Run create error statusCode:', (runCreateError as any).statusCode);
+          if ((runCreateError as any).response) console.error('[AI Reply] Run create error response:', (runCreateError as any).response);
+          if (runCreateError.cause) console.error('[AI Reply] Run create error cause:', runCreateError.cause);
+        }
+        throw runCreateError;
+      }
       
       let completedRun = await runWithRetries(() =>
         openai.beta.threads.runs.retrieve(threadId, run.id)
