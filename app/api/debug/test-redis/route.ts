@@ -8,13 +8,22 @@ export async function GET() {
   console.log('[Redis Test] Environment check:');
   console.log('[Redis Test] UPSTASH_REDIS_REST_URL exists:', !!process.env.UPSTASH_REDIS_REST_URL);
   console.log('[Redis Test] UPSTASH_REDIS_REST_TOKEN exists:', !!process.env.UPSTASH_REDIS_REST_TOKEN);
+  console.log('[Redis Test] KV_REST_API_URL exists:', !!process.env.KV_REST_API_URL);
+  console.log('[Redis Test] KV_REST_API_TOKEN exists:', !!process.env.KV_REST_API_TOKEN);
   console.log('[Redis Test] REDIS_URL exists:', !!process.env.REDIS_URL);
+  console.log('[Redis Test] KV_URL exists:', !!process.env.KV_URL);
   
   if (process.env.UPSTASH_REDIS_REST_URL) {
     console.log('[Redis Test] UPSTASH_REDIS_REST_URL (partial):', process.env.UPSTASH_REDIS_REST_URL.substring(0, 20) + '...');
   }
+  if (process.env.KV_REST_API_URL) {
+    console.log('[Redis Test] KV_REST_API_URL (partial):', process.env.KV_REST_API_URL.substring(0, 20) + '...');
+  }
   if (process.env.REDIS_URL) {
     console.log('[Redis Test] REDIS_URL (partial):', process.env.REDIS_URL.substring(0, 20) + '...');
+  }
+  if (process.env.KV_URL) {
+    console.log('[Redis Test] KV_URL (partial):', process.env.KV_URL.substring(0, 20) + '...');
   }
 
   try {
@@ -54,7 +63,10 @@ export async function GET() {
       environment: {
         hasUpstashUrl: !!process.env.UPSTASH_REDIS_REST_URL,
         hasUpstashToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
-        hasRedisUrl: !!process.env.REDIS_URL
+        hasKvRestUrl: !!process.env.KV_REST_API_URL,
+        hasKvRestToken: !!process.env.KV_REST_API_TOKEN,
+        hasRedisUrl: !!process.env.REDIS_URL,
+        hasKvUrl: !!process.env.KV_URL
       }
     });
 
@@ -82,7 +94,10 @@ export async function GET() {
       environment: {
         hasUpstashUrl: !!process.env.UPSTASH_REDIS_REST_URL,
         hasUpstashToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
-        hasRedisUrl: !!process.env.REDIS_URL
+        hasKvRestUrl: !!process.env.KV_REST_API_URL,
+        hasKvRestToken: !!process.env.KV_REST_API_TOKEN,
+        hasRedisUrl: !!process.env.REDIS_URL,
+        hasKvUrl: !!process.env.KV_URL
       }
     }, { status: 500 });
   }
