@@ -92,7 +92,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex items-center gap-2 text-[#3C4858]/60">
                 <Users className="h-4 w-4" />
-                <span className="text-sm">User A & Jordan + AI Mediator</span>
+                <span className="text-sm">Michael & Jordan + AI Mediator</span>
               </div>
               
               <Button 

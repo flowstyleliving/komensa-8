@@ -1,4 +1,4 @@
-// GPT CONTEXT:\n// Turn management system specifically for DEMO CHATS in Komensa.\n// Handles role-based turn transitions (User A, Jordan, Mediator)
+// GPT CONTEXT:\n// Turn management system specifically for DEMO CHATS in Komensa.\n// Handles role-based turn transitions (Michael, Jordan, Mediator)
 
 // GPT CONTEXT:
 // Simplified turn management system for Komensa chat application
@@ -39,11 +39,11 @@ export class DemoTurnManager {
     });
 
     if (!turnState) {
-      console.warn('[DemoTurnManager] No turn state found for chat, attempting to initialize for User A default.', { chatId: this.chatId });
+      console.warn('[DemoTurnManager] No turn state found for chat, attempting to initialize for Michael default.', { chatId: this.chatId });
       const userAParticipant = await prisma.chatParticipant.findFirst({
         where: {
           chat_id: this.chatId,
-          user: { display_name: 'User A' } 
+          user: { display_name: 'Michael' } 
         },
         select: { user_id: true }
       });
@@ -105,7 +105,7 @@ export class DemoTurnManager {
     if (!currentState) {
       console.warn('[DemoTurnManager] No current turn state, attempting to initialize for role:', role);
       const userA = await this.getUserIdForRole(DEMO_ROLES.USER_A); 
-      if (!userA) throw new Error('Cannot set turn: User A not found for demo initialization.');
+      if (!userA) throw new Error('Cannot set turn: Michael not found for demo initialization.');
       currentState = await this.initializeDemoTurns(userA, role);
     }
 
@@ -198,7 +198,7 @@ export class DemoTurnManager {
 
     if (!participant?.user?.display_name) return null;
 
-    if (participant.user.display_name === 'User A') {
+    if (participant.user.display_name === 'Michael') {
       return DEMO_ROLES.USER_A;
     } else if (participant.user.display_name === 'Jordan') {
       return DEMO_ROLES.JORDAN;
@@ -212,7 +212,7 @@ export class DemoTurnManager {
     }
     let displayNameQuery: string;
     if (role === DEMO_ROLES.USER_A) {
-      displayNameQuery = 'User A';
+      displayNameQuery = 'Michael';
     } else if (role === DEMO_ROLES.JORDAN) {
       displayNameQuery = 'Jordan';
     } else {

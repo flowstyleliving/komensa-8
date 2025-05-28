@@ -41,10 +41,10 @@ export async function GET(req: Request) {
       user1 = await prisma.user.create({
         data: {
           id: uuidv4(),
-          display_name: 'User A',
+          display_name: 'Michael',
         },
       });
-      console.log('[Demo Seed] Created user1 (User A):', user1.id, user1.display_name);
+      console.log('[Demo Seed] Created user1 (Michael):', user1.id, user1.display_name);
     } catch (error) {
       console.error('[Demo Seed] Failed to create user1:', error);
       throw error;
@@ -82,7 +82,7 @@ export async function GET(req: Request) {
           },
           turn_state: {
             create: {
-              next_user_id: user1.id, // Start with User A (the demo viewer)
+              next_user_id: user1.id, // Start with Michael (the demo viewer)
               next_role: 'user_a',
               turn_queue: ['user_a', 'mediator', 'jordan', 'mediator'],
               current_turn_index: 0
@@ -99,8 +99,8 @@ export async function GET(req: Request) {
     // 3. Prepare system prompt for AI context (not stored as visible message)
     console.log('[Demo Seed] Preparing system prompt for AI context...');
     const filledPrompt = SYSTEM_PROMPT
-      .replace("{{participants}}", `"${user1.display_name || 'User A'}", "${user2.display_name || 'Jordan'}"`)
-      .replace(/{{first_display_name}}/g, user1.display_name || 'User A');
+      .replace("{{participants}}", `"${user1.display_name || 'Michael'}", "${user2.display_name || 'Jordan'}"`)
+      .replace(/{{first_display_name}}/g, user1.display_name || 'Michael');
     
     console.log('[Demo Seed] System prompt prepared for AI context (not visible in chat)');
 
@@ -111,7 +111,7 @@ export async function GET(req: Request) {
         chat_id: newChat.id,
         type: 'message',
         data: {
-          content: `Hello User A and Jordan! I'm here to help facilitate your conversation. I'll help translate messages into constructive language and manage turn-taking between you both. User A, could you please share a brief description of the current situation and what you're hoping to achieve from this chat?`,
+          content: `Hello Michael and Jordan! I'm here to help facilitate your conversation. I'll help translate messages into constructive language and manage turn-taking between you both. Michael, could you please share a brief description of the current situation and what you're hoping to achieve from this chat?`,
           senderId: 'assistant',
         },
       },
@@ -154,7 +154,7 @@ export async function GET(req: Request) {
       name: user1.display_name,
     }));
     console.log('[Demo Seed] Redirecting to:', url.toString());
-    console.log('[Demo Seed] Demo user (User A) will be able to chat with Jordan via AI mediation');
+    console.log('[Demo Seed] Demo user (Michael) will be able to chat with Jordan via AI mediation');
 
     return response;
 

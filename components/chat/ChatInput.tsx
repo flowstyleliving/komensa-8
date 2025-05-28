@@ -16,11 +16,10 @@ export function ChatInput({ onSend, disabled = false, placeholder = "Share your 
   useEffect(() => {
     const isDemoPage = window.location.search.includes('demo=true');
     if (isDemoPage && content === '' && !hasPreFilled) {
-      setContent('I\’m doing 80% of the work and getting 30% of the equity. That doesn\’t work for me anymore.');
+      setContent('Jordan and I have been together for three years, but lately I feel like we\'re growing apart. I love them deeply, but I\'m not sure if we want the same things anymore.');
       setHasPreFilled(true);
     }
   }, [content, hasPreFilled]);
-
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (content.trim() && !disabled) {
@@ -38,13 +37,26 @@ export function ChatInput({ onSend, disabled = false, placeholder = "Share your 
         </div>
       ))}
       <form onSubmit={handleSubmit} className="flex gap-3">
-        <input
-          type="text"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          disabled={disabled}
-          placeholder={placeholder}
-          className="flex-1 px-4 py-3 border border-[#3C4858]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D8A7B1]/50 focus:border-[#D8A7B1] disabled:bg-[#F9F7F4]/50 disabled:cursor-not-allowed text-[#3C4858] placeholder-[#3C4858]/50 bg-white shadow-sm transition-all duration-200"
+        <div
+          contentEditable
+          ref={(el) => {
+            if (el && el.textContent !== content) {
+              el.textContent = content;
+            }
+          }}
+          onInput={(e) => setContent(e.currentTarget.textContent || '')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit(e as any);
+            }
+          }}
+          data-placeholder={placeholder}
+          className="flex-1 px-4 py-3 border border-[#3C4858]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D8A7B1]/50 focus:border-[#D8A7B1] disabled:bg-[#F9F7F4]/50 disabled:cursor-not-allowed text-[#3C4858] bg-white shadow-sm transition-all duration-200 min-h-[48px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-[#3C4858]/50"
+          style={{
+            opacity: disabled ? 0.5 : 1,
+            pointerEvents: disabled ? 'none' : 'auto'
+          }}
         />
         <button
           type="submit"

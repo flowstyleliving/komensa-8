@@ -355,7 +355,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     }
 
     if (userRole === DEMO_ROLES.USER_A) {
-      console.log('[Demo AI Reply] Mediator responded to User A, setting turn to Jordan...');
+      console.log('[Demo AI Reply] Mediator responded to Michael, setting turn to Jordan...');
       try {
         await turnManager.setTurnToRole(DEMO_ROLES.JORDAN);
       } catch (turnError: any) {
@@ -372,32 +372,46 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         jordanUserId = await turnManager.getUserIdForRole(DEMO_ROLES.JORDAN);
       } catch (turnError: any) {
         console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to get Jordan user ID:', turnError);
-        // Log and continue, as User A's turn is set if this fails.
+        // Log and continue, as Michael's turn is set if this fails.
       }
 
       if (jordanUserId) {
         console.log('[Demo AI Reply] Triggering Jordan response via API call...');
         // Fire-and-forget call to the new Jordan reply API endpoint
-        fetch(`${apiBaseUrl}/api/demo/gen-jordan-reply`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ chatId, jordanUserId, conversationContext: cleanedMessage, apiBaseUrl }),
-        }).catch(err => {
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/demo/gen-jordan-reply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ chatId, jordanUserId, conversationContext: cleanedMessage, apiBaseUrl }),
+          });
+          
+          if (!response.ok) {
+            console.error('[Demo AI Reply] Jordan API call failed with status:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('[Demo AI Reply] Jordan API error response:', errorText);
+          } else {
+            console.log('[Demo AI Reply] Jordan API call successful, status:', response.status);
+          }
+        } catch (err) {
           // This catch is for network errors or issues initiating the fetch itself
           console.error('[Demo AI Reply] Error calling /api/demo/gen-jordan-reply:', err);
-        });
+          if (err instanceof Error) {
+            console.error('[Demo AI Reply] Fetch error message:', err.message);
+            console.error('[Demo AI Reply] Fetch error stack:', err.stack);
+          }
+        }
       }
     } else if (userRole === DEMO_ROLES.JORDAN) {
-      console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to User A...');
+      console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to Michael...');
       try {
         await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
       } catch (turnError: any) {
-        console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to set turn to User A (after Jordan):', turnError);
+        console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to set turn to Michael (after Jordan):', turnError);
         if (turnError instanceof Error) {
-          console.error('[Demo AI Reply] Set turn (User A) error message:', turnError.message);
-          console.error('[Demo AI Reply] Set turn (User A) error stack:', turnError.stack);
+          console.error('[Demo AI Reply] Set turn (Michael) error message:', turnError.message);
+          console.error('[Demo AI Reply] Set turn (Michael) error stack:', turnError.stack);
         }
         throw turnError;
       }
