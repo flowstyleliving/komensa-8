@@ -85,7 +85,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               </Link>
               <div className="hidden md:flex items-center space-x-2 text-[#3C4858]/60">
                 <span>/</span>
-                <span>Mediation Session</span>
+                <span>AI Mediation Session</span>
               </div>
             </div>
             
@@ -101,7 +101,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                 className="border-[#3C4858]/20 text-[#3C4858] rounded-full"
                 asChild
               >
-                <Link href="/dashboard">
+                <Link href="/auth/signin">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Dashboard
                 </Link>

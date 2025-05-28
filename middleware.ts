@@ -11,6 +11,7 @@ export async function middleware(req: NextRequest) {
 
   // Allow requests for NextAuth.js session management, sign-in page, demo routes, and public files
   if (
+    pathname === '/' || // Allow access to the splash page
     pathname.startsWith('/api/auth/') ||
     pathname === '/auth/signin' ||
     pathname.startsWith('/demo/') ||

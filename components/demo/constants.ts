@@ -11,7 +11,7 @@ export const DEMO_CONSTANTS = {
   MEDIATOR_DISPLAY_NAME: 'AI Mediator',
   
   // Calendly configuration
-  CALENDLY_URL: 'https://calendly.com/msrkittty-proton/25min', // TODO: Replace with your actual Calendly link
+  CALENDLY_URL: 'https://calendly.com/msrkittty-proton/15min', // TODO: Replace with your actual Calendly link
   
   // Demo detection
   DEMO_URL_PARAM: 'demo=true',
