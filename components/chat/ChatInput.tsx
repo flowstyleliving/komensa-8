@@ -16,7 +16,7 @@ export function ChatInput({ onSend, disabled = false, placeholder = "Share your 
   useEffect(() => {
     const isDemoPage = window.location.search.includes('demo=true');
     if (isDemoPage && content === '' && !hasPreFilled) {
-      setContent('I\’m doing 80% of the work and getting 30% of the equity. That doesn\’t work for me anymore.');
+      setContent('Jordan and I have been together for three years, but lately I feel like we\'re growing apart. I love them deeply, but I\'m not sure if we want the same things anymore.');
       setHasPreFilled(true);
     }
   }, [content, hasPreFilled]);
