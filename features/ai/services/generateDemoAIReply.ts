@@ -378,16 +378,30 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       if (jordanUserId) {
         console.log('[Demo AI Reply] Triggering Jordan response via API call...');
         // Fire-and-forget call to the new Jordan reply API endpoint
-        fetch(`${apiBaseUrl}/api/demo/gen-jordan-reply`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ chatId, jordanUserId, conversationContext: cleanedMessage, apiBaseUrl }),
-        }).catch(err => {
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/demo/gen-jordan-reply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ chatId, jordanUserId, conversationContext: cleanedMessage, apiBaseUrl }),
+          });
+          
+          if (!response.ok) {
+            console.error('[Demo AI Reply] Jordan API call failed with status:', response.status, response.statusText);
+            const errorText = await response.text();
+            console.error('[Demo AI Reply] Jordan API error response:', errorText);
+          } else {
+            console.log('[Demo AI Reply] Jordan API call successful, status:', response.status);
+          }
+        } catch (err) {
           // This catch is for network errors or issues initiating the fetch itself
           console.error('[Demo AI Reply] Error calling /api/demo/gen-jordan-reply:', err);
-        });
+          if (err instanceof Error) {
+            console.error('[Demo AI Reply] Fetch error message:', err.message);
+            console.error('[Demo AI Reply] Fetch error stack:', err.stack);
+          }
+        }
       }
     } else if (userRole === DEMO_ROLES.JORDAN) {
       console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to Michael...');
