@@ -55,7 +55,7 @@ Recent conversation history (last 10 messages, newest first):
 ${recentMessages.map((msg: any) => { // Newest first for prompt clarity
   const data = msg.data as any;
   const sender = data.senderId === 'assistant' ? 'AI Mediator' : 
-                data.senderId === jordanUserId ? 'You (Jordan)' : 'User A';
+                data.senderId === jordanUserId ? 'You (Jordan)' : 'Michael';
   return `${sender}: ${data.content}`;
 }).join('\n')}
 

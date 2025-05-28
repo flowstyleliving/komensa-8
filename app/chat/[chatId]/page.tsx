@@ -85,14 +85,14 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               </Link>
               <div className="hidden md:flex items-center space-x-2 text-[#3C4858]/60">
                 <span>/</span>
-                <span>Mediation Session</span>
+                <span>AI Mediation Session</span>
               </div>
             </div>
             
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex items-center gap-2 text-[#3C4858]/60">
                 <Users className="h-4 w-4" />
-                <span className="text-sm">User A & Jordan + AI Mediator</span>
+                <span className="text-sm">Michael & Jordan + AI Mediator</span>
               </div>
               
               <Button 

@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const user1 = await prisma.user.create({
       data: {
         id: uuidv4(),
-        display_name: 'User A',
+        display_name: 'Michael',
       },
     });
 
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         chat_id: chat.id,
         type: 'message',
         data: {
-          content: `Hello User A and Jordan! I'm here to help facilitate your conversation. User A, could you please share what you'd like to discuss?`,
+          content: `Hello Michael and Jordan! I'm here to help facilitate your conversation. Michael, could you please share what you'd like to discuss?`,
           senderId: 'assistant',
         },
       },

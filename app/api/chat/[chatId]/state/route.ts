@@ -46,12 +46,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.log('[Chat State] Initializing demo turn management');
     const turnManager = new DemoTurnManager(chatId);
     
-    // Get participants and identify User A and Jordan by display name
-    const userA = chat.participants.find((p: any) => p.user?.display_name === 'User A');
+    // Get participants and identify Michael and Jordan by display name
+    const michael = chat.participants.find((p: any) => p.user?.display_name === 'Michael');
     const jordan = chat.participants.find((p: any) => p.user?.display_name === 'Jordan');
     
-    if (userA) {
-      await turnManager.initializeDemoTurns(userA.user_id);
+    if (michael) {
+      await turnManager.initializeDemoTurns(michael.user_id);
       
       // Fetch updated turn state
       turnState = await prisma.chatTurnState.findUnique({

@@ -355,7 +355,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     }
 
     if (userRole === DEMO_ROLES.USER_A) {
-      console.log('[Demo AI Reply] Mediator responded to User A, setting turn to Jordan...');
+      console.log('[Demo AI Reply] Mediator responded to Michael, setting turn to Jordan...');
       try {
         await turnManager.setTurnToRole(DEMO_ROLES.JORDAN);
       } catch (turnError: any) {
@@ -372,7 +372,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         jordanUserId = await turnManager.getUserIdForRole(DEMO_ROLES.JORDAN);
       } catch (turnError: any) {
         console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to get Jordan user ID:', turnError);
-        // Log and continue, as User A's turn is set if this fails.
+        // Log and continue, as Michael's turn is set if this fails.
       }
 
       if (jordanUserId) {
@@ -390,14 +390,14 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         });
       }
     } else if (userRole === DEMO_ROLES.JORDAN) {
-      console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to User A...');
+      console.log('[Demo AI Reply] Mediator responded to Jordan, setting turn to Michael...');
       try {
         await turnManager.setTurnToRole(DEMO_ROLES.USER_A);
       } catch (turnError: any) {
-        console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to set turn to User A (after Jordan):', turnError);
+        console.error('[Demo AI Reply] TURN MANAGER ERROR: Failed to set turn to Michael (after Jordan):', turnError);
         if (turnError instanceof Error) {
-          console.error('[Demo AI Reply] Set turn (User A) error message:', turnError.message);
-          console.error('[Demo AI Reply] Set turn (User A) error stack:', turnError.stack);
+          console.error('[Demo AI Reply] Set turn (Michael) error message:', turnError.message);
+          console.error('[Demo AI Reply] Set turn (Michael) error stack:', turnError.stack);
         }
         throw turnError;
       }

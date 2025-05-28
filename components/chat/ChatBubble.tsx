@@ -60,7 +60,7 @@ export function ChatBubble({ content, senderId, timestamp }: ChatBubbleProps) {
 
   const getUserLabel = () => {
     if (isAssistant) return 'AI Mediator';
-    if (isDemoUser) return 'You (User A)';
+    if (isDemoUser) return 'You (Michael)';
     return 'Jordan'; // Other participant
   };
 

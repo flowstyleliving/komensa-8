@@ -6,7 +6,7 @@ export const DEMO_CONSTANTS = {
   CALENDLY_THRESHOLD: 5,           // Show Calendly modal after 7 AI responses
   
   // User display names
-  USER_A_DISPLAY_NAME: 'User A',
+  USER_A_DISPLAY_NAME: 'Michael',
   PARTNER_DISPLAY_NAME: 'Jordan',
   MEDIATOR_DISPLAY_NAME: 'AI Mediator',
   
