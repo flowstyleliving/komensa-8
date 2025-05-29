@@ -115,7 +115,7 @@ komensa/
 │   ├── redis.ts
 │   ├── openai.ts
 │   ├── stripe.ts
-│   ├── auth.ts
+│   ├── demoAuth.ts
 │   ├── pino.ts
 │   └── s3.ts
 
@@ -175,8 +175,9 @@ This structure is designed for collaborative feature-based development with Curs
 ├── redis.ts
 ├── openai.ts
 ├── stripe.ts
+├── demoAuth.ts
 ├── pino.ts
-└── auth.ts
+└── s3.ts
 
 /prisma
 ├── schema.prisma

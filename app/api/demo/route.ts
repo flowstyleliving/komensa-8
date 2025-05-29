@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/demoAuth';
 import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { generateDemoAIReply } from '@/features/ai/services/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';

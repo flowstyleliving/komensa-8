@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTypingUsers } from '@/lib/redis';
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/demoAuth';
 import { TurnManager } from '@/features/chat/services/turnManager';
 import { DemoTurnManager } from '@/features/chat/services/demoTurnManager';
 

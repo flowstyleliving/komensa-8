@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setTypingIndicator } from '@/lib/redis';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
-import { auth } from '@/lib/auth';
+import { auth } from '@/lib/demoAuth';
 import { TurnManager } from '@/features/chat/services/turnManager';
 import { prisma } from '@/lib/prisma';
 

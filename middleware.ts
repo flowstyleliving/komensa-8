@@ -1,7 +1,7 @@
 // GPT CONTEXT:
 // This middleware protects /chat and /dashboard routes using NextAuth session checks.
 // It allows bypass for public demo routes like /chat/demo and any ?demo=true links.
-// Related: /lib/auth.ts, /app/chat/[id]/page.tsx, /app/api/demo/seed/route.ts
+// Related: /lib/demoAuth.ts, /app/chat/[id]/page.tsx, /app/api/demo/seed/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';

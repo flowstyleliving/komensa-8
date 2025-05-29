@@ -216,7 +216,7 @@ export default function SignInPage() {
                     <span className="w-full border-t border-[#3C4858]/20" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-[#3C4858]/80">Or continue with</span>
+                    <span className="bg-[#F9F7F4] px-2 text-[#3C4858]/80">Or continue with</span>
                   </div>
                 </div>
                 <Button
