@@ -51,27 +51,29 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // Find user by email
-          const user = await prisma.user.findUnique({
-            where: {
-              email: credentials.email.toLowerCase(),
-            },
-            select: {
-              id: true,
-              email: true,
-              display_name: true,
-              name: true,
-              image: true,
-              password: true,
-            },
-          });
+          // Find user by email (using raw query to bypass TypeScript issues)
+          const user = await prisma.$queryRaw`
+            SELECT id, email, display_name, name, image, username, password 
+            FROM "User" 
+            WHERE email = ${credentials.email.toLowerCase()}
+          ` as Array<{
+            id: string;
+            email: string;
+            display_name: string | null;
+            name: string | null;
+            image: string | null;
+            username: string | null;
+            password: string | null;
+          }>;
 
-          if (!user || !user.password) {
+          if (!user[0] || !user[0].password) {
             return null;
           }
 
+          const foundUser = user[0];
+
           // Verify password
-          const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+          const isPasswordValid = await bcrypt.compare(credentials.password, foundUser.password!);
 
           if (!isPasswordValid) {
             return null;
@@ -79,10 +81,10 @@ export const authOptions: NextAuthOptions = {
 
           // Return user object
           return {
-            id: user.id,
-            email: user.email,
-            name: user.display_name || user.name,
-            image: user.image,
+            id: foundUser.id,
+            email: foundUser.email,
+            name: foundUser.display_name || foundUser.name,
+            image: foundUser.image,
           };
         } catch (error) {
           console.error("Error during credentials authentication:", error);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { DemoTurnManager } from '@/features/chat/services/demoTurnManager';
+import { DemoTurnManager } from '@/features/demo/demoTurnManager';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(req: NextRequest) {

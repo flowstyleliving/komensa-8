@@ -136,7 +136,7 @@ export default function SignInPage() {
         if (result?.error) {
           setError("Account created but failed to sign in. Please try signing in manually.")
         } else {
-          window.location.href = "/dashboard"
+        window.location.href = "/dashboard"
         }
       } else {
         setError(data.message || "Failed to create account. Please try again.")
@@ -275,16 +275,16 @@ export default function SignInPage() {
                 </div>
 
                 <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     <Label htmlFor="signin-email" className="text-[#3C4858]">
-                      Email Address
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-[#3C4858]/50" />
-                      <Input
+                    Email Address
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-[#3C4858]/50" />
+                    <Input
                         id="signin-email"
-                        type="email"
-                        value={email}
+                      type="email"
+                      value={email}
                         disabled
                         className="pl-10 bg-gray-50 border-[#3C4858]/20"
                       />
@@ -304,8 +304,8 @@ export default function SignInPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 pr-10 border-[#3C4858]/20 focus:border-[#D8A7B1]"
-                        required
-                      />
+                      required
+                    />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
@@ -316,23 +316,23 @@ export default function SignInPage() {
                     </div>
                   </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
-                    disabled={isLoading}
-                  >
+                <Button
+                  type="submit"
+                  className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
+                  disabled={isLoading}
+                >
                     {isLoading ? "Signing in..." : "Sign In"}
-                  </Button>
+                </Button>
 
-                  <Button
+                <Button
                     type="button"
                     onClick={resetForm}
-                    variant="ghost"
-                    className="w-full text-[#3C4858]/80 hover:text-[#3C4858]"
-                  >
+                  variant="ghost"
+                  className="w-full text-[#3C4858]/80 hover:text-[#3C4858]"
+                >
                     Use different email
-                  </Button>
-                </form>
+                </Button>
+              </form>
               </>
             )}
 
@@ -360,18 +360,18 @@ export default function SignInPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-name" className="text-[#3C4858]">
-                      Full Name
-                    </Label>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-name" className="text-[#3C4858]">
+                    Full Name
+                  </Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-[#3C4858]/50" />
-                      <Input
-                        id="signup-name"
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                         className="pl-10 border-[#3C4858]/20 focus:border-[#D8A7B1]"
                         required
                       />
@@ -391,19 +391,19 @@ export default function SignInPage() {
                         value={username}
                         onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                         className="pl-10 border-[#3C4858]/20 focus:border-[#D8A7B1]"
-                        required
-                      />
-                    </div>
+                    required
+                  />
+                </div>
                     <p className="text-xs text-[#3C4858]/60">
                       Username can only contain lowercase letters, numbers, and underscores
                     </p>
                   </div>
 
-                  <div className="space-y-2">
+                <div className="space-y-2">
                     <Label htmlFor="signup-password" className="text-[#3C4858]">
                       Password
                     </Label>
-                    <div className="relative">
+                  <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-[#3C4858]/50" />
                       <Input
                         id="signup-password"
@@ -449,26 +449,26 @@ export default function SignInPage() {
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
-                    </div>
                   </div>
+                </div>
 
-                  <Button
-                    type="submit"
-                    className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
-                    disabled={isLoading}
-                  >
+                <Button
+                  type="submit"
+                  className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
+                  disabled={isLoading}
+                >
                     {isLoading ? "Creating account..." : "Create Account"}
-                  </Button>
+                </Button>
 
-                  <Button
+                <Button
                     type="button"
                     onClick={resetForm}
-                    variant="ghost"
-                    className="w-full text-[#3C4858]/80 hover:text-[#3C4858]"
-                  >
+                  variant="ghost"
+                  className="w-full text-[#3C4858]/80 hover:text-[#3C4858]"
+                >
                     Use different email
-                  </Button>
-                </form>
+                </Button>
+              </form>
               </>
             )}
           </CardContent>

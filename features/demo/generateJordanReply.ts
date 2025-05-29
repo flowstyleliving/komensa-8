@@ -8,7 +8,7 @@ import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 // import { setTypingIndicator } from '@/lib/redis'; // BYPASSED
 // import { parseStateUpdateAndCleanMessage } from './parseStateUpdate'; // Not used
-import { DemoTurnManager, DEMO_ROLES, DEFAULT_TURN_ORDER } from '@/features/chat/services/demoTurnManager';
+import { DemoTurnManager, DEMO_ROLES, DEFAULT_TURN_ORDER } from '@/features/demo/demoTurnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 import { generateDemoAIReply } from './generateDemoAIReply'; // ADDED: To trigger Mediator
 

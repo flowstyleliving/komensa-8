@@ -8,8 +8,8 @@ import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
-import { generateJordanReply } from './generateJordanReply';
-import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
+import { generateJordanReply } from '@/features/demo/generateJordanReply';
+import { DemoTurnManager, DEMO_ROLES } from '@/features/demo/demoTurnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 
 // Validate critical environment variables

@@ -20,13 +20,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { ChatCard } from "@/components/chat-card"
 import { ProgressStats } from "@/components/progress-stats"
-import { ChatSetupModal } from "@/components/new-chat-modal"
+import ChatSetupModal from "../../components/new-chat-modal"
 
 interface ChatData {
   title: string;
   description: string;
   category: string;
-  participants: User[];
+  participants: { id: string }[];
 }
 
 interface User {
@@ -311,7 +311,14 @@ export default function DashboardPage() {
       <ChatSetupModal
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
-        onCreateChat={handleCreateChat}
+        onCreateChat={async (participantIds: string[]) => {
+          await handleCreateChat({
+            title: "...",
+            description: "...",
+            category: "...",
+            participants: participantIds.map(id => ({ id }))
+          });
+        }}
       />
     </div>
   )

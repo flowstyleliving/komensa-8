@@ -14,14 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { title, description, category, participants } = await request.json();
-
-    if (!title || !category) {
-      return NextResponse.json(
-        { error: 'Title and category are required' },
-        { status: 400 }
-      );
-    }
+    const { title, description, category, participants = [] } = await request.json();
 
     // Generate a unique chat ID
     const chatId = `chat_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -52,9 +45,9 @@ export async function POST(request: NextRequest) {
           create: {
             type: 'chat_created',
             data: {
-              title,
+              title: title || '',
               description: description || '',
-              category,
+              category: category || '',
               createdBy: session.user.id,
               createdAt: new Date().toISOString()
             },

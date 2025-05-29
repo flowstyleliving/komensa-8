@@ -1,463 +1,509 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { 
-  MessageSquare, 
-  Users, 
-  Heart, 
-  Home, 
-  DollarSign, 
-  Calendar, 
-  Search,
-  UserPlus,
-  Sparkles,
-  ArrowRight
-} from 'lucide-react';
-
-interface ChatSetupModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCreateChat: (chatData: ChatData) => void;
-}
-
-interface ChatData {
-  title: string;
-  description: string;
-  category: string;
-  participants: User[];
-}
+import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { X, Heart, Shield, MessageCircle, Users, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react'
 
 interface User {
   id: string;
   display_name: string;
-  email: string;
-  avatar?: string;
+  username?: string;
 }
 
-const chatCategories = [
-  { value: 'communication', label: 'Communication & Understanding', icon: MessageSquare, color: '#D8A7B1', description: 'Improve how you connect and express yourselves' },
-  { value: 'relationship', label: 'Relationship Growth', icon: Heart, color: '#E39AA7', description: 'Strengthen your bond and intimacy' },
-  { value: 'household', label: 'Home & Daily Life', icon: Home, color: '#7BAFB0', description: 'Navigate household responsibilities together' },
-  { value: 'financial', label: 'Financial Planning', icon: DollarSign, color: '#D9C589', description: 'Align on money matters and future goals' },
-  { value: 'planning', label: 'Future Dreams', icon: Calendar, color: '#B8A7D8', description: 'Plan your shared journey ahead' },
-  { value: 'other', label: 'Something Else', icon: Users, color: '#A8B8C8', description: 'Whatever\'s on your mind' },
-];
-
-export function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSetupModalProps) {
-  const [formData, setFormData] = useState<ChatData>({
-    title: '',
-    description: '',
-    category: '',
-    participants: [],
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-
-  // Optimized search function with better error handling
-  const searchUsers = async (query: string) => {
-    // Clear previous results and errors
-    setSearchError(null);
-    
-    // Don't search if query is too short
-    if (query.trim().length < 2) {
-      setSearchResults([]);
-      setIsSearching(false);
-      return;
+// Placeholder for actual API call
+const fetchUsers = async (query: string): Promise<User[]> => {
+  try {
+    const response = await fetch(`/api/users/search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: "Failed to fetch users" }));
+      console.error("Error fetching users:", response.status, errorData.message);
+      return [];
     }
+    const data = await response.json();
+    return data.users;
+  } catch (error) {
+    console.error("Network error fetching users:", error);
+    return [];
+  }
+};
 
-    setIsSearching(true);
-    
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query.trim())}`, {
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      clearTimeout(timeoutId);
-      
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success && Array.isArray(data.users)) {
-        // Filter out already selected participants and limit results
-        const filteredResults = data.users
-          .filter((user: User) => !formData.participants.some(p => p.id === user.id))
-          .slice(0, 10); // Limit to 10 results for performance
-        
-        setSearchResults(filteredResults);
-      } else {
-        setSearchResults([]);
-        if (!data.success) {
-          setSearchError(data.error || 'Search failed');
-        }
-      }
-    } catch (error) {
-      console.error('Error searching users:', error);
-      setSearchResults([]);
-      
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          setSearchError('Search timed out. Please try again.');
-        } else {
-          setSearchError('Unable to search users. Please check your connection.');
-        }
-      } else {
-        setSearchError('An unexpected error occurred.');
-      }
-    } finally {
-      setIsSearching(false);
-    }
+interface ChatSetupModalProps {
+  isOpen: boolean
+  onClose: () => void
+  onCreateChat: (participantIds: string[]) => Promise<void>;
+}
+
+// Loading animation component
+const LoadingSpinner = ({ size = 'md', color = 'primary' }: { size?: 'sm' | 'md' | 'lg', color?: 'primary' | 'white' }) => {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6',
+    lg: 'w-8 h-8'
   };
 
-  // Optimized debounced search with cleanup
+  const colorClasses = {
+    primary: 'border-t-[#D8A7B1] border-r-[#D8A7B1]',
+    white: 'border-t-white border-r-white'
+  };
+
+  return (
+    <div className={`${sizeClasses[size]} border-2 border-transparent ${colorClasses[color]} rounded-full animate-spin`} />
+  );
+};
+
+// Pulsing dots animation
+const PulsingDots = () => (
+  <div className="flex space-x-1">
+    <div className="w-2 h-2 bg-[#D8A7B1] rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
+    <div className="w-2 h-2 bg-[#D8A7B1] rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+    <div className="w-2 h-2 bg-[#D8A7B1] rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+  </div>
+);
+
+// Define child components OUTSIDE the main ChatSetupModal component
+// They will receive props from ChatSetupModal
+const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating'>> }) => (
+  <div className="space-y-6">
+    <div className="text-center">
+      <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-4">
+        <Heart className="w-8 h-8 text-[#D8A7B1]" />
+      </div>
+      <h3 className="text-lg font-semibold text-[#3C4858] mb-2">Preparing for Intimate Chat</h3>
+      <p className="text-sm text-[#3C4858]/70">
+        Creating a safe space for meaningful dialogue requires intention and care.
+      </p>
+    </div>
+
+    <div className="space-y-4">
+      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
+        <Shield className="w-5 h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
+        <div>
+          <h4 className="font-medium text-[#3C4858] text-sm">Create Psychological Safety</h4>
+          <p className="text-xs text-[#3C4858]/70 mt-1">
+            Ensure all participants feel safe to express themselves without judgment. The AI mediator will help maintain this environment.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
+        <MessageCircle className="w-5 h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
+        <div>
+          <h4 className="font-medium text-[#3C4858] text-sm">Practice Active Listening</h4>
+          <p className="text-xs text-[#3C4858]/70 mt-1">
+            Focus on understanding rather than responding. The mediator will guide turn-taking and ensure everyone is heard.
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
+        <Users className="w-5 h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
+        <div>
+          <h4 className="font-medium text-[#3C4858] text-sm">Embrace Vulnerability</h4>
+          <p className="text-xs text-[#3C4858]/70 mt-1">
+            Authentic connection requires openness. Share your truth while respecting others' boundaries.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-4">
+      <h4 className="font-medium text-[#3C4858] text-sm mb-2">💡 Pro Tip</h4>
+      <p className="text-xs text-[#3C4858]/70">
+        The AI mediator will help facilitate the Chat, suggest reflection questions, and ensure balanced participation. Trust the process and be present.
+      </p>
+    </div>
+
+    <Button
+      className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
+      onClick={() => setCurrentStep('participants')}
+    >
+      I'm Ready to Begin
+      <ArrowRight className="w-4 h-4 ml-2" />
+    </Button>
+  </div>
+);
+
+interface ParticipantsStepProps {
+  setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating'>>;
+  participantSearchQuery: string;
+  setParticipantSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  searchedUsers: User[];
+  selectedParticipants: User[];
+  isSearching: boolean;
+  isCreatingChat: boolean; // Added prop for loading state
+  chatCreationError: string | null;
+  handleSelectParticipant: (user: User) => void;
+  handleRemoveParticipant: (userId: string) => void;
+  clearSearch: () => void;
+  handleStartChat: () => Promise<void>;
+}
+
+const ParticipantsStep = ({
+  setCurrentStep,
+  participantSearchQuery,
+  setParticipantSearchQuery,
+  searchedUsers,
+  selectedParticipants,
+  isSearching,
+  isCreatingChat, // Destructure the new prop
+  chatCreationError,
+  handleSelectParticipant,
+  handleRemoveParticipant,
+  clearSearch,
+  handleStartChat,
+}: ParticipantsStepProps) => {
+  console.log("ParticipantsStep rendering. searchedUsers:", searchedUsers, "Type:", typeof searchedUsers);
+  const displayedUsers = searchedUsers.filter(u => !selectedParticipants.some(sp => sp.id === u.id));
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center space-x-2 mb-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCurrentStep('preparation')}
+          className="text-[#3C4858]/70 hover:bg-[#F9F7F4]"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </Button>
+        <div>
+          <h3 className="text-lg font-semibold text-[#3C4858]">Invite Participants</h3>
+          <p className="text-sm text-[#3C4858]/70">Choose who will join this mediated Chat</p>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="chat-participants" className="text-sm font-medium text-[#3C4858]">Search for Participants</Label>
+        <div className="relative">
+          <Input
+            id="chat-participants"
+            placeholder="Search by name or username (min 3 chars)"
+            className="mt-1 border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white placeholder:text-[#3C4858]/50 pr-20"
+            value={participantSearchQuery}
+            onChange={(e) => setParticipantSearchQuery(e.target.value)}
+            autoComplete="off"
+            disabled={isCreatingChat} // Disable input while creating chat
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 flex items-center space-x-1">
+            {participantSearchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearSearch}
+                className="h-6 w-6 p-0 text-[#3C4858]/50 hover:text-[#3C4858] hover:bg-[#D8A7B1]/10"
+              >
+                <X size={12} />
+              </Button>
+            )}
+            {isSearching && <LoadingSpinner size="sm" color="primary" />}
+          </div>
+        </div>
+        {displayedUsers.length > 0 && (
+          <div className="mt-2 border border-[#3C4858]/20 rounded-md max-h-40 overflow-y-auto bg-white shadow-sm">
+            {displayedUsers.map(user => (
+              <div
+                key={user.id}
+                className="p-3 hover:bg-[#D8A7B1]/10 cursor-pointer text-sm text-[#3C4858] transition-colors border-b border-[#3C4858]/10 last:border-b-0"
+                onClick={() => handleSelectParticipant(user)}
+              >
+                <div className="font-medium text-[#3C4858]">{user.display_name}</div>
+                {user.username && (
+                  <div className="text-xs text-[#3C4858]/80">@{user.username}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+        {displayedUsers.length === 0 && participantSearchQuery.length >= 3 && !isSearching && (
+          <div className="mt-2 text-sm text-center text-[#3C4858]/70 p-3 border border-dashed border-[#3C4858]/20 rounded-md bg-[#F9F7F4]">
+            No users found matching "{participantSearchQuery}".
+          </div>
+        )}
+      </div>
+
+      {selectedParticipants.length > 0 && (
+        <div>
+          <Label className="text-xs font-medium text-[#3C4858]/80">Selected Participants ({selectedParticipants.length}):</Label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selectedParticipants.map(user => (
+              <div key={user.id} className="flex items-center bg-[#D8A7B1]/20 text-[#3C4858] text-sm px-3 py-1.5 rounded-full transition-all hover:bg-[#D8A7B1]/30 group">
+                <span className="font-medium">{user.display_name}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemoveParticipant(user.id)}
+                  className="h-4 w-4 ml-2 p-0 rounded-full hover:bg-[#D8A7B1]/40 opacity-60 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={12} />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {chatCreationError && (
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-md">
+          <strong>Error:</strong> {chatCreationError}
+        </div>
+      )}
+
+      <Button
+        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5 transition-all"
+        onClick={handleStartChat}
+        disabled={selectedParticipants.length === 0 || isSearching || isCreatingChat} // Disable button when creating
+      >
+        {isCreatingChat ? (
+            <LoadingSpinner size="sm" color="white" />
+        ) : (
+            <>
+                Start Mediated Chat
+                <MessageCircle className="w-4 h-4 ml-2" />
+            </>
+        )}
+      </Button>
+    </div>
+  );
+};
+
+const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
+  <div className="space-y-6 text-center">
+    <div className="mx-auto w-20 h-20 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center">
+      <LoadingSpinner size="lg" color="primary" />
+    </div>
+
+    <div>
+      <h3 className="text-lg font-semibold text-[#3C4858] mb-2">Creating Your Sacred Space</h3>
+      <p className="text-sm text-[#3C4858]/70 mb-4">
+        Setting up the Chat environment and preparing the AI mediator
+      </p>
+      <PulsingDots />
+    </div>
+
+    <div className="w-full bg-[#3C4858]/10 rounded-full h-2">
+      <div
+        className="bg-[#D8A7B1] h-2 rounded-full transition-all duration-300 ease-out"
+        style={{ width: `${creationProgress}%` }}
+      />
+    </div>
+
+    <div className="space-y-2 text-xs text-[#3C4858]/60">
+      <div className="flex items-center justify-center space-x-2">
+        <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+        <span>Initializing secure Chat space</span>
+      </div>
+      {creationProgress > 30 && (
+        <div className="flex items-center justify-center space-x-2">
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <span>Configuring AI mediator</span>
+        </div>
+      )}
+      {creationProgress > 60 && (
+        <div className="flex items-center justify-center space-x-2">
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <span>Inviting participants</span>
+        </div>
+      )}
+      {creationProgress > 90 && (
+        <div className="flex items-center justify-center space-x-2">
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <span>Ready to begin!</span>
+        </div>
+      )}
+    </div>
+  </div>
+);
+
+export default function ChatSetupModal({ isOpen, onClose }: ChatSetupModalProps) {
+  const [currentStep, setCurrentStep] = useState<'preparation' | 'participants' | 'creating'>('preparation');
+  const [participantSearchQuery, setParticipantSearchQuery] = useState("");
+  const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<User[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState(false); // New state for chat creation loading
+  const [chatCreationError, setChatCreationError] = useState<string | null>(null);
+  const [creationProgress, setCreationProgress] = useState(0); // New state for progress bar
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const router = useRouter();
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (searchQuery.trim().length >= 2) {
-        searchUsers(searchQuery);
-      } else {
-        setSearchResults([]);
-        setSearchError(null);
-        setIsSearching(false);
+    if (!isOpen) return;
+
+    if (participantSearchQuery.length >= 3) {
+      setIsSearching(true);
+
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
-    }, 300);
+
+      searchTimeoutRef.current = setTimeout(async () => {
+        try {
+          const users = await fetchUsers(participantSearchQuery);
+          setSearchedUsers(users);
+        } catch (error) {
+          console.error("Search error:", error);
+          setSearchedUsers([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 500);
+    } else {
+      setSearchedUsers([]);
+      setIsSearching(false);
+    }
 
     return () => {
-      clearTimeout(timer);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
     };
-  }, [searchQuery, formData.participants]);
+  }, [isOpen, participantSearchQuery]);
 
-  // Clear search when modal closes
   useEffect(() => {
     if (!isOpen) {
-      setSearchQuery('');
-      setSearchResults([]);
-      setSearchError(null);
+      setCurrentStep('preparation');
+      setParticipantSearchQuery("");
+      setSearchedUsers([]);
+      setSelectedParticipants([]);
       setIsSearching(false);
+      setIsCreatingChat(false); // Reset this state too
+      setChatCreationError(null);
+      setCreationProgress(0); // Reset progress
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
     }
   }, [isOpen]);
 
-  const addParticipant = (user: User) => {
-    setFormData(prev => ({
-      ...prev,
-      participants: [...prev.participants, user]
-    }));
-    setSearchQuery('');
-    setSearchResults([]);
-    setSearchError(null);
-  };
+  const handleSelectParticipant = useCallback((user: User) => {
+    if (!selectedParticipants.find(p => p.id === user.id)) {
+      setSelectedParticipants(prev => [...prev, user]);
+    }
+    setParticipantSearchQuery("");
+    setSearchedUsers([]);
+  }, [selectedParticipants]);
 
-  const removeParticipant = (userId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      participants: prev.participants.filter(p => p.id !== userId)
-    }));
-  };
+  const handleRemoveParticipant = useCallback((userId: string) => {
+    setSelectedParticipants(prev => prev.filter(p => p.id !== userId));
+  }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  const clearSearch = useCallback(() => {
+    setParticipantSearchQuery("");
+    setSearchedUsers([]);
+  }, []);
+
+  const handleStartChat = async () => {
+    // Basic validation
+    if (selectedParticipants.length === 0) {
+      setChatCreationError("Please select at least one participant.");
+      return;
+    }
+
+    setCurrentStep('creating'); // Move to the creating step
+    setIsCreatingChat(true);
+    setChatCreationError(null); // Clear previous errors
+    setCreationProgress(0); // Start progress from 0
 
     try {
-      await onCreateChat(formData);
-      
-      // Reset form and close modal
-      setFormData({
-        title: '',
-        description: '',
-        category: '',
-        participants: [],
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setCreationProgress(prev => {
+          if (prev >= 90) { // Stop just before 100 to show final success immediately after API response
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+      }, 200); // Update progress every 200ms
+
+      const participantIds = selectedParticipants.map(p => p.id);
+      const response = await fetch('/api/chats/create', { // Your backend API endpoint
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ participantIds }),
       });
-      setSearchQuery('');
-      setSearchResults([]);
-      onClose();
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // If response is not OK (e.g., 400, 500), throw an error
+        throw new Error(data.error || 'Failed to create chat');
+      }
+
+      clearInterval(progressInterval); // Clear the progress interval
+      setCreationProgress(100); // Set progress to 100% on success
+
+      // Brief delay to allow users to see the completion before routing
+      setTimeout(() => {
+        onClose(); // Close the modal
+        router.push(`/chat/${data.chatId}`); // Route to the new chat
+      }, 500); // Wait for 500ms
+
     } catch (error) {
-      console.error('Error creating chat:', error);
+      console.error("Error starting Chat:", error);
+      setChatCreationError(error instanceof Error ? error.message : 'An unknown error occurred');
+      setCurrentStep('participants'); // Go back to participants step on error
     } finally {
-      setIsLoading(false);
+      setIsCreatingChat(false); // End loading state
     }
   };
 
-  const selectedCategory = chatCategories.find(cat => cat.value === formData.category);
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="text-center pb-4">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[#D8A7B1] to-[#7BAFB0]">
-            <Sparkles className="h-8 w-8 text-white" />
-          </div>
-          <DialogTitle className="text-2xl text-[#3C4858] font-bold">
-            Start a Meaningful Chat
-          </DialogTitle>
-          <DialogDescription className="text-[#3C4858]/70 text-base leading-relaxed">
-            Create a safe space for open dialogue. Our AI mediator will guide you through thoughtful discussions that bring you closer together.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Chat Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-[#3C4858] font-medium">
-              What would you like to talk about?
-            </Label>
-            <Input
-              id="title"
-              placeholder="e.g., Planning our summer vacation together"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="border-[#3C4858]/20 focus:border-[#D8A7B1] text-base"
-              required
-            />
-          </div>
-
-          {/* Category Selection */}
-          <div className="space-y-3">
-            <Label htmlFor="category" className="text-[#3C4858] font-medium">
-              Choose a chat theme
-            </Label>
-            <Select
-              value={formData.category}
-              onValueChange={(value: string) => setFormData({ ...formData, category: value })}
-              required
-            >
-              <SelectTrigger className="border-[#3C4858]/20 focus:border-[#D8A7B1] h-12">
-                <SelectValue placeholder="What area would you like to explore?" />
-              </SelectTrigger>
-              <SelectContent>
-                {chatCategories.map((category) => {
-                  const Icon = category.icon;
-                  return (
-                    <SelectItem key={category.value} value={category.value}>
-                      <div className="flex items-start gap-3 py-1">
-                        <Icon className="h-5 w-5 mt-0.5" style={{ color: category.color }} />
-                        <div>
-                          <div className="font-medium">{category.label}</div>
-                          <div className="text-xs text-muted-foreground">{category.description}</div>
-                        </div>
-                      </div>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description" className="text-[#3C4858] font-medium">
-              Share more details (optional)
-            </Label>
-            <Textarea
-              id="description"
-              placeholder="What specific aspects would you like to explore? Any particular goals or concerns?"
-              value={formData.description}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setFormData({ ...formData, description: e.target.value })}
-              className="border-[#3C4858]/20 focus:border-[#D8A7B1] min-h-[100px] resize-none"
-            />
-          </div>
-
-          {/* Invite Participants */}
-          <div className="space-y-3">
-            <Label className="text-[#3C4858] font-medium flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Invite participants
-            </Label>
-            
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#3C4858]/50" />
-              <Input
-                placeholder="Type at least 2 characters to search by name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 border-[#3C4858]/20 focus:border-[#D8A7B1]"
-                autoComplete="off"
-              />
-              {isSearching && (
-                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin h-4 w-4 border-2 border-[#D8A7B1] border-t-transparent rounded-full"></div>
-                </div>
-              )}
-            </div>
-
-            {/* Search Status Messages */}
-            {searchQuery.trim().length > 0 && searchQuery.trim().length < 2 && (
-              <div className="text-xs text-[#3C4858]/60 px-3 py-2 bg-[#F9F7F4] rounded-lg border border-[#3C4858]/10">
-                Type at least 2 characters to start searching...
-              </div>
-            )}
-
-            {searchError && (
-              <div className="text-xs text-red-600 px-3 py-2 bg-red-50 rounded-lg border border-red-200">
-                {searchError}
-              </div>
-            )}
-
-            {searchQuery.trim().length >= 2 && !isSearching && searchResults.length === 0 && !searchError && (
-              <div className="text-xs text-[#3C4858]/60 px-3 py-2 bg-[#F9F7F4] rounded-lg border border-[#3C4858]/10">
-                No users found matching "{searchQuery}". Try a different search term.
-              </div>
-            )}
-
-            {/* Search Results */}
-            {searchResults.length > 0 && (
-              <div className="border border-[#3C4858]/20 rounded-lg max-h-48 overflow-y-auto bg-white shadow-sm">
-                <div className="text-xs text-[#3C4858]/60 px-3 py-2 bg-[#F9F7F4] border-b border-[#3C4858]/10">
-                  Found {searchResults.length} user{searchResults.length !== 1 ? 's' : ''}
-                </div>
-                {searchResults.map((user, index) => (
-                  <div
-                    key={user.id}
-                    className="flex items-center justify-between p-3 hover:bg-[#F9F7F4] cursor-pointer border-b border-[#3C4858]/10 last:border-b-0 transition-colors duration-150"
-                    onClick={() => addParticipant(user)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        addParticipant(user);
-                      }
-                    }}
-                    aria-label={`Add ${user.display_name} to chat`}
-                  >
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#D8A7B1] to-[#7BAFB0] flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-                        {user.display_name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-[#3C4858] truncate">{user.display_name}</div>
-                        <div className="text-xs text-[#3C4858]/60 truncate">{user.email}</div>
-                      </div>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-[#D8A7B1] hover:bg-[#D8A7B1]/10 flex-shrink-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        addParticipant(user);
-                      }}
-                    >
-                      Add
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Selected Participants */}
-            {formData.participants.length > 0 && (
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-[#3C4858]">Invited participants:</div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.participants.map((participant) => (
-                    <div
-                      key={participant.id}
-                      className="flex items-center gap-2 bg-gradient-to-r from-[#D8A7B1]/10 to-[#7BAFB0]/10 border border-[#D8A7B1]/20 rounded-full px-3 py-1"
-                    >
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#D8A7B1] to-[#7BAFB0] flex items-center justify-center text-white font-medium text-xs">
-                        {participant.display_name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-sm font-medium text-[#3C4858]">{participant.display_name}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeParticipant(participant.id)}
-                        className="text-[#3C4858]/50 hover:text-[#3C4858] ml-1"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p className="text-xs text-[#3C4858]/60">
-              You can start the chat now and invite others later, or add participants before beginning.
-            </p>
-          </div>
-
-          {/* Category Preview */}
-          {selectedCategory && (
-            <div className="p-4 rounded-lg border border-[#3C4858]/10 bg-gradient-to-r from-[#F9F7F4] to-white">
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: `${selectedCategory.color}20` }}>
-                  <selectedCategory.icon 
-                    className="h-5 w-5" 
-                    style={{ color: selectedCategory.color }} 
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium text-[#3C4858] mb-1">
-                    {selectedCategory.label} Chat
-                  </div>
-                  <p className="text-sm text-[#3C4858]/70 mb-2">
-                    {selectedCategory.description}
-                  </p>
-                  <div className="text-xs text-[#3C4858]/60 bg-white/50 rounded px-2 py-1 inline-block">
-                    ✨ AI mediator specialized for {selectedCategory.label.toLowerCase()} discussions
-                  </div>
-                </div>
-              </div>
-            </div>
+  return isOpen ? (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ease-in-out">
+      <Card className="bg-[#FFFBF5] p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 ease-in-out scale-100 opacity-100">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-semibold text-[#3C4858]">
+            {currentStep === 'preparation' && 'Prepare for Connection'}
+            {currentStep === 'participants' && 'Create Chat'}
+            {currentStep === 'creating' && 'Almost Ready...'}
+          </h2>
+          {currentStep !== 'creating' && (
+            <Button variant="ghost" size="icon" onClick={onClose} className="text-[#3C4858]/70 hover:bg-[#F9F7F4]">
+              <span className="sr-only">Close modal</span>
+              ✕
+            </Button>
           )}
+        </div>
 
-          <DialogFooter className="gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="border-[#3C4858]/20 text-[#3C4858] hover:bg-[#3C4858]/5"
-            >
-              Maybe Later
-            </Button>
-            <Button
-              type="submit"
-              disabled={isLoading || !formData.title || !formData.category}
-              className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] hover:opacity-90 text-white px-6"
-            >
-              {isLoading ? (
-                'Creating...'
-              ) : (
-                <>
-                  Create Chat
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-} 
+        {/* Render child components based on currentStep */}
+        {currentStep === 'preparation' && <PreparationStep setCurrentStep={setCurrentStep} />}
+        {currentStep === 'participants' && (
+          <ParticipantsStep
+            setCurrentStep={setCurrentStep}
+            participantSearchQuery={participantSearchQuery}
+            setParticipantSearchQuery={setParticipantSearchQuery}
+            searchedUsers={searchedUsers}
+            selectedParticipants={selectedParticipants}
+            isSearching={isSearching}
+            isCreatingChat={isCreatingChat} // Pass the new prop
+            chatCreationError={chatCreationError}
+            handleSelectParticipant={handleSelectParticipant}
+            handleRemoveParticipant={handleRemoveParticipant}
+            clearSearch={clearSearch}
+            handleStartChat={handleStartChat}
+          />
+        )}
+        {currentStep === 'creating' && <CreatingStep creationProgress={creationProgress} />}
+
+        {currentStep !== 'creating' && (
+          <Button
+            variant="outline"
+            className="w-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-2.5 mt-4"
+            onClick={onClose}
+            disabled={isCreatingChat} // Disable cancel button too
+          >
+            Cancel
+          </Button>
+        )}
+      </Card>
+    </div>
+  ) : null
+}

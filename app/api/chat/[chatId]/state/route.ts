@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTypingUsers } from '@/lib/redis';
 import { auth } from '@/lib/demoAuth';
 import { TurnManager } from '@/features/chat/services/turnManager';
-import { DemoTurnManager } from '@/features/chat/services/demoTurnManager';
+import { DemoTurnManager } from '@/features/demo/demoTurnManager';
 
 // GET: Fetch chat state
 export async function GET(request: NextRequest, { params }: { params: Promise<{ chatId: string }> }) {

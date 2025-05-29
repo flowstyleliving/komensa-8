@@ -10,7 +10,7 @@ import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { generateDemoAIReply } from '@/features/demo/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager } from '@/features/chat/services/turnManager';
-import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
+import { DemoTurnManager, DEMO_ROLES } from '@/features/demo/demoTurnManager';
 import { setTypingIndicator } from '@/lib/redis';
 import { setTimeout } from 'timers';
 
