@@ -9,6 +9,8 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  console.log('[Middleware] Processing request:', pathname);
+
   // Check if this is a demo request (either path-based or query parameter)
   const isDemo = pathname.startsWith('/demo/') || req.nextUrl.searchParams.get('demo') === 'true';
 
@@ -24,18 +26,22 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/sounds/') || // Your public sounds (if any)
     pathname.includes('.') // Generally allows files with extensions (e.g., .png, .css)
   ) {
+    console.log('[Middleware] Allowing request:', pathname);
     return NextResponse.next();
   }
 
+  console.log('[Middleware] Blocking request, checking auth:', pathname);
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
 
   if (!token) {
+    console.log('[Middleware] No token, redirecting to signin:', pathname);
     const signInUrl = new URL('/auth/signin', req.url);
     // Optionally, add a callbackUrl to redirect back to the original page after sign-in
     // signInUrl.searchParams.set('callbackUrl', req.nextUrl.pathname);
     return NextResponse.redirect(signInUrl);
   }
 
+  console.log('[Middleware] Token found, allowing request:', pathname);
   return NextResponse.next();
 }
 
