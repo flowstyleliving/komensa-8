@@ -83,7 +83,7 @@ export default function SignInPage() {
   const handleGoogleAuth = async () => {
     setIsLoading(true)
     try {
-      window.location.href = "/api/auth/google"
+      window.location.href = "/api/auth/signin/google"
     } catch (err) {
       setError("Failed to authenticate with Google. Please try again.")
       setIsLoading(false)
