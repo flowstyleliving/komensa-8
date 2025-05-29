@@ -8,24 +8,24 @@ datasource db {
 }
 
 model MediatorProfile {
-  id             String   @id
-  label          String
-  assistant_id   String
-  system_prompt  String?
+  id            String  @id
+  label         String
+  assistant_id  String
+  system_prompt String?
 }
 
 model Extension {
-  id             String   @id
+  id             String          @id
   kind           String
   name           String
   latest_version String
-  created_at     DateTime @default(now())
-  products       Product[]
+  created_at     DateTime        @default(now())
   chats          ChatExtension[]
+  products       Product[]
 }
 
 model Product {
-  id                String   @id @default(uuid())
+  id                String     @id @default(uuid())
   stripe_product_id String
   label             String
   ext_id            String?
@@ -33,16 +33,16 @@ model Product {
 }
 
 model ChatTurnState {
-  id            String   @id @default(cuid())
-  chat_id       String   @unique
-  thread_id     String?
-  next_user_id  String?  // Keep for backward compatibility
-  next_role     String?  // New: role-based turn management
-  turn_queue    Json     @default("[]") // Array of roles in turn order
-  current_turn_index Int @default(0)
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
-  chat          Chat     @relation("ChatTurnState", fields: [chat_id], references: [id])
+  id                 String   @id @default(cuid())
+  chat_id            String   @unique
+  thread_id          String?
+  next_user_id       String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  current_turn_index Int      @default(0)
+  next_role          String?
+  turn_queue         Json     @default("[]")
+  chat               Chat     @relation("ChatTurnState", fields: [chat_id], references: [id])
 }
 
 model Event {
@@ -52,48 +52,50 @@ model Event {
   data       Json
   created_at DateTime @default(now())
   seq        Int      @default(0)
-  chat       Chat?    @relation("ChatEvents", fields: [chat_id], references: [id])
+  chat       Chat     @relation("ChatEvents", fields: [chat_id], references: [id])
 }
 
 model ChatParticipant {
-  chat_id   String
-  user_id   String
-  role      String   @default("user")
-  chat      Chat     @relation(fields: [chat_id], references: [id])
-  user      User     @relation(fields: [user_id], references: [id])
+  chat_id String
+  user_id String
+  role    String @default("user")
+  chat    Chat   @relation(fields: [chat_id], references: [id])
+  user    User   @relation(fields: [user_id], references: [id])
 
   @@id([chat_id, user_id])
 }
 
 model User {
-  id            String           @id @default(uuid())
-  name          String?
-  email         String?          @unique
+  id            String             @id @default(uuid())
+  display_name  String?
+  email         String?            @unique
   emailVerified DateTime?
   image         String?
-  display_name  String?
-  dateCreated   DateTime         @default(now())
+  name          String?
+  username      String?            @unique
+  password      String?
+  email_verified Boolean           @default(false)
+  dateCreated   DateTime           @default(now())
   accounts      Account[]
-  sessions      Session[]
   participants  ChatParticipant[]
   states        ParticipantState[]
+  sessions      Session[]
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -115,37 +117,37 @@ model VerificationToken {
 }
 
 model Chat {
-  id              String           @id @default(uuid())
-  origin          String           @default("web")
-  mediator_style  String           @default("default")
-  turn_taking     String           @default("strict")
-  status          String           @default("active")
-  created_at      DateTime         @default(now())
-  events          Event[]          @relation("ChatEvents")
-  turn_state      ChatTurnState?   @relation("ChatTurnState")
-  participants    ChatParticipant[]
-  states          ParticipantState[]
-  extensions      ChatExtension[]
+  id             String             @id @default(uuid())
+  origin         String             @default("web")
+  mediator_style String             @default("default")
+  turn_taking    String             @default("strict")
+  status         String             @default("active")
+  created_at     DateTime           @default(now())
+  extensions     ChatExtension[]
+  participants   ChatParticipant[]
+  turn_state     ChatTurnState?     @relation("ChatTurnState")
+  events         Event[]            @relation("ChatEvents")
+  states         ParticipantState[]
 }
 
 model ParticipantState {
-  chat_id   String
-  user_id   String
-  feelings  Json     @default("[]")
-  needs     Json     @default("[]")
-  viewpoints Json    @default("[]")
-  chat      Chat     @relation(fields: [chat_id], references: [id])
-  user      User     @relation(fields: [user_id], references: [id])
+  chat_id    String
+  user_id    String
+  feelings   Json   @default("[]")
+  needs      Json   @default("[]")
+  viewpoints Json   @default("[]")
+  chat       Chat   @relation(fields: [chat_id], references: [id])
+  user       User   @relation(fields: [user_id], references: [id])
 
   @@id([chat_id, user_id])
 }
 
 model ChatExtension {
-  chat_id      String
-  ext_id       String
-  settings_json Json     @default("{}")
-  chat         Chat      @relation(fields: [chat_id], references: [id])
-  extension    Extension @relation(fields: [ext_id], references: [id])
+  chat_id       String
+  ext_id        String
+  settings_json Json      @default("{}")
+  chat          Chat      @relation(fields: [chat_id], references: [id])
+  extension     Extension @relation(fields: [ext_id], references: [id])
 
   @@id([chat_id, ext_id])
 }

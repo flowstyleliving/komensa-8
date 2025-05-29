@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSession } from "next-auth/react"
 import {
   Calendar,
   MessageSquare,
@@ -19,9 +20,57 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { ChatCard } from "@/components/chat-card"
 import { ProgressStats } from "@/components/progress-stats"
+import { ChatSetupModal } from "@/components/new-chat-modal"
+
+interface ChatData {
+  title: string;
+  description: string;
+  category: string;
+  participants: User[];
+}
+
+interface User {
+  id: string;
+  display_name: string;
+  email: string;
+  avatar?: string;
+}
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview")
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false)
+  const { data: session } = useSession();
+  
+  // Get user's first name for welcome message
+  const firstName = session?.user?.name?.split(' ')[0] || 'there';
+
+  const handleCreateChat = async (chatData: ChatData) => {
+    try {
+      const response = await fetch('/api/chats/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(chatData),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('Chat created successfully:', result);
+        // Route to the new chat
+        window.location.href = result.redirectUrl;
+      } else {
+        console.error('Failed to create chat:', result.error);
+      }
+    } catch (error) {
+      console.error('Error creating chat:', error);
+    }
+  }
+
+  const openChatModal = () => {
+    setIsChatModalOpen(true)
+  }
 
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
@@ -78,7 +127,10 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-6">
-                <Button className="w-full bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] hover:opacity-90 text-white">
+                <Button 
+                  className="w-full bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] hover:opacity-90 text-white"
+                  onClick={openChatModal}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   New Chat
                 </Button>
@@ -115,7 +167,7 @@ export default function DashboardPage() {
               <TabsContent value="overview" className="space-y-6">
                 {/* Welcome Box */}
                 <Card className="p-6 bg-gradient-to-r from-[#D8A7B1]/10 to-[#7BAFB0]/10 border-none">
-                  <h2 className="text-xl font-semibold text-[#3C4858]">Welcome back, Jamie 👋</h2>
+                  <h2 className="text-xl font-semibold text-[#3C4858]">Welcome back, {firstName} 👋</h2>
                   <p className="text-[#3C4858]/70 mt-1">Continue where you left off.</p>
                   <Button className="mt-4 bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white">Resume Latest Chat</Button>
                 </Card>
@@ -198,7 +250,10 @@ export default function DashboardPage() {
               <TabsContent value="chats" className="space-y-4">
                 <div className="flex justify-between items-center mb-2">
                   <h2 className="text-xl font-semibold text-[#3C4858]">Your Chats</h2>
-                  <Button className="bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white">
+                  <Button 
+                    className="bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white"
+                    onClick={openChatModal}
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     New Chat
                   </Button>
@@ -251,6 +306,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </main>
+
+      {/* Chat Setup Modal */}
+      <ChatSetupModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        onCreateChat={handleCreateChat}
+      />
     </div>
   )
 }

@@ -19,7 +19,14 @@ export async function middleware(req: NextRequest) {
     pathname === '/' || // Allow access to the splash page
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/api/demo/') || // Allow demo API endpoints
+    pathname.startsWith('/api/debug/') || // Allow debug API endpoints
+    pathname.startsWith('/api/phone/') || // Allow phone verification API endpoints
+    pathname.startsWith('/api/users/') || // Allow user search API endpoints
+    pathname.startsWith('/api/chats/') || // Allow chat API endpoints
     pathname === '/auth/signin' ||
+    pathname === '/test-phone' || // Allow phone verification test page
+    pathname === '/test-chat' || // Allow chat modal test page
+    pathname === '/test-signin' || // Allow signin test page
     isDemo || // Allow demo requests (both /demo/ paths and ?demo=true)
     pathname.startsWith('/_next/') || // Next.js internal assets
     pathname.startsWith('/images/') || // Your public images
@@ -52,10 +59,14 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - api/auth/ (NextAuth.js routes)
      * - api/demo/ (Demo API routes)
+     * - api/phone/ (Phone verification API routes)
+     * - api/users/ (User search API routes)
+     * - api/chats/ (Chat API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth/signin (signin page)
+     * - test-phone (phone verification test page)
      * - images (public images)
      * - sounds (public sounds)
      * - demo (demo routes)
@@ -63,6 +74,6 @@ export const config = {
      * This matcher is a broad-stroke. The logic inside the middleware function
      * provides more granular control.
      */
-    '/((?!api/auth/|api/demo/|_next/static|_next/image|favicon.ico|auth/signin|images|sounds|demo).*)',
+    '/((?!api/auth/|api/demo/|api/phone/|api/users/|api/chats/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
   ],
 };

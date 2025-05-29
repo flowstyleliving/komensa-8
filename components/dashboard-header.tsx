@@ -1,9 +1,29 @@
+'use client';
+
 import { Bell, Search } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useSession } from "next-auth/react"
 
 export function DashboardHeader() {
+  const { data: session } = useSession();
+  
+  // Get user display name and initials
+  const displayName = session?.user?.name || 'User';
+  const email = session?.user?.email || '';
+  
+  // Generate initials from display name
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase())
+      .slice(0, 2)
+      .join('');
+  };
+
+  const initials = getInitials(displayName);
+
   return (
     <header className="border-b border-[#3C4858]/10 bg-white">
       <div className="container mx-auto px-4 py-3">
@@ -27,11 +47,13 @@ export function DashboardHeader() {
 
             <div className="flex items-center space-x-3">
               <div className="hidden md:block text-right">
-                <div className="text-sm font-medium text-[#3C4858]">Jamie Smith</div>
-                <div className="text-xs text-[#3C4858]/70">Premium Plan</div>
+                <div className="text-sm font-medium text-[#3C4858]">{displayName}</div>
+                <div className="text-xs text-[#3C4858]/70">
+                  {email ? email : 'Premium Plan'}
+                </div>
               </div>
               <div className="h-9 w-9 rounded-full bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] flex items-center justify-center text-white font-medium">
-                JS
+                {initials}
               </div>
             </div>
           </div>

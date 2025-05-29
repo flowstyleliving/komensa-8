@@ -1,6 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 declare module "next-auth" {
   interface Session {
@@ -31,6 +33,62 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "openid email profile"
+        }
+      }
+    }),
+    CredentialsProvider({
+      name: "credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        try {
+          // Find user by email
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email.toLowerCase(),
+            },
+            select: {
+              id: true,
+              email: true,
+              display_name: true,
+              name: true,
+              image: true,
+              password: true,
+            },
+          });
+
+          if (!user || !user.password) {
+            return null;
+          }
+
+          // Verify password
+          const isPasswordValid = await bcrypt.compare(credentials.password, user.password);
+
+          if (!isPasswordValid) {
+            return null;
+          }
+
+          // Return user object
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.display_name || user.name,
+            image: user.image,
+          };
+        } catch (error) {
+          console.error("Error during credentials authentication:", error);
+          return null;
+        }
+      },
     }),
   ],
   session: {
@@ -40,8 +98,21 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/signin",
   },
+  debug: true,
+  logger: {
+    error(code, metadata) {
+      console.error('[NextAuth Error]', code, metadata);
+    },
+    warn(code) {
+      console.warn('[NextAuth Warning]', code);
+    },
+    debug(code, metadata) {
+      console.log('[NextAuth Debug]', code, metadata);
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log('[NextAuth SignIn]', { user: user.email, account: account?.provider, profile: profile?.email });
       if (account?.provider === "google") {
         try {
           // Check if user already exists
@@ -56,16 +127,21 @@ export const authOptions: NextAuthOptions = {
 
           if (!existingUser) {
             // Create new user if not found
-            const username = user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '') || 'user';
+            // Use their name to fill name and display_name, and their email username as fallback
+            const emailUsername = user.email?.split('@')[0] || 'user';
+            const displayName = user.name || emailUsername;
             
+            console.log('[NextAuth] Creating new user:', { email: user.email, displayName });
             await prisma.user.create({
               data: {
                 id: user.id,
-                display_name: user.name || username,
+                name: displayName,
+                display_name: displayName,
                 email: user.email,
-                name: user.name || username,
               },
             });
+          } else {
+            console.log('[NextAuth] User already exists:', existingUser.email);
           }
           return true;
         } catch (error) {
