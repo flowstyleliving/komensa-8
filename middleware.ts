@@ -44,15 +44,19 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes) - specific NextAuth.js routes are handled above
+     * - api/auth/ (NextAuth.js routes)
+     * - api/demo/ (Demo API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - / (the root path, if you want it to be public, add a specific check above or remove it from protected)
+     * - auth/signin (signin page)
+     * - images (public images)
+     * - sounds (public sounds)
+     * - demo (demo routes)
      *
      * This matcher is a broad-stroke. The logic inside the middleware function
      * provides more granular control.
      */
-    '/((?!api/auth/|_next/static|_next/image|favicon.ico|auth/signin|images|sounds|demo).*)',
+    '/((?!api/auth/|api/demo/|_next/static|_next/image|favicon.ico|auth/signin|images|sounds|demo).*)',
   ],
 };
