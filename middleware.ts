@@ -9,13 +9,16 @@ import { getToken } from 'next-auth/jwt';
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Check if this is a demo request (either path-based or query parameter)
+  const isDemo = pathname.startsWith('/demo/') || req.nextUrl.searchParams.get('demo') === 'true';
+
   // Allow requests for NextAuth.js session management, sign-in page, demo routes, and public files
   if (
     pathname === '/' || // Allow access to the splash page
     pathname.startsWith('/api/auth/') ||
     pathname.startsWith('/api/demo/') || // Allow demo API endpoints
     pathname === '/auth/signin' ||
-    pathname.startsWith('/demo/') ||
+    isDemo || // Allow demo requests (both /demo/ paths and ?demo=true)
     pathname.startsWith('/_next/') || // Next.js internal assets
     pathname.startsWith('/images/') || // Your public images
     pathname.startsWith('/sounds/') || // Your public sounds (if any)
