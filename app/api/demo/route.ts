@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/demoAuth';
 import { generateAIReply } from '@/features/ai/services/generateAIReply';
-import { generateDemoAIReply } from '@/features/ai/services/generateDemoAIReply';
+import { generateDemoAIReply } from '@/features/demo/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager } from '@/features/chat/services/turnManager';
 import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';

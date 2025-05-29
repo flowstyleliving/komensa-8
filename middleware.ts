@@ -13,6 +13,7 @@ export async function middleware(req: NextRequest) {
   if (
     pathname === '/' || // Allow access to the splash page
     pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/demo/') || // Allow demo API endpoints
     pathname === '/auth/signin' ||
     pathname.startsWith('/demo/') ||
     pathname.startsWith('/_next/') || // Next.js internal assets

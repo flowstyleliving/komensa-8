@@ -6,8 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/demoAuth';
-import { generateAIReply } from '@/features/ai/services/generateAIReply';
-import { generateDemoAIReply } from '@/features/ai/services/generateDemoAIReply';
+import { generateDemoAIReply } from '@/features/demo/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager } from '@/features/chat/services/turnManager';
 import { DemoTurnManager, DEMO_ROLES } from '@/features/chat/services/demoTurnManager';
@@ -169,7 +168,7 @@ export async function POST(req: NextRequest) {
     await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: 'assistant' });
     console.log('[Messages API] Non-demo turn update emitted to assistant');
 
-    generateAIReply({ chatId, userId: senderId, userMessage: content }).catch(async (err) => {
+    generateDemoAIReply({ chatId, userId: senderId, userMessage: content, apiBaseUrl: req.nextUrl.origin }).catch(async (err) => {
       console.error('[Standard AI] Failed to generate reply:', err);
       if (err instanceof Error) {
         console.error('[Standard AI] Error message:', err.message);
