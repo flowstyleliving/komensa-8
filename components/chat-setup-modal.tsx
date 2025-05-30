@@ -34,6 +34,7 @@ const fetchUsers = async (query: string): Promise<User[]> => {
 interface ChatSetupModalProps {
   isOpen: boolean
   onClose: () => void
+  onCreateChat?: (chatData: any) => Promise<void> | void
 }
 
 // Loading animation component
@@ -323,7 +324,7 @@ const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
   </div>
 );
 
-export default function ChatSetupModal({ isOpen, onClose }: ChatSetupModalProps) {
+export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSetupModalProps) {
   const [currentStep, setCurrentStep] = useState<'preparation' | 'participants' | 'creating'>('preparation');
   const [participantSearchQuery, setParticipantSearchQuery] = useState("");
   const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
@@ -428,35 +429,26 @@ export default function ChatSetupModal({ isOpen, onClose }: ChatSetupModalProps)
       }, 300); // Update progress every 300ms (slower than before)
 
       const participantIds = selectedParticipants.map(p => p.id);
-      const response = await fetch('/api/chats/create', { // Your backend API endpoint
+      const chatData = {
+        title: "New Chat",
+        description: "AI-mediated conversation",
+        category: "general",
+        participants: participantIds.map(id => ({ id }))
+      };
+      const response = await fetch('/api/chats/create', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          title: "New Chat", // TODO: Allow users to set title
-          description: "AI-mediated conversation", // TODO: Allow users to set description
-          category: "general", // TODO: Allow users to set category
-          participants: participantIds.map(id => ({ id }))
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chatData),
       });
-
       const data = await response.json();
-
-      if (!response.ok) {
-        // If response is not OK (e.g., 400, 500), throw an error
-        throw new Error(data.error || 'Failed to create chat');
-      }
-
-      clearInterval(progressInterval); // Clear the progress interval
-      setCreationProgress(100); // Set progress to 100% on success
-
-      // Brief delay to allow users to see the completion before routing
+      if (!response.ok) throw new Error(data.error || 'Failed to create chat');
+      clearInterval(progressInterval);
+      setCreationProgress(100);
+      if (onCreateChat) await onCreateChat(chatData);
       setTimeout(() => {
-        onClose(); // Close the modal
-        router.push(`/chat/${data.chatId}`); // Route to the new chat
-      }, 500); // Wait for 500ms
-
+        onClose();
+        router.push(`/chat/${data.chatId}`);
+      }, 500);
     } catch (error) {
       console.error("Error starting Chat:", error);
       setChatCreationError(error instanceof Error ? error.message : 'An unknown error occurred');

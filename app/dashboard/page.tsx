@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { ChatCard } from "@/components/chat-card"
 import { ProgressStats } from "@/components/progress-stats"
-import ChatSetupModal from "../../components/new-chat-modal"
+import ChatSetupModal from "@/components/chat-setup-modal"
 
 interface ChatData {
   title: string;

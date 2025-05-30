@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChatSetupModal } from '@/components/new-chat-modal';
+import ChatSetupModal from '@/components/chat-setup-modal';
 
 interface ChatData {
   title: string;
