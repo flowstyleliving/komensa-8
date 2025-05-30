@@ -4,11 +4,15 @@ interface ChatBubbleProps {
   content: string;
   senderId: string;
   timestamp: Date;
+  userId: string;
+  participantMap: Record<string, string>;
+  participants: { id: string; display_name: string }[];
 }
 
-export function ChatBubble({ content, senderId, timestamp }: ChatBubbleProps) {
+export function ChatBubble({ content, senderId, timestamp, userId, participantMap }: ChatBubbleProps) {
   const isAssistant = senderId === 'assistant';
   const isSystem = senderId === 'system';
+  const isCurrentUser = senderId === userId;
   
   // Validate timestamp and provide fallback
   const validTimestamp = isValid(timestamp) ? timestamp : new Date();
@@ -40,11 +44,10 @@ export function ChatBubble({ content, senderId, timestamp }: ChatBubbleProps) {
     if (isAssistant) {
       return 'bg-[#7BAFB0]/10 text-[#3C4858] text-sm max-w-[90%] text-center p-6 rounded-xl border border-[#7BAFB0]/20 shadow-sm';
     }
-    if (isDemoUser) {
-      // Current user (Alex) - right side, dusty rose
+    if (isCurrentUser) {
       return 'bg-[#D8A7B1]/15 border-l-4 border-[#D8A7B1] text-[#3C4858] shadow-sm';
     }
-    // Other user (Jordan) - left side, teal
+    // Other user - left side, teal
     return 'bg-[#7BAFB0]/15 border-l-4 border-[#7BAFB0] text-[#3C4858] shadow-sm';
   };
 
@@ -52,7 +55,7 @@ export function ChatBubble({ content, senderId, timestamp }: ChatBubbleProps) {
     if (isSystem || isAssistant) {
       return 'justify-center';
     }
-    if (isDemoUser) {
+    if (isCurrentUser) {
       return 'justify-end'; // Current user on right
     }
     return 'justify-start'; // Other user on left
@@ -60,8 +63,8 @@ export function ChatBubble({ content, senderId, timestamp }: ChatBubbleProps) {
 
   const getUserLabel = () => {
     if (isAssistant) return 'AI Mediator';
-    if (isDemoUser) return 'You (Michael)';
-    return 'Jordan'; // Other participant
+    if (isCurrentUser) return 'You';
+    return participantMap[senderId] || 'Unknown';
   };
 
   if (isSystem || isAssistant) {

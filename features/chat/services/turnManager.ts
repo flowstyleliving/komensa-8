@@ -1,22 +1,43 @@
 // GPT CONTEXT:
 // Simplified turn management system for Komensa chat application
-// Handles regular (non-demo) chats, primarily user-based turns.
+// Handles regular chats, primarily user-based turns.
 
 import { prisma } from '@/lib/prisma';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { setTypingIndicator, getTypingUsers } from '@/lib/redis';
 
 export interface TurnState {
-  // next_role?: string; // Probably not needed for non-demo
+  next_role?: string; 
   next_user_id?: string; 
-  // turn_queue?: string[]; // Probably not needed for non-demo
-  // current_turn_index?: number; // Probably not needed for non-demo
+  turn_queue?: string[];
+  current_turn_index?: number; 
 }
+
+// Extensible function type for determining who goes first
+export type FirstTurnSelector = (participants: { id: string; role?: string }[], ...args: any[]) => string;
+
+// Built-in selectors for who goes first
+export const FirstTurnSelectors = {
+  // Chat creator goes first (current default)
+  creator: (participants: { id: string; role?: string }[], creatorId: string) => creatorId,
+  
+  // Random selection (for future coin flip feature)
+  random: (participants: { id: string; role?: string }[]) => {
+    const humanParticipants = participants.filter(p => p.role !== 'assistant');
+    return humanParticipants[Math.floor(Math.random() * humanParticipants.length)].id;
+  },
+  
+  // First participant in list (deterministic fallback)
+  first: (participants: { id: string; role?: string }[]) => {
+    const humanParticipants = participants.filter(p => p.role !== 'assistant');
+    return humanParticipants[0]?.id;
+  }
+};
 
 export class TurnManager {
   constructor(private chatId: string) {}
 
-  // Get current turn state (simplified for non-demo)
+  // Get current turn state
   async getCurrentTurn(): Promise<TurnState | null> {
     const turnState = await prisma.chatTurnState.findUnique({
       where: { chat_id: this.chatId },
@@ -30,9 +51,9 @@ export class TurnManager {
     };
   }
 
-  // Initialize turn state for a non-demo chat (e.g., setting initial turn to a user)
+  // Initialize turn state (e.g., setting initial turn to a user)
   async initializeTurn(firstUserId: string): Promise<void> {
-    console.log('[TurnManager] Initializing turn for non-demo chat', { chatId: this.chatId, firstUserId });
+    console.log('[TurnManager] Initializing turn for chat', { chatId: this.chatId, firstUserId });
     
     await prisma.chatTurnState.upsert({
       where: { chat_id: this.chatId },
@@ -51,7 +72,23 @@ export class TurnManager {
     });
   }
 
-  // Set turn to a specific user ID for non-demo chats
+  // Initialize turn state with extensible selection method
+  async initializeTurnWithSelector(
+    participants: { id: string; role?: string }[], 
+    selector: FirstTurnSelector = FirstTurnSelectors.first,
+    ...selectorArgs: any[]
+  ): Promise<void> {
+    const firstUserId = selector(participants, ...selectorArgs);
+    console.log('[TurnManager] Initializing turn with selector', { 
+      chatId: this.chatId, 
+      firstUserId, 
+      participantCount: participants.length 
+    });
+    
+    await this.initializeTurn(firstUserId);
+  }
+
+  // Set turn to a specific user ID chats
   async setTurnToUser(userId: string): Promise<TurnState> {
     console.log('[TurnManager] Setting turn to user:', { chatId: this.chatId, userId });
     
@@ -72,22 +109,100 @@ export class TurnManager {
     return { next_user_id: userId };
   }
 
-  // Check if a user can send a message in a non-demo chat
-  async canUserSendMessage(userId: string): Promise<boolean> {
-    const currentState = await this.getCurrentTurn();
-    if (!currentState) {
-      // If no turn state exists, typically the first message, allow it.
-      // Or, for a more strict system, this could return false and require initialization.
-      // For now, let's be permissive for the first message if no state is set.
-      // The API route also has a check, this is an additional layer.
-      const messageCount = await prisma.event.count({ where: { chat_id: this.chatId, type: 'message' } });
-      if (messageCount === 0) return true; 
-      console.warn('[TurnManager] No turn state for canUserSendMessage, assuming false after first message.');
-      return false; 
+  // Get the next user in strict turn-taking mode
+  async getNextUserAfterAI(): Promise<string | null> {
+    // Get all participants in the chat
+    const chat = await prisma.chat.findUnique({
+      where: { id: this.chatId },
+      include: {
+        participants: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    if (!chat) {
+      console.error('[TurnManager] Chat not found when getting next user');
+      return null;
     }
 
+    // Get human participants (excluding AI)
+    const humanParticipants = chat.participants
+      .filter(p => p.user_id !== 'assistant')
+      .map(p => p.user_id);
+
+    if (humanParticipants.length === 0) {
+      console.error('[TurnManager] No human participants found');
+      return null;
+    }
+
+    // Get the last message to determine who spoke last
+    const lastMessage = await prisma.event.findFirst({
+      where: {
+        chat_id: this.chatId,
+        type: 'message',
+        data: {
+          path: ['senderId'],
+          not: 'assistant'
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    if (!lastMessage) {
+      // If no previous message, start with the first participant
+      return humanParticipants[0];
+    }
+
+    // Get the last human speaker's ID
+    const lastSpeakerId = (lastMessage.data as any).senderId;
+    
+    // Find the index of the last speaker
+    const lastSpeakerIndex = humanParticipants.indexOf(lastSpeakerId);
+    
+    // Get the next participant in the rotation
+    const nextIndex = (lastSpeakerIndex + 1) % humanParticipants.length;
+    return humanParticipants[nextIndex];
+  }
+
+  // Check if a user can send a message in a chat
+  async canUserSendMessage(userId: string): Promise<boolean> {
+    const currentState = await this.getCurrentTurn();
+    
+    // If no turn state exists, check if this is the first message
+    if (!currentState) {
+      const messageCount = await prisma.event.count({ 
+        where: { 
+          chat_id: this.chatId, 
+          type: 'message',
+          data: {
+            path: ['senderId'],
+            not: 'assistant'
+          }
+        } 
+      });
+      
+      // Only allow the first message if there are no previous human messages
+      if (messageCount === 0) {
+        console.log('[TurnManager] First message in chat, allowing send');
+        return true;
+      }
+      
+      console.warn('[TurnManager] No turn state and not first message, denying send');
+      return false;
+    }
+
+    // In strict turn-taking, only allow if it's the user's turn
     const canSend = currentState.next_user_id === userId;
-    console.log('[TurnManager] canUserSendMessage:', { userId, nextUserId: currentState.next_user_id, canSend });
+    console.log('[TurnManager] canUserSendMessage:', { 
+      userId, 
+      nextUserId: currentState.next_user_id, 
+      canSend,
+      reason: canSend ? 'User turn' : 'Not user turn'
+    });
+    
     return canSend;
   }
 

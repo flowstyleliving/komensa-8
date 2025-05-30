@@ -65,10 +65,35 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       });
     }
   } else if (!turnState && userId) {
-    // For non-demo chats, create basic turn state or use TurnManager
-    console.log('[Chat State] Initializing non-demo turn management');
+    // For non-demo chats, initialize turn state only if it doesn't exist
+    // (it should already exist from chat creation, but this is a fallback)
+    console.log('[Chat State] Initializing non-demo turn management (fallback)');
     const turnManager = new TurnManager(chatId);
-    await turnManager.initializeTurn(userId);
+    
+    // Try to determine who should go first
+    // If this is the chat creator, they should go first
+    // Otherwise, we'll need to look up the creator from the chat
+    const chatInfo = await prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { 
+        participants: {
+          include: { user: true }
+        },
+        events: {
+          where: { type: 'chat_created' },
+          take: 1
+        }
+      }
+    });
+    
+    // Try to get the chat creator from the chat_created event
+    const chatCreatedEvent = chatInfo?.events[0];
+    const creatorId = (chatCreatedEvent?.data as any)?.createdBy;
+    
+    // Initialize with creator going first, or fallback to current user
+    const firstUserId = creatorId || userId;
+    await turnManager.initializeTurn(firstUserId);
+    console.log('[Chat State] Turn management initialized with first user:', firstUserId);
     
     // Update turn state after creation
     turnState = await prisma.chatTurnState.findUnique({

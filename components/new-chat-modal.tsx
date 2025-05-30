@@ -34,7 +34,6 @@ const fetchUsers = async (query: string): Promise<User[]> => {
 interface ChatSetupModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreateChat: (participantIds: string[]) => Promise<void>;
 }
 
 // Loading animation component
@@ -296,19 +295,25 @@ const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
         <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
         <span>Initializing secure Chat space</span>
       </div>
-      {creationProgress > 30 && (
+      {creationProgress > 20 && (
         <div className="flex items-center justify-center space-x-2">
           <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
           <span>Configuring AI mediator</span>
         </div>
       )}
-      {creationProgress > 60 && (
+      {creationProgress > 40 && (
         <div className="flex items-center justify-center space-x-2">
           <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
           <span>Inviting participants</span>
         </div>
       )}
-      {creationProgress > 90 && (
+      {creationProgress > 60 && (
+        <div className="flex items-center justify-center space-x-2">
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <span>Generating AI welcome message</span>
+        </div>
+      )}
+      {creationProgress > 85 && (
         <div className="flex items-center justify-center space-x-2">
           <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
           <span>Ready to begin!</span>
@@ -411,16 +416,16 @@ export default function ChatSetupModal({ isOpen, onClose }: ChatSetupModalProps)
     setCreationProgress(0); // Start progress from 0
 
     try {
-      // Simulate progress for better UX
+      // Simulate progress for better UX - longer duration for AI message generation
       const progressInterval = setInterval(() => {
         setCreationProgress(prev => {
-          if (prev >= 90) { // Stop just before 100 to show final success immediately after API response
+          if (prev >= 85) { // Stop at 85% to show final success after API response
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 10;
+          return prev + 5; // Slower progress (5% instead of 10%)
         });
-      }, 200); // Update progress every 200ms
+      }, 300); // Update progress every 300ms (slower than before)
 
       const participantIds = selectedParticipants.map(p => p.id);
       const response = await fetch('/api/chats/create', { // Your backend API endpoint
@@ -428,7 +433,12 @@ export default function ChatSetupModal({ isOpen, onClose }: ChatSetupModalProps)
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ participantIds }),
+        body: JSON.stringify({ 
+          title: "New Chat", // TODO: Allow users to set title
+          description: "AI-mediated conversation", // TODO: Allow users to set description
+          category: "general", // TODO: Allow users to set category
+          participants: participantIds.map(id => ({ id }))
+        }),
       });
 
       const data = await response.json();

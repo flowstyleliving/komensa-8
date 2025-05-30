@@ -1,6 +1,7 @@
 import { MessageSquare } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 interface ChatCardProps {
   title: string
@@ -11,6 +12,7 @@ interface ChatCardProps {
   colorA: string
   colorB: string
   isYourTurn: boolean
+  chatId: string
 }
 
 export function ChatCard({
@@ -22,6 +24,7 @@ export function ChatCard({
   colorA,
   colorB,
   isYourTurn,
+  chatId,
 }: ChatCardProps) {
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
@@ -63,9 +66,11 @@ export function ChatCard({
         </div>
       </div>
 
-      <Button className="w-full bg-white border border-[#3C4858]/10 text-[#3C4858] hover:bg-[#F9F7F4]">
-        <MessageSquare className="mr-2 h-4 w-4" />
-        Open Chat
+      <Button className="w-full bg-white border border-[#3C4858]/10 text-[#3C4858] hover:bg-[#F9F7F4]" asChild>
+        <Link href={`/chat/${chatId}`}>
+          <MessageSquare className="mr-2 h-4 w-4" />
+          Open Chat
+        </Link>
       </Button>
     </Card>
   )

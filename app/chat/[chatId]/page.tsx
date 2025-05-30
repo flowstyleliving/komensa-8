@@ -1,5 +1,6 @@
 'use client';
 
+import { useSession } from 'next-auth/react';
 import { useChat } from '@/features/chat/hooks/useChat';
 import { useDemoChat } from '@/hooks/useDemoChat';
 import { useExtensions } from '@/hooks/useExtensions';
@@ -21,14 +22,22 @@ interface MessageData {
   senderId: string;
 }
 
+interface Participant {
+  id: string;
+  display_name: string;
+}
+
 export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
   // Unwrap the params Promise using React.use()
   const { chatId } = use(params);
   
-  // Efficiently detect demo mode once and memoize the result
+  // Load session first
+  const { data: session, status } = useSession();
+  
+  // Efficiently detect demo mode once and memoize the result (must be before conditional return)
   const isDemoDetected = useMemo(() => isDemoSession(), []);
 
-  // Use appropriate hook based on demo detection
+  // Use appropriate hook based on demo detection - always call hooks in same order
   const regularChat = useChat(chatId);
   const demoChat = useDemoChat(chatId, isDemoDetected);
   
@@ -50,6 +59,9 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const previousMessageCount = useRef(messages.length);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participantMap, setParticipantMap] = useState<Record<string, string>>({});
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -73,6 +85,53 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     }
   }, [messages, playReceiveNotification, playSendNotification]);
 
+  // Fetch participants after fetching state
+  useEffect(() => {
+    if (!chatId) return;
+    const fetchInitialState = async () => {
+      try {
+        const res = await fetch(`/api/chat/${chatId}/state`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const state = await res.json();
+        setParticipants(state.participants || []);
+        setParticipantMap(
+          (state.participants || []).reduce((acc: Record<string, string>, p: any) => {
+            acc[p.id] = p.display_name;
+            return acc;
+          }, {})
+        );
+        // ... set other state as needed ...
+      } catch (error) {
+        // ... handle error ...
+      }
+    };
+    fetchInitialState();
+  }, [chatId]);
+
+  // Get current userId
+  const userId = session?.user?.id || (typeof document !== 'undefined' ? (() => {
+    const demoUser = document.cookie.split('; ').find(row => row.startsWith('demo_user='))?.split('=')[1];
+    if (demoUser) {
+      try { return JSON.parse(decodeURIComponent(demoUser)).id; } catch {}
+    }
+    return undefined;
+  })() : undefined);
+
+  const humanParticipants = participants.filter((p) => p.id !== 'assistant');
+  const headerNames = humanParticipants.map((p) => p.display_name).join(' & ') + ' + AI Mediator';
+
+  // Show loading while session is loading (after all hooks are called)
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D8A7B1] mx-auto mb-4"></div>
+          <p className="text-[#3C4858]/70">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
       {/* Navigation Header */}
@@ -92,7 +151,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             <div className="flex items-center space-x-4">
               <div className="hidden md:flex items-center gap-2 text-[#3C4858]/60">
                 <Users className="h-4 w-4" />
-                <span className="text-sm">Michael & Jordan + AI Mediator</span>
+                <span className="text-sm">{headerNames}</span>
               </div>
               
               <Button 
@@ -101,7 +160,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                 className="border-[#3C4858]/20 text-[#3C4858] rounded-full"
                 asChild
               >
-                <Link href="/auth/signin">
+                <Link href="/dashboard">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Dashboard
                 </Link>
@@ -123,6 +182,9 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                   content={data.content}
                   senderId={data.senderId}
                   timestamp={new Date(message.created_at)}
+                  userId={userId}
+                  participantMap={participantMap}
+                  participants={participants}
                 />
               );
             })}

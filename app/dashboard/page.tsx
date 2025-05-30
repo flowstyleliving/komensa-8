@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import {
   Calendar,
@@ -36,13 +36,66 @@ interface User {
   avatar?: string;
 }
 
+interface Chat {
+  id: string;
+  title: string;
+  description: string;
+  lastActive: string;
+  participants: {
+    id: string;
+    display_name: string;
+    role: string;
+  }[];
+  status: string;
+  created_at: string;
+}
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("overview")
   const [isChatModalOpen, setIsChatModalOpen] = useState(false)
+  const [chats, setChats] = useState<Chat[]>([])
+  const [isLoadingChats, setIsLoadingChats] = useState(true)
   const { data: session } = useSession();
   
   // Get user's first name for welcome message
   const firstName = session?.user?.name?.split(' ')[0] || 'there';
+
+  // Fetch user's chats
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const response = await fetch('/api/chats');
+        if (response.ok) {
+          const data = await response.json();
+          setChats(data.chats || []);
+        } else {
+          console.error('Failed to fetch chats');
+        }
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      } finally {
+        setIsLoadingChats(false);
+      }
+    };
+
+    if (session?.user?.id) {
+      fetchChats();
+    }
+  }, [session?.user?.id]);
+
+  // Helper function to format relative time
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return 'Just now';
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    if (diffInHours < 48) return 'Yesterday';
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} days ago`;
+    return `${Math.floor(diffInDays / 7)} weeks ago`;
+  };
 
   const handleCreateChat = async (chatData: ChatData) => {
     try {
@@ -142,11 +195,15 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-[#3C4858]/70">Active Chats</span>
-                  <span className="text-sm font-medium text-[#D8A7B1]">3</span>
+                  <span className="text-sm font-medium text-[#D8A7B1]">
+                    {chats.filter(chat => chat.status === 'active').length}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#3C4858]/70">Completed</span>
-                  <span className="text-sm font-medium text-[#7BAFB0]">12</span>
+                  <span className="text-sm text-[#3C4858]/70">Total Chats</span>
+                  <span className="text-sm font-medium text-[#7BAFB0]">
+                    {chats.length}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-[#3C4858]/70">Your Turn</span>
@@ -174,9 +231,24 @@ export default function DashboardPage() {
 
                 {/* Active Chats Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <ProgressStats title="Active Chats" value="3" change="+1" color="#D8A7B1" />
-                  <ProgressStats title="Completed" value="12" change="+2" color="#7BAFB0" />
-                  <ProgressStats title="Your Turn" value="✓" change="" color="#D9C589" />
+                  <ProgressStats 
+                    title="Active Chats" 
+                    value={chats.filter(chat => chat.status === 'active').length.toString()} 
+                    change={chats.length > 0 ? "+1" : ""} 
+                    color="#D8A7B1" 
+                  />
+                  <ProgressStats 
+                    title="Total Chats" 
+                    value={chats.length.toString()} 
+                    change={chats.length > 0 ? `+${chats.length}` : ""} 
+                    color="#7BAFB0" 
+                  />
+                  <ProgressStats 
+                    title="Your Turn" 
+                    value="✓" 
+                    change="" 
+                    color="#D9C589" 
+                  />
                 </div>
 
                 {/* Recent Activity */}
@@ -259,48 +331,49 @@ export default function DashboardPage() {
                   </Button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ChatCard
-                    title="Financial Planning"
-                    description="Discussing budget and savings goals"
-                    lastActive="2 hours ago"
-                    partnerA="You"
-                    partnerB="Alex"
-                    colorA="#D8A7B1"
-                    colorB="#7BAFB0"
-                    isYourTurn={true}
-                  />
-                  <ChatCard
-                    title="Communication Improvement"
-                    description="Working on active listening techniques"
-                    lastActive="Yesterday"
-                    partnerA="You"
-                    partnerB="Jordan"
-                    colorA="#D8A7B1"
-                    colorB="#7BAFB0"
-                    isYourTurn={false}
-                  />
-                  <ChatCard
-                    title="Household Responsibilities"
-                    description="Creating a fair division of tasks"
-                    lastActive="3 days ago"
-                    partnerA="You"
-                    partnerB="Taylor"
-                    colorA="#D8A7B1"
-                    colorB="#7BAFB0"
-                    isYourTurn={true}
-                  />
-                  <ChatCard
-                    title="Future Planning"
-                    description="Discussing long-term goals and aspirations"
-                    lastActive="1 week ago"
-                    partnerA="You"
-                    partnerB="Casey"
-                    colorA="#D8A7B1"
-                    colorB="#7BAFB0"
-                    isYourTurn={false}
-                  />
-                </div>
+                {isLoadingChats ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D8A7B1]"></div>
+                    <span className="ml-3 text-[#3C4858]/70">Loading your chats...</span>
+                  </div>
+                ) : chats.length === 0 ? (
+                  <div className="text-center py-12">
+                    <MessageSquare className="mx-auto h-12 w-12 text-[#3C4858]/30 mb-4" />
+                    <h3 className="text-lg font-medium text-[#3C4858] mb-2">No chats yet</h3>
+                    <p className="text-[#3C4858]/70 mb-4">Create your first chat to get started with AI-mediated conversations.</p>
+                    <Button 
+                      className="bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white"
+                      onClick={openChatModal}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create Your First Chat
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {chats.map(chat => {
+                      // Get the current user and other participants
+                      const currentUser = chat.participants.find(p => p.id === session?.user?.id);
+                      const otherParticipants = chat.participants.filter(p => p.id !== session?.user?.id);
+                      const otherParticipant = otherParticipants[0]; // For now, assume 2-person chats
+                      
+                      return (
+                        <ChatCard
+                          key={chat.id}
+                          title={chat.title}
+                          description={chat.description}
+                          lastActive={formatRelativeTime(chat.lastActive)}
+                          partnerA="You"
+                          partnerB={otherParticipant?.display_name || 'Unknown'}
+                          colorA="#D8A7B1"
+                          colorB="#7BAFB0"
+                          isYourTurn={true} // TODO: Implement turn checking logic
+                          chatId={chat.id}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </div>
@@ -311,14 +384,6 @@ export default function DashboardPage() {
       <ChatSetupModal
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
-        onCreateChat={async (participantIds: string[]) => {
-          await handleCreateChat({
-            title: "...",
-            description: "...",
-            category: "...",
-            participants: participantIds.map(id => ({ id }))
-          });
-        }}
       />
     </div>
   )
