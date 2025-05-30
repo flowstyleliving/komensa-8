@@ -23,6 +23,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/phone/') || // Allow phone verification API endpoints
     pathname.startsWith('/api/users/') || // Allow user search API endpoints
     pathname.startsWith('/api/chats/') || // Allow chat API endpoints
+    pathname.startsWith('/tests/api/') || // Allow test/debug API endpoints
     pathname === '/auth/signin' ||
     pathname === '/test-phone' || // Allow phone verification test page
     pathname === '/test-chat' || // Allow chat modal test page

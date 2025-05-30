@@ -35,6 +35,10 @@ export async function generateAIReply({
   userMessage: string;
 }) {
   console.log('[AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
+  console.log('[AI Reply] Environment check:', {
+    OPENAI_ASSISTANT_ID: OPENAI_ASSISTANT_ID ? 'SET' : 'NOT SET',
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET'
+  });
 
   const channelName = getChatChannelName(chatId);
   // const turnManager = new TurnManager(chatId); // Not needed for generic reply
@@ -299,11 +303,10 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
        console.error('[AI Reply] REDIS ERROR: Failed to stop typing indicator in Redis:', redisError);
     }
     try {
-      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      console.log('[AI Reply] Typing indicator stopped successfully due to main error (Redis BYPASSED).');
-    } catch (cleanupError) {
-      console.error('[AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);
+      console.log('[AI Reply] Typing indicator stopped via Pusher');
+    } catch (pusherError) {
+      console.error('[AI Reply] ERROR: Failed to stop typing indicator via Pusher:', pusherError);
     }
 
     const cleanedMessage = fullMessage.trim();

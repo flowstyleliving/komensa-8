@@ -13,13 +13,20 @@ export async function GET() {
     // Database
     DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET',
     
-    // OpenAI
+    // OpenAI - CRITICAL FOR AI REPLIES
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET',
     OPENAI_ASSISTANT_ID: process.env.OPENAI_ASSISTANT_ID ? 'SET' : 'NOT SET',
+    OPENAI_ASSISTANT_ID_VALUE: process.env.OPENAI_ASSISTANT_ID || 'NOT SET', // Show actual value for debugging
     
     // Redis
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL ? 'SET' : 'NOT SET',
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN ? 'SET' : 'NOT SET',
+    
+    // Pusher
+    PUSHER_APP_ID: process.env.PUSHER_APP_ID ? 'SET' : 'NOT SET',
+    PUSHER_KEY: process.env.PUSHER_KEY ? 'SET' : 'NOT SET',
+    PUSHER_SECRET: process.env.PUSHER_SECRET ? 'SET' : 'NOT SET',
+    PUSHER_CLUSTER: process.env.PUSHER_CLUSTER ? 'SET' : 'NOT SET',
     
     // Environment
     NODE_ENV: process.env.NODE_ENV,
@@ -30,6 +37,18 @@ export async function GET() {
       baseUrl: process.env.NEXTAUTH_URL || 'NOT SET',
       googleCallbackUrl: `${process.env.NEXTAUTH_URL || 'NOT SET'}/api/auth/callback/google`,
       requiredInGoogleConsole: `${process.env.NEXTAUTH_URL || 'NOT SET'}/api/auth/callback/google`
+    },
+    
+    // Debugging info
+    debug: {
+      timestamp: new Date().toISOString(),
+      env_count: Object.keys(process.env).length,
+      critical_missing: [
+        !process.env.OPENAI_API_KEY && 'OPENAI_API_KEY',
+        !process.env.OPENAI_ASSISTANT_ID && 'OPENAI_ASSISTANT_ID',
+        !process.env.DATABASE_URL && 'DATABASE_URL',
+        !process.env.NEXTAUTH_SECRET && 'NEXTAUTH_SECRET'
+      ].filter(Boolean)
     }
   });
 } 
