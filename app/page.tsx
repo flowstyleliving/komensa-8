@@ -65,6 +65,7 @@ export default function SplashPage() {
                 Start Your First Chat
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
+              <Link href="/demo">
               <Button
                 size="lg"
                 variant="outline"
@@ -73,6 +74,7 @@ export default function SplashPage() {
                 <Play className="mr-2 h-5 w-5" />
                 Watch Demo
               </Button>
+              </Link>
             </div>
 
             {/* Hero Image/Preview */}

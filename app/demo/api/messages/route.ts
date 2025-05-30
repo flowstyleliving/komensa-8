@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
   console.log('[Demo Messages API] Setting turn to mediator and triggering demo AI reply');
   await demoTurnManager.setTurnToRole(DEMO_ROLES.MEDIATOR);
 
-  const targetUrl = `${req.nextUrl.origin}/api/demo/gen-ai-reply`;
+  const targetUrl = `${req.nextUrl.origin}/demo/api/gen-ai-reply`;
   console.log(`[Demo Messages API] Attempting fetch to: ${targetUrl}`);
 
   try {

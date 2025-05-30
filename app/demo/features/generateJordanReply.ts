@@ -210,9 +210,9 @@ Respond naturally as Jordan based on the Mediator's last message and the recent 
 
   console.log('[Jordan AI] Jordan responded. Now triggering Mediator (generateDemoAIReply) to respond to Jordan via API.');
   
-  // MODIFIED: Call the /api/demo/gen-ai-reply endpoint using fetch, fire-and-forget
+  // MODIFIED: Call the /demo/api/gen-ai-reply endpoint using fetch, fire-and-forget
   try {
-    await fetch(`${apiBaseUrl}/api/demo/gen-ai-reply`, {
+    await fetch(`${apiBaseUrl}/demo/api/gen-ai-reply`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

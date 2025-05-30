@@ -66,11 +66,11 @@ export const CalendlyModal = memo(function CalendlyModal({ onClose, aiResponseCo
                   <span>Constructive language translation</span>
                 </div>
               </div>
-//switched to 25 minutes
+
               <div className="bg-white p-4 rounded-lg border border-[#3C4858]/10">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-4 h-4 text-[#7BAFB0]" />
-                  <span className="text-sm font-medium text-[#3C4858]">25-minute consultation</span>
+                  <span className="text-sm font-medium text-[#3C4858]">15-minute consultation</span>
                 </div>
                 <p className="text-xs text-[#3C4858]/70">
                   Discuss your team's communication challenges and see how Komensa can help.

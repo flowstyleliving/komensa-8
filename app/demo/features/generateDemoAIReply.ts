@@ -379,7 +379,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         console.log('[Demo AI Reply] Triggering Jordan response via API call...');
         // Fire-and-forget call to the new Jordan reply API endpoint
         try {
-          const response = await fetch(`${apiBaseUrl}/api/demo/gen-jordan-reply`, {
+          const response = await fetch(`${apiBaseUrl}/demo/api/gen-jordan-reply`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -396,7 +396,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
           }
         } catch (err) {
           // This catch is for network errors or issues initiating the fetch itself
-          console.error('[Demo AI Reply] Error calling /api/demo/gen-jordan-reply:', err);
+          console.error('[Demo AI Reply] Error calling /demo/api/gen-jordan-reply:', err);
           if (err instanceof Error) {
             console.error('[Demo AI Reply] Fetch error message:', err.message);
             console.error('[Demo AI Reply] Fetch error stack:', err.stack);

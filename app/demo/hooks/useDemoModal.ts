@@ -45,18 +45,40 @@ export function useDemoModal(): DemoModalState {
       }
     }
     
+    console.log('[useDemoModal] AI response count:', aiCount, 'Thresholds:', {
+      demo: DEMO_CONSTANTS.AI_RESPONSE_THRESHOLD,
+      calendly: DEMO_CONSTANTS.CALENDLY_THRESHOLD,
+      showModal,
+      showCalendlyModal,
+      modalDismissed,
+      calendlyDismissed
+    });
+    
     setAiResponseCount(aiCount);
     
-    // Show first modal after 5 AI responses (if not dismissed)
+    // Show first modal after 3 AI responses (if not dismissed)
     if (aiCount >= DEMO_CONSTANTS.AI_RESPONSE_THRESHOLD && !showModal && !modalDismissed) {
+      console.log('[useDemoModal] Triggering demo modal');
       setShowModal(true);
     }
     
-    // Show Calendly modal after 7 AI responses (if not dismissed)
+    // Show Calendly modal after 5 AI responses (if not dismissed)
     if (aiCount >= DEMO_CONSTANTS.CALENDLY_THRESHOLD && !showCalendlyModal && !calendlyDismissed) {
+      console.log('[useDemoModal] Triggering Calendly modal');
       setShowCalendlyModal(true);
     }
   }, [showModal, showCalendlyModal, modalDismissed, calendlyDismissed]);
+
+  // Memoize return object to prevent unnecessary re-renders
+  return useMemo(() => ({
+    showModal,
+    showCalendlyModal,
+    aiResponseCount,
+    dismissModal,
+    dismissCalendlyModal,
+    checkShouldShowModal
+  }), [showModal, showCalendlyModal, aiResponseCount, dismissModal, dismissCalendlyModal, checkShouldShowModal]);
+} 
 
   // Memoize return object to prevent unnecessary re-renders
   return useMemo(() => ({

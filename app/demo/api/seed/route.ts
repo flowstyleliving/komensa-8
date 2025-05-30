@@ -8,7 +8,6 @@
 
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { v4 as uuidv4 } from 'uuid';
 
 const SYSTEM_PROMPT = `You are **Komensa's AI Mediator**.  
@@ -142,9 +141,7 @@ export async function GET(req: Request) {
 
     // 6. Redirect with the demo user ID (Alex) and session
     console.log('[Demo Seed] Setting up redirect...');
-    const url = new URL(`/chat/${newChat.id}`, req.url);
-    url.searchParams.set('demo', 'true');
-    url.searchParams.set('userId', user1.id);
+    const url = new URL(`/demo/${newChat.id}`, req.url);
     
     const response = NextResponse.redirect(url, 302);
     

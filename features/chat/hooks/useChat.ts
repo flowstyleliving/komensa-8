@@ -33,27 +33,10 @@ export function useChat(chatId: string) {
     typingUsers: new Set<string>()
   });
 
-  // Get user ID from session or demo cookie
+  // Get user ID from session
   const getUserId = () => {
     const user = session?.user as SessionUser | undefined;
     if (user?.id) return user.id;
-    
-    // Check for demo user cookie
-    if (typeof document !== 'undefined') {
-      const demoUser = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('demo_user='))
-        ?.split('=')[1];
-      
-      if (demoUser) {
-        try {
-          const parsed = JSON.parse(decodeURIComponent(demoUser));
-          return parsed.id;
-        } catch (e) {
-          console.error('Failed to parse demo user cookie:', e);
-        }
-      }
-    }
     
     return null;
   };

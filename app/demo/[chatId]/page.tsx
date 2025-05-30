@@ -1,11 +1,13 @@
 "use client";
 
 import { useDemoChat } from '@/app/demo/hooks/useDemoChat';
-import { useExtensions } from '@/hooks/useExtensions';
-import { useNotificationSound } from '@/hooks/useNotificationSound';
-import { ChatBubble } from '@/components/chat/ChatBubble';
-import { TypingIndicator } from '@/components/chat/TypingIndicator';
-import { ChatInput } from '@/components/chat/ChatInput';
+import { useDemoExtensions } from '@/app/demo/hooks/useDemoExtensions';
+import { useDemoNotificationSound } from '@/app/demo/hooks/useDemoNotificationSound';
+import { DemoChatBubble } from '@/app/demo/components/DemoChatBubble';
+import { DemoTypingIndicator } from '@/app/demo/components/DemoTypingIndicator';
+import { DemoChatInput } from '@/app/demo/components/DemoChatInput';
+import { DemoModal } from '@/app/demo/components/DemoModal';
+import { CalendlyModal } from '@/app/demo/components/CalendlyModal';
 import { MessageCircle, Users, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
@@ -25,8 +27,19 @@ interface Participant {
 export default function DemoChatPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params);
   const chat = useDemoChat(chatId, true);
-  const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage } = chat;
-  const { getVizCueContent } = useExtensions({
+  const { 
+    messages, 
+    isAssistantTyping, 
+    typingUsers, 
+    sendMessage, 
+    canSendMessage,
+    showModal,
+    showCalendlyModal,
+    aiResponseCount,
+    dismissModal,
+    dismissCalendlyModal
+  } = chat;
+  const { getVizCueContent } = useDemoExtensions({
     chatId: chatId,
     userId: 'current-user', // TODO: Get from demo cookie
     isUserTyping: typingUsers.size > 0,
@@ -34,7 +47,7 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
     currentTurn: isAssistantTyping ? 'ai' : 'user',
     messageCount: messages.length
   });
-  const { playReceiveNotification, playSendNotification } = useNotificationSound();
+  const { playReceiveNotification, playSendNotification } = useDemoNotificationSound();
   const previousMessageCount = useRef(messages.length);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -58,8 +71,12 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
     if (!chatId) return;
     const fetchInitialState = async () => {
       try {
-        const res = await fetch(`/api/demo/chat/${chatId}/state`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        const res = await fetch(`/demo/api/state?chatId=${chatId}`);
+        if (!res.ok) {
+          console.warn(`Failed to fetch demo participants: HTTP ${res.status}: ${res.statusText}`);
+          // Don't crash the page, just continue with empty participants
+          return;
+        }
         const state = await res.json();
         setParticipants(state.participants || []);
         setParticipantMap(
@@ -68,7 +85,10 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
             return acc;
           }, {})
         );
-      } catch (error) {}
+      } catch (error) {
+        console.warn('Failed to fetch demo participants:', error);
+        // Continue with empty state
+      }
     };
     fetchInitialState();
   }, [chatId]);
@@ -121,7 +141,7 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
             {messages.map((message) => {
               const data = message.data as MessageData;
               return (
-                <ChatBubble
+                <DemoChatBubble
                   key={message.id}
                   content={data.content}
                   senderId={data.senderId}
@@ -132,7 +152,7 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
                 />
               );
             })}
-            {isAssistantTyping && <TypingIndicator />}
+            {isAssistantTyping && <DemoTypingIndicator />}
             {Array.from(typingUsers).map(userId => (
               <div key={`typing-${userId}`} className="flex justify-start">
                 <div className="bg-[#7BAFB0]/10 text-[#3C4858] text-sm p-3 rounded-xl border border-[#7BAFB0]/20 shadow-sm">
@@ -152,7 +172,7 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
         </div>
         <div className="border-t border-[#3C4858]/5 bg-white/90 backdrop-blur-sm p-6 shadow-lg">
           <div className="max-w-4xl mx-auto">
-            <ChatInput
+            <DemoChatInput
               onSend={sendMessage}
               disabled={!canSendMessage()}
               placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
@@ -161,6 +181,49 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
           </div>
         </div>
       </div>
+
+      {/* Demo Modals */}
+      {showModal && (
+        <DemoModal
+          onClose={dismissModal}
+          aiResponseCount={aiResponseCount}
+        />
+      )}
+
+      {showCalendlyModal && (
+        <CalendlyModal
+          onClose={dismissCalendlyModal}
+          aiResponseCount={aiResponseCount}
+        />
+      )}
+    </div>
+  );
+} 
+          <div className="max-w-4xl mx-auto">
+            <DemoChatInput
+              onSend={sendMessage}
+              disabled={!canSendMessage()}
+              placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
+              topContent={getVizCueContent()}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Demo Modals */}
+      {showModal && (
+        <DemoModal
+          onClose={dismissModal}
+          aiResponseCount={aiResponseCount}
+        />
+      )}
+
+      {showCalendlyModal && (
+        <CalendlyModal
+          onClose={dismissCalendlyModal}
+          aiResponseCount={aiResponseCount}
+        />
+      )}
     </div>
   );
 } 

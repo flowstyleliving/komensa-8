@@ -1,0 +1,72 @@
+import { useState, FormEvent, useEffect } from 'react';
+import { Send, Heart } from 'lucide-react';
+
+interface ChatInputProps {
+  onSend: (content: string) => void;
+  disabled?: boolean;
+  placeholder?: string;
+  topContent?: React.ReactNode;
+}
+
+export function DemoChatInput({ onSend, disabled = false, placeholder = "Share your thoughts...", topContent }: ChatInputProps) {
+  const [content, setContent] = useState('');
+  const [hasPreFilled, setHasPreFilled] = useState(false);
+
+  // Check if this is a demo and pre-fill the input
+  useEffect(() => {
+    const isDemoPage = window.location.pathname.startsWith('/demo/');
+    if (isDemoPage && content === '' && !hasPreFilled) {
+      setContent('Jordan and I have been together for three years, but lately I feel like we\'re growing apart. I love them deeply, but I\'m not sure if we want the same things anymore.');
+      setHasPreFilled(true);
+    }
+  }, [content, hasPreFilled]);
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (content.trim() && !disabled) {
+      onSend(content.trim());
+      setContent('');
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {topContent || (disabled && (
+        <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+          <Heart className="h-4 w-4 text-[#D8A7B1]" />
+          <span>The AI is preparing a thoughtful response...</span>
+        </div>
+      ))}
+      <form onSubmit={handleSubmit} className="flex gap-3">
+        <div
+          contentEditable
+          ref={(el) => {
+            if (el && el.textContent !== content) {
+              el.textContent = content;
+            }
+          }}
+          onInput={(e) => setContent(e.currentTarget.textContent || '')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit(e as any);
+            }
+          }}
+          data-placeholder={placeholder}
+          className="flex-1 px-4 py-3 border border-[#3C4858]/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D8A7B1]/50 focus:border-[#D8A7B1] disabled:bg-[#F9F7F4]/50 disabled:cursor-not-allowed text-[#3C4858] bg-white shadow-sm transition-all duration-200 min-h-[48px] max-h-[200px] overflow-y-auto whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-[#3C4858]/50"
+          style={{
+            opacity: disabled ? 0.5 : 1,
+            pointerEvents: disabled ? 'none' : 'auto'
+          }}
+        />
+        <button
+          type="submit"
+          disabled={disabled || !content.trim()}
+          className="px-6 py-3 bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white rounded-xl hover:from-[#6D9E9F] hover:to-[#C99BA4] focus:outline-none focus:ring-2 focus:ring-[#7BAFB0]/30 focus:ring-offset-2 focus:ring-offset-white disabled:from-[#7BAFB0]/40 disabled:to-[#D8A7B1]/40 disabled:cursor-not-allowed flex items-center gap-2 font-medium shadow-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md active:scale-[0.98] active:shadow-sm"
+        >
+          <Send className="h-4 w-4" />
+          Send
+        </button>
+      </form>
+    </div>
+  );
+} 

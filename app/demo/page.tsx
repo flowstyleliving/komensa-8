@@ -10,7 +10,7 @@ export default function DemoChatRedirect() {
   useEffect(() => {
     const startDemo = async () => {
       try {
-        const res = await fetch('/api/demo/seed', {
+        const res = await fetch('/demo/api/seed', {
           method: 'GET',
           redirect: 'follow'
         });
@@ -20,7 +20,7 @@ export default function DemoChatRedirect() {
           router.push(res.url);
         } else {
           const { chatId } = await res.json();
-          router.push(`/chat/${chatId}?demo=true`);
+          router.push(`/demo/${chatId}`);
         }
       } catch (error) {
         console.error('Failed to start demo:', error);

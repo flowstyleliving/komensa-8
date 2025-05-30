@@ -12,7 +12,7 @@ export async function middleware(req: NextRequest) {
   console.log('[Middleware] Processing request:', pathname);
 
   // Check if this is a demo request (either path-based or query parameter)
-  const isDemo = pathname.startsWith('/demo/') || req.nextUrl.searchParams.get('demo') === 'true';
+  const isDemo = pathname === '/demo' || pathname.startsWith('/demo/') || req.nextUrl.searchParams.get('demo') === 'true';
 
   // Allow requests for NextAuth.js session management, sign-in page, demo routes, and public files
   if (
@@ -59,6 +59,7 @@ export const config = {
      * Match all request paths except for the ones starting with:
      * - api/auth/ (NextAuth.js routes)
      * - api/demo/ (Demo API routes)
+     * - demo/api/ (Demo API routes under demo path)
      * - api/phone/ (Phone verification API routes)
      * - api/users/ (User search API routes)
      * - api/chats/ (Chat API routes)
@@ -74,6 +75,7 @@ export const config = {
      * This matcher is a broad-stroke. The logic inside the middleware function
      * provides more granular control.
      */
-    '/((?!api/auth/|api/demo/|api/phone/|api/users/|api/chats/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
+    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chats/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
   ],
 };
+
