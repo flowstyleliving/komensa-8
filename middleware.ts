@@ -27,6 +27,11 @@ export async function middleware(req: NextRequest) {
     pathname === '/test-phone' || // Allow phone verification test page
     pathname === '/test-chat' || // Allow chat modal test page
     pathname === '/test-signin' || // Allow signin test page
+    pathname === '/manifest.json' || // Allow PWA manifest
+    pathname === '/favicon.ico' || // Allow favicon
+    pathname === '/icon.svg' || // Allow icon
+    pathname === '/apple-touch-icon.png' || // Allow Apple touch icon
+    pathname.startsWith('/icon-') || // Allow PWA icons
     isDemo || // Allow demo requests (both /demo/ paths and ?demo=true)
     pathname.startsWith('/_next/') || // Next.js internal assets
     pathname.startsWith('/images/') || // Your public images
