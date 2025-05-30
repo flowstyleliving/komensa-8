@@ -1,6 +1,6 @@
 // Demo-related constants and utilities
 
-import { DEMO_CONSTANTS } from '@/components/demo/constants';
+import { DEMO_CONSTANTS } from '@/app/demo/components/constants';
 
 // Cache demo detection result to avoid repeated checks
 let demoDetectionCache: boolean | null = null;

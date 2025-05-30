@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateJordanReply } from '@/features/demo/generateJordanReply';
+import { generateJordanReply } from '@/app/demo/features/generateJordanReply';
 
 export async function POST(req: NextRequest) {
   console.log('[Jordan Gen API] ROUTE HIT - START of POST handler');

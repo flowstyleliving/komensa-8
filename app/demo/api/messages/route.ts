@@ -4,9 +4,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/demoAuth';
-import { generateDemoAIReply } from '@/features/demo/generateDemoAIReply';
+import { generateDemoAIReply } from '@/app/demo/features/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
-import { DemoTurnManager, DEMO_ROLES } from '@/features/demo/demoTurnManager';
+import { DemoTurnManager, DEMO_ROLES } from '@/app/demo/features/demoTurnManager';
 
 // Helper function to get user ID from session or demo cookie
 function getUserId(req: NextRequest, session: any) {

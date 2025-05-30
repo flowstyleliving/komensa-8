@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/prisma';
-import { generateDemoAIReply } from '@/features/demo/generateDemoAIReply';
+import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager } from '@/features/chat/services/turnManager';
 import { setTypingIndicator } from '@/lib/redis';
@@ -38,11 +38,6 @@ export async function GET(req: NextRequest) {
 
     if (!chat) {
       return NextResponse.json({ error: 'Chat not found or access denied' }, { status: 404 });
-    }
-
-    // Redirect demo chats to demo API
-    if (chat.origin === 'demo') {
-      return NextResponse.redirect(new URL(`/api/demo/messages?chatId=${chatId}`, req.url));
     }
 
     const messages = await prisma.event.findMany({
@@ -90,11 +85,6 @@ export async function POST(req: NextRequest) {
 
     if (!chat) {
       return NextResponse.json({ error: 'Chat not found or access denied' }, { status: 404 });
-    }
-
-    // Redirect demo chats to demo API
-    if (chat.origin === 'demo') {
-      return NextResponse.redirect(new URL('/api/demo/messages', req.url));
     }
 
     const channelName = getChatChannelName(chatId);
@@ -145,11 +135,10 @@ export async function POST(req: NextRequest) {
     console.log('[Messages API] Turn update emitted to assistant');
 
     // Trigger AI reply generation
-    generateDemoAIReply({ 
+    generateAIReply({ 
       chatId, 
       userId: session.user.id, 
-      userMessage: content, 
-      apiBaseUrl: req.nextUrl.origin 
+      userMessage: content
     }).then(async () => {
       // After AI responds, determine the next human participant
       const turnManager = new TurnManager(chatId);
@@ -162,7 +151,7 @@ export async function POST(req: NextRequest) {
       } else {
         console.error('[Messages API] Failed to determine next participant');
       }
-    }).catch(async (err) => {
+    }).catch(async (err: Error) => {
       console.error('[AI Reply] Failed to generate reply:', err);
       if (err instanceof Error) {
         console.error('[AI Reply] Error message:', err.message);

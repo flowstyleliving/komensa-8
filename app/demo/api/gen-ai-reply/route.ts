@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateDemoAIReply } from '@/features/demo/generateDemoAIReply';
+import { generateDemoAIReply } from '@/app/demo/features/generateDemoAIReply';
 import { setTypingIndicator } from '@/lib/redis';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 

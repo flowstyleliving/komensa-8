@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { DEMO_CONSTANTS } from '@/components/demo/constants';
+import { DEMO_CONSTANTS } from '@/app/demo/components/constants';
 
 interface DemoModalState {
   showModal: boolean;

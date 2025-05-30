@@ -1,7 +1,6 @@
 "use client";
 
-import { useSession } from 'next-auth/react';
-import { useChat } from '@/features/chat/hooks/useChat';
+import { useDemoChat } from '@/app/demo/hooks/useDemoChat';
 import { useExtensions } from '@/hooks/useExtensions';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { ChatBubble } from '@/components/chat/ChatBubble';
@@ -23,14 +22,13 @@ interface Participant {
   display_name: string;
 }
 
-export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
+export default function DemoChatPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params);
-  const { data: session, status } = useSession();
-  const chat = useChat(chatId);
+  const chat = useDemoChat(chatId, true);
   const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage } = chat;
   const { getVizCueContent } = useExtensions({
     chatId: chatId,
-    userId: session?.user?.id || '',
+    userId: 'current-user', // TODO: Get from demo cookie
     isUserTyping: typingUsers.size > 0,
     isAiTyping: isAssistantTyping,
     currentTurn: isAssistantTyping ? 'ai' : 'user',
@@ -49,18 +47,18 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       const newMessages = messages.slice(previousMessageCount.current);
       newMessages.forEach(message => {
         const data = message.data as MessageData;
-        if (data.senderId !== session?.user?.id) {
+        if (data.senderId !== 'current-user') {
           playReceiveNotification();
         }
       });
       previousMessageCount.current = messages.length;
     }
-  }, [messages, playReceiveNotification, playSendNotification, session?.user?.id]);
+  }, [messages, playReceiveNotification, playSendNotification]);
   useEffect(() => {
     if (!chatId) return;
     const fetchInitialState = async () => {
       try {
-        const res = await fetch(`/api/chat/${chatId}/state`);
+        const res = await fetch(`/api/demo/chat/${chatId}/state`);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         const state = await res.json();
         setParticipants(state.participants || []);
@@ -74,19 +72,15 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     };
     fetchInitialState();
   }, [chatId]);
-  const userId = session?.user?.id || '';
+  const userId = (typeof document !== 'undefined' ? (() => {
+    const demoUser = document.cookie.split('; ').find(row => row.startsWith('demo_user='))?.split('=')[1];
+    if (demoUser) {
+      try { return JSON.parse(decodeURIComponent(demoUser)).id; } catch {}
+    }
+    return undefined;
+  })() : undefined);
   const humanParticipants = participants.filter((p) => p.id !== 'assistant');
   const headerNames = humanParticipants.map((p) => p.display_name).join(' & ') + ' + AI Mediator';
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D8A7B1] mx-auto mb-4"></div>
-          <p className="text-[#3C4858]/70">Loading...</p>
-        </div>
-      </div>
-    );
-  }
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
       <nav className="bg-white/80 backdrop-blur-sm border-b border-[#3C4858]/10 sticky top-0 z-50">
@@ -98,7 +92,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               </Link>
               <div className="hidden md:flex items-center space-x-2 text-[#3C4858]/60">
                 <span>/</span>
-                <span>AI Mediation Session</span>
+                <span>AI Mediation Session (Demo)</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">

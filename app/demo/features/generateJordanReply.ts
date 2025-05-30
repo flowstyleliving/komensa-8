@@ -1,14 +1,14 @@
 // GPT CONTEXT:
-// This file generates AI responses for Jordan (the AI user participant)
-// Jordan responds as a user, not as a mediator
-// Related: /features/ai/services/generateAIReply.ts
+// This file creates Jordan's AI responses triggered by the mediator after each session.
+// It's part of the demo chat system that simulates a conversation between Michael and Jordan.
+// The logic here creates Jordan's messages and updates the turn state.
+// Related: generateDemoAIReply.ts, demoTurnManager.ts
 
 import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
-// import { setTypingIndicator } from '@/lib/redis'; // BYPASSED
-// import { parseStateUpdateAndCleanMessage } from './parseStateUpdate'; // Not used
-import { DemoTurnManager, DEMO_ROLES, DEFAULT_TURN_ORDER } from '@/features/demo/demoTurnManager';
+import { setTypingIndicator } from '@/lib/redis';
+import { DemoTurnManager, DEMO_ROLES, DEFAULT_TURN_ORDER } from './demoTurnManager';
 import type { Run } from 'openai/resources/beta/threads/runs/runs';
 import { generateDemoAIReply } from './generateDemoAIReply'; // ADDED: To trigger Mediator
 
@@ -32,8 +32,8 @@ export async function generateJordanReply({
   // const turnManager = new DemoTurnManager(chatId); // turnManager instance not strictly needed here anymore for setTurnToRole
 
   // Set typing indicator in Redis and emit via Pusher for Jordan
-  // await setTypingIndicator(chatId, jordanUserId, true); // BYPASSED
-  console.log('[Jordan AI] Typing indicator set in Redis (BYPASSED)');
+  await setTypingIndicator(chatId, jordanUserId, true);
+  console.log('[Jordan AI] Typing indicator set in Redis');
   await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
     userId: jordanUserId, 
     isTyping: true 
@@ -159,8 +159,8 @@ Respond naturally as Jordan based on the Mediator's last message and the recent 
   } catch (error) {
     console.error('[Jordan AI] Failed to generate Jordan response:', error);
     // Stop typing indicator on error
-    // await setTypingIndicator(chatId, jordanUserId, false); // BYPASSED
-    console.log('[Jordan AI] Typing indicator stopped in Redis on error (BYPASSED)');
+    await setTypingIndicator(chatId, jordanUserId, false);
+    console.log('[Jordan AI] Typing indicator stopped in Redis');
     await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
       userId: jordanUserId, 
       isTyping: false 
@@ -169,8 +169,8 @@ Respond naturally as Jordan based on the Mediator's last message and the recent 
   }
 
   // Stop Jordan's typing indicator
-  // await setTypingIndicator(chatId, jordanUserId, false); // BYPASSED
-  console.log('[Jordan AI] Typing indicator stopped in Redis (BYPASSED)');
+  await setTypingIndicator(chatId, jordanUserId, false);
+  console.log('[Jordan AI] Typing indicator stopped in Redis');
   await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
     userId: jordanUserId, 
     isTyping: false 

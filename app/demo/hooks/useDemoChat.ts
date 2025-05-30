@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { useChat } from '@/features/chat/hooks/useChat';
 import { useDemoModal } from './useDemoModal';
-import { DEMO_CONSTANTS } from '@/components/demo/constants';
+import { DEMO_CONSTANTS } from '@/app/demo/components/constants';
 
 interface DemoChatReturn {
   messages: any[];
