@@ -79,14 +79,3 @@ export function useDemoModal(): DemoModalState {
     checkShouldShowModal
   }), [showModal, showCalendlyModal, aiResponseCount, dismissModal, dismissCalendlyModal, checkShouldShowModal]);
 } 
-
-  // Memoize return object to prevent unnecessary re-renders
-  return useMemo(() => ({
-    showModal,
-    showCalendlyModal,
-    aiResponseCount,
-    dismissModal,
-    dismissCalendlyModal,
-    checkShouldShowModal
-  }), [showModal, showCalendlyModal, aiResponseCount, dismissModal, dismissCalendlyModal, checkShouldShowModal]);
-} 

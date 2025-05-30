@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { generateJordanReply } from '@/app/demo/features/generateJordanReply';
 
 export async function POST(req: NextRequest) {
-  console.log('[Jordan Gen API] ROUTE HIT - START of POST handler');
+  // console.log('[Jordan Gen API] ROUTE HIT - START of POST handler');
   try {
     const body = await req.json();
     const { chatId, jordanUserId, conversationContext, apiBaseUrl } = body;
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log('[Jordan Gen API] Received request:', { chatId, jordanUserId, apiBaseUrl });
+    // console.log('[Jordan Gen API] Received request:', { chatId, jordanUserId, apiBaseUrl });
 
     // Intentionally not awaiting this promise
     await generateJordanReply({ chatId, jordanUserId, conversationContext, apiBaseUrl }).catch(async (err) => {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       // Note: generateJordanReply itself handles typing indicators for the subsequent mediator reply if it triggers one.
       // No direct typing indicator cleanup here unless Jordan's *own* reply generation fails catastrophically before that.
     });
-    console.log('[Jordan Gen API] Jordan reply generation process started in background');
+    // console.log('[Jordan Gen API] Jordan reply generation process started in background');
     
     return NextResponse.json({ message: 'Jordan reply generation initiated' }, { status: 202 });
 

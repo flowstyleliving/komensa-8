@@ -199,31 +199,3 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
     </div>
   );
 } 
-          <div className="max-w-4xl mx-auto">
-            <DemoChatInput
-              onSend={sendMessage}
-              disabled={!canSendMessage()}
-              placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
-              topContent={getVizCueContent()}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Demo Modals */}
-      {showModal && (
-        <DemoModal
-          onClose={dismissModal}
-          aiResponseCount={aiResponseCount}
-        />
-      )}
-
-      {showCalendlyModal && (
-        <CalendlyModal
-          onClose={dismissCalendlyModal}
-          aiResponseCount={aiResponseCount}
-        />
-      )}
-    </div>
-  );
-} 
