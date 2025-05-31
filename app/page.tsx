@@ -18,24 +18,32 @@ export default function SplashPage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Image src="/images/komensa-logo.png" alt="Komensa" width={120} height={40} className="h-8 w-auto" />
+              <Image src="/images/komensa-logo.png" alt="Komensa" width={138} height={46} className="h-9 w-auto" />
             </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-[#3C4858] hover:text-[#D8A7B1] transition-colors">
-                Features
-              </a>
-              <a href="#how-it-works" className="text-[#3C4858] hover:text-[#7BAFB0] transition-colors">
-                How It Works
-              </a>
-              <a href="#testimonials" className="text-[#3C4858] hover:text-[#D9C589] transition-colors">
-                Stories
-              </a>
-              <Link href="/auth/signin">
-                <Button variant="outline" className="border-[#3C4858]/20 text-[#3C4858] rounded-xl">
-                  Sign In
+            <div className="flex items-center space-x-4">
+              {/* Navigation links - hidden on mobile */}
+              <div className="hidden md:flex items-center space-x-8">
+                <a href="#features" className="text-[#3C4858] hover:text-[#D8A7B1] transition-colors">
+                  Features
+                </a>
+                <a href="#how-it-works" className="text-[#3C4858] hover:text-[#7BAFB0] transition-colors">
+                  How It Works
+                </a>
+                <a href="#testimonials" className="text-[#3C4858] hover:text-[#D8A7B1] transition-colors">
+                  Stories
+                </a>
+              </div>
+              {/* Auth buttons - always visible */}
+              <div className="flex items-center space-x-2 md:space-x-4">
+                <Link href="/auth/signin">
+                  <Button variant="outline" className="border-[#3C4858]/20 text-[#3C4858] rounded-xl text-sm md:text-base px-3 md:px-4">
+                    Sign In
+                  </Button>
+                </Link>
+                <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-xl text-sm md:text-base px-3 md:px-4">
+                  Get Started
                 </Button>
-              </Link>
-              <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-xl">Get Started</Button>
+              </div>
             </div>
           </div>
         </div>

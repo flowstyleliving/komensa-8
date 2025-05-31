@@ -41,6 +41,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [participantMap, setParticipantMap] = useState<Record<string, string>>({});
+  const lastSentMessageRef = useRef<string | null>(null);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAssistantTyping, typingUsers]);
@@ -55,7 +56,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       });
       previousMessageCount.current = messages.length;
     }
-  }, [messages, playReceiveNotification, playSendNotification, session?.user?.id]);
+  }, [messages, playReceiveNotification, session?.user?.id]);
   useEffect(() => {
     if (!chatId) return;
     const fetchInitialState = async () => {
@@ -80,6 +81,15 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   
   // Check if current user is typing to conditionally show vizcue
   const isCurrentUserTyping = Array.from(typingUsers).includes(userId);
+
+  const handleSendMessage = async (content: string) => {
+    // Play send sound when user sends a message
+    playSendNotification();
+    // Store the message content to track if it's our own message
+    lastSentMessageRef.current = content;
+    // Send the message
+    await sendMessage(content);
+  };
 
   if (status === 'loading') {
     return (
@@ -168,7 +178,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         <div className="border-t border-[#3C4858]/5 bg-white/90 backdrop-blur-sm p-6 shadow-lg">
           <div className="max-w-4xl mx-auto">
             <ChatInput
-              onSend={sendMessage}
+              onSend={handleSendMessage}
               disabled={!canSendMessage()}
               placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
               topContent={isCurrentUserTyping ? null : getVizCueContent()}
