@@ -234,7 +234,7 @@ export default function SignInPage() {
                     <span className="w-full border-t border-[#3C4858]/20" />
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-white px-2 text-[#3C4858]/80">Or continue with</span>
+                    <span className="bg-[#F9F7F4] px-2 text-[#3C4858]/80">Or continue with</span>
                   </div>
                 </div>
 
@@ -275,22 +275,6 @@ export default function SignInPage() {
                 </div>
 
                 <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                    <Label htmlFor="signin-email" className="text-[#3C4858]">
-                    Email Address
-                  </Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-[#3C4858]/50" />
-                    <Input
-                        id="signin-email"
-                      type="email"
-                      value={email}
-                        disabled
-                        className="pl-10 bg-gray-50 border-[#3C4858]/20"
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
                     <Label htmlFor="signin-password" className="text-[#3C4858]">
                       Password
@@ -304,8 +288,8 @@ export default function SignInPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 pr-10 border-[#3C4858]/20 focus:border-[#D8A7B1]"
-                      required
-                    />
+                        required
+                      />
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
@@ -316,23 +300,23 @@ export default function SignInPage() {
                     </div>
                   </div>
 
-                <Button
-                  type="submit"
-                  className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
-                  disabled={isLoading}
-                >
+                  <Button
+                    type="submit"
+                    className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
+                    disabled={isLoading}
+                  >
                     {isLoading ? "Signing in..." : "Sign In"}
-                </Button>
+                  </Button>
 
-                <Button
+                  <Button
                     type="button"
                     onClick={resetForm}
-                  variant="ghost"
-                  className="w-full text-[#3C4858]/80 hover:text-[#3C4858]"
-                >
+                    variant="ghost"
+                    className="w-full text-[#3C4858]/80 hover:text-[#3C4858]"
+                  >
                     Use different email
-                </Button>
-              </form>
+                  </Button>
+                </form>
               </>
             )}
 

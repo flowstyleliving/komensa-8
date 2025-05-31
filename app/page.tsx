@@ -7,9 +7,43 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import Image from "next/image"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 export default function SplashPage() {
   const [email, setEmail] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email.trim()) return
+
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Route to signin page with email pre-filled and appropriate step
+        const step = data.exists ? "signin" : "signup"
+        router.push(`/auth/signin?email=${encodeURIComponent(email.trim())}&step=${step}`)
+      } else {
+        setError("Something went wrong. Please try again.")
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
@@ -40,9 +74,11 @@ export default function SplashPage() {
                     Sign In
                   </Button>
                 </Link>
-                <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-xl text-sm md:text-base px-3 md:px-4">
-                  Get Started
-                </Button>
+                <Link href="/auth/signin">
+                  <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white rounded-xl text-sm md:text-base px-3 md:px-4">
+                    Get Started
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>
@@ -66,13 +102,15 @@ export default function SplashPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Button
-                size="lg"
-                className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-8 py-4 text-lg rounded-xl"
-              >
-                Start Your First Chat
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Button>
+              <Link href="/auth/signin">
+                <Button
+                  size="lg"
+                  className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-8 py-4 text-lg rounded-xl"
+                >
+                  Start Your First Chat
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
               <Link href="/demo">
               <Button
                 size="lg"
@@ -278,16 +316,29 @@ export default function SplashPage() {
             Join thousands of couples who are building stronger relationships with Komensa
           </p>
 
-          <div className="max-w-md mx-auto flex gap-2 mb-8">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 bg-white border-[#3C4858]/20"
-              disabled
-            />
-            <Button className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-6">Get Started</Button>
+          <div className="max-w-md mx-auto mb-8">
+            <form onSubmit={handleEmailSubmit} className="flex gap-2 mb-4">
+              <Input
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="flex-1 bg-white border-[#3C4858]/20"
+                disabled={isLoading}
+                required
+              />
+              <Button 
+                type="submit"
+                className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white px-6" 
+                disabled={isLoading || !email.trim()}
+              >
+                {isLoading ? "Checking..." : "Get Started"}
+              </Button>
+            </form>
+
+            {error && (
+              <p className="text-red-500 text-sm text-center mb-4">{error}</p>
+            )}
           </div>
 
           <div className="flex items-center justify-center space-x-6 text-sm text-[#3C4858]/70">
