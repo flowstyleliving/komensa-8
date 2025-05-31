@@ -1,14 +1,35 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { Send, Heart } from 'lucide-react';
+import { Send, Heart, Users } from 'lucide-react';
+
+interface TurnState {
+  next_user_id: string;
+  next_role?: string;
+}
+
+interface Participant {
+  id: string;
+  display_name: string;
+}
 
 interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   placeholder?: string;
   topContent?: React.ReactNode;
+  currentTurn?: TurnState | null;
+  participants?: Participant[];
+  currentUserId?: string;
 }
 
-export function DemoChatInput({ onSend, disabled = false, placeholder = "Share your thoughts...", topContent }: ChatInputProps) {
+export function DemoChatInput({ 
+  onSend, 
+  disabled = false, 
+  placeholder = "Share your thoughts...", 
+  topContent,
+  currentTurn,
+  participants = [],
+  currentUserId 
+}: ChatInputProps) {
   const [content, setContent] = useState('');
   const [hasPreFilled, setHasPreFilled] = useState(false);
 
@@ -20,6 +41,7 @@ export function DemoChatInput({ onSend, disabled = false, placeholder = "Share y
       setHasPreFilled(true);
     }
   }, [content, hasPreFilled]);
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (content.trim() && !disabled) {
@@ -28,14 +50,51 @@ export function DemoChatInput({ onSend, disabled = false, placeholder = "Share y
     }
   };
 
+  // Generate turn status content
+  const getTurnStatusContent = () => {
+    if (!currentTurn || !currentUserId) {
+      return null;
+    }
+
+    const isMyTurn = currentTurn.next_user_id === currentUserId;
+    
+    if (isMyTurn) {
+      return (
+        <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
+          <Users className="h-4 w-4" />
+          <span className="font-medium">It's your turn...</span>
+        </div>
+      );
+    }
+
+    // Find who's turn it is
+    let turnUserName = 'Unknown User';
+    if (currentTurn.next_user_id === 'assistant') {
+      turnUserName = 'AI Mediator';
+    } else {
+      const turnUser = participants.find(p => p.id === currentTurn.next_user_id);
+      turnUserName = turnUser?.display_name || 'Unknown User';
+    }
+
+    return (
+      <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+        <Users className="h-4 w-4 text-[#D8A7B1]" />
+        <span>Waiting for {turnUserName}...</span>
+      </div>
+    );
+  };
+
+  // Determine what to show at the top
+  const topContentToShow = topContent || getTurnStatusContent() || (disabled && (
+    <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+      <Heart className="h-4 w-4 text-[#D8A7B1]" />
+      <span>The AI is preparing a thoughtful response...</span>
+    </div>
+  ));
+
   return (
     <div className="space-y-3">
-      {topContent || (disabled && (
-        <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
-          <Heart className="h-4 w-4 text-[#D8A7B1]" />
-          <span>The AI is preparing a thoughtful response...</span>
-        </div>
-      ))}
+      {topContentToShow}
       <form onSubmit={handleSubmit} className="flex gap-3">
         <div
           contentEditable

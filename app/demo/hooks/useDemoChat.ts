@@ -20,6 +20,7 @@ interface ChatMessage {
 
 interface DemoChatReturn {
   messages: ChatMessage[];
+  currentTurn: TurnState | null;
   isAssistantTyping: boolean;
   typingUsers: Set<string>;
   sendMessage: (content: string) => Promise<void>;
@@ -268,6 +269,7 @@ export function useDemoChat(chatId: string, isDemoChat: boolean): DemoChatReturn
   // Memoize the return object to prevent unnecessary re-renders
   return useMemo(() => ({
     messages: data.messages,
+    currentTurn: data.currentTurn,
     isAssistantTyping: data.isAssistantTyping,
     typingUsers: data.typingUsers,
     sendMessage,
@@ -280,6 +282,7 @@ export function useDemoChat(chatId: string, isDemoChat: boolean): DemoChatReturn
     isDemoChat
   }), [
     data.messages,
+    data.currentTurn,
     data.isAssistantTyping,
     data.typingUsers,
     sendMessage,

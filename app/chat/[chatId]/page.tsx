@@ -27,7 +27,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const { chatId } = use(params);
   const { data: session, status } = useSession();
   const chat = useChat(chatId);
-  const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage } = chat;
+  const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage, currentTurn } = chat;
   const { getVizCueContent } = useExtensions({
     chatId: chatId,
     userId: session?.user?.id || '',
@@ -77,6 +77,10 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const userId = session?.user?.id || '';
   const humanParticipants = participants.filter((p) => p.id !== 'assistant');
   const headerNames = humanParticipants.map((p) => p.display_name).join(' & ') + ' + AI Mediator';
+  
+  // Check if current user is typing to conditionally show vizcue
+  const isCurrentUserTyping = Array.from(typingUsers).includes(userId);
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center">
@@ -139,20 +143,25 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               );
             })}
             {isAssistantTyping && <TypingIndicator />}
-            {Array.from(typingUsers).map(userId => (
-              <div key={`typing-${userId}`} className="flex justify-start">
-                <div className="bg-[#7BAFB0]/10 text-[#3C4858] text-sm p-3 rounded-xl border border-[#7BAFB0]/20 shadow-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="flex gap-1">
-                      <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            {Array.from(typingUsers)
+              .filter(typingUserId => typingUserId !== userId)
+              .map(typingUserId => {
+                const displayName = participantMap[typingUserId] || 'Unknown User';
+                return (
+                  <div key={`typing-${typingUserId}`} className="flex justify-start">
+                    <div className="bg-[#7BAFB0]/10 text-[#3C4858] text-sm p-3 rounded-xl border border-[#7BAFB0]/20 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                        <span className="text-[#7BAFB0]/80 font-medium text-xs">{displayName} is typing...</span>
+                      </div>
                     </div>
-                    <span className="text-[#7BAFB0]/80 font-medium text-xs">User is typing...</span>
                   </div>
-                </div>
-              </div>
-            ))}
+                );
+              })}
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -162,7 +171,11 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               onSend={sendMessage}
               disabled={!canSendMessage()}
               placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
-              topContent={getVizCueContent()}
+              topContent={isCurrentUserTyping ? null : getVizCueContent()}
+              currentTurn={currentTurn}
+              participants={participants}
+              currentUserId={userId}
+              chatId={chatId}
             />
           </div>
         </div>

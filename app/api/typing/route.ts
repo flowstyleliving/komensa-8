@@ -1,36 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { setTypingIndicator } from '@/lib/redis';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
-import { auth } from '@/lib/demoAuth';
-import { TurnManager } from '@/features/chat/services/turnManager';
-import { prisma } from '@/lib/prisma';
-
-// Helper function to get user ID from session or demo cookie
-function getUserId(req: NextRequest, session: any) {
-  // First try session
-  if (session?.user?.id) {
-    return session.user.id;
-  }
-  
-  // Then try demo cookie
-  const demoUserCookie = req.cookies.get('demo_user')?.value;
-  if (demoUserCookie) {
-    try {
-      const demoUser = JSON.parse(demoUserCookie);
-      return demoUser.id;
-    } catch (e) {
-      console.error('Failed to parse demo user cookie:', e);
-    }
-  }
-  
-  return null;
-}
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-options';
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  const userId = getUserId(req, session);
+  const session = await getServerSession(authOptions);
   
-  if (!userId) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -41,22 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // Check if this is a demo chat and validate turn-taking
-    const chat = await prisma.chat.findUnique({
-      where: { id: chatId },
-      select: { origin: true }
-    });
-
-    if (chat?.origin === 'demo' && isTyping) {
-      // For demo chats, only allow typing if it's the user's turn
-      const turnManager = new TurnManager(chatId);
-      const canType = await turnManager.canUserSendMessage(userId);
-      
-      if (!canType) {
-        console.log('[Typing API] User cannot type - not their turn:', { userId, chatId });
-        return NextResponse.json({ error: 'Not your turn to type' }, { status: 403 });
-      }
-    }
+    const userId = session.user.id;
 
     // Set typing indicator in Redis
     await setTypingIndicator(chatId, userId, isTyping);

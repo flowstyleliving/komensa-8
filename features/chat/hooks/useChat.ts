@@ -246,6 +246,7 @@ export function useChat(chatId: string) {
     messages: data.messages, 
     isAssistantTyping: data.isAssistantTyping,
     typingUsers: data.typingUsers,
+    currentTurn: data.currentTurn,
     sendMessage,
     canSendMessage 
   };

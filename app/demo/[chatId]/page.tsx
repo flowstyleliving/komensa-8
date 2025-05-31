@@ -29,6 +29,7 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
   const chat = useDemoChat(chatId, true);
   const { 
     messages, 
+    currentTurn,
     isAssistantTyping, 
     typingUsers, 
     sendMessage, 
@@ -177,6 +178,9 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
               disabled={!canSendMessage()}
               placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
               topContent={getVizCueContent()}
+              currentTurn={currentTurn}
+              participants={participants}
+              currentUserId={userId}
             />
           </div>
         </div>

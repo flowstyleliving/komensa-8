@@ -1,41 +1,167 @@
-import { useState, FormEvent, useEffect } from 'react';
-import { Send, Heart } from 'lucide-react';
+import { useState, FormEvent, useEffect, useRef, useCallback } from 'react';
+import { Send, Heart, Users } from 'lucide-react';
+
+interface TurnState {
+  next_user_id: string;
+  next_role?: string;
+}
+
+interface Participant {
+  id: string;
+  display_name: string;
+}
 
 interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
   placeholder?: string;
   topContent?: React.ReactNode;
+  currentTurn?: TurnState | null;
+  participants?: Participant[];
+  currentUserId?: string;
+  chatId?: string;
 }
 
-export function ChatInput({ onSend, disabled = false, placeholder = "Share your thoughts...", topContent }: ChatInputProps) {
+export function ChatInput({ 
+  onSend, 
+  disabled = false, 
+  placeholder = "Share your thoughts...", 
+  topContent,
+  currentTurn,
+  participants = [],
+  currentUserId,
+  chatId
+}: ChatInputProps) {
   const [content, setContent] = useState('');
-  const [hasPreFilled, setHasPreFilled] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check if this is a demo and pre-fill the input
-  useEffect(() => {
-    const isDemoPage = window.location.search.includes('demo=true');
-    if (isDemoPage && content === '' && !hasPreFilled) {
-      setContent('Jordan and I have been together for three years, but lately I feel like we\'re growing apart. I love them deeply, but I\'m not sure if we want the same things anymore.');
-      setHasPreFilled(true);
+  // Send typing indicator to server
+  const sendTypingIndicator = useCallback(async (typing: boolean) => {
+    if (!chatId || !currentUserId) return;
+    
+    try {
+      await fetch('/api/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, isTyping: typing }),
+      });
+    } catch (error) {
+      console.error('Failed to send typing indicator:', error);
     }
-  }, [content, hasPreFilled]);
+  }, [chatId, currentUserId]);
+
+  // Handle typing events
+  const handleTypingStart = useCallback(() => {
+    if (!isTyping && !disabled) {
+      setIsTyping(true);
+      sendTypingIndicator(true);
+    }
+  }, [isTyping, disabled, sendTypingIndicator]);
+
+  const handleTypingStop = useCallback(() => {
+    if (isTyping) {
+      setIsTyping(false);
+      sendTypingIndicator(false);
+    }
+  }, [isTyping, sendTypingIndicator]);
+
+  // Clear typing timeout and stop typing
+  const clearTypingTimeout = useCallback(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Set typing timeout
+  const setTypingTimeout = useCallback(() => {
+    clearTypingTimeout();
+    typingTimeoutRef.current = setTimeout(() => {
+      handleTypingStop();
+    }, 2000); // Stop typing after 2 seconds of inactivity
+  }, [clearTypingTimeout, handleTypingStop]);
+
+  // Cleanup typing timeout on unmount
+  useEffect(() => {
+    return () => {
+      clearTypingTimeout();
+      if (isTyping) {
+        sendTypingIndicator(false);
+      }
+    };
+  }, [clearTypingTimeout, isTyping, sendTypingIndicator]);
+
+  const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const newContent = e.currentTarget.textContent || '';
+    setContent(newContent);
+    
+    // Handle typing indicators
+    if (newContent.length > 0 && !disabled) {
+      handleTypingStart();
+      setTypingTimeout();
+    } else if (newContent.length === 0) {
+      handleTypingStop();
+    }
+  };
+
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (content.trim() && !disabled) {
+      // Stop typing indicator before sending
+      handleTypingStop();
+      clearTypingTimeout();
+      
       onSend(content.trim());
       setContent('');
     }
   };
 
+  // Generate turn status content
+  const getTurnStatusContent = () => {
+    if (!currentTurn || !currentUserId) {
+      return null;
+    }
+
+    const isMyTurn = currentTurn.next_user_id === currentUserId;
+    
+    if (isMyTurn) {
+      return (
+        <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
+          <Users className="h-4 w-4" />
+          <span className="font-medium">It's your turn...</span>
+        </div>
+      );
+    }
+
+    // Find who's turn it is
+    let turnUserName = 'Unknown User';
+    if (currentTurn.next_user_id === 'assistant') {
+      turnUserName = 'AI Mediator';
+    } else {
+      const turnUser = participants.find(p => p.id === currentTurn.next_user_id);
+      turnUserName = turnUser?.display_name || 'Unknown User';
+    }
+
+    return (
+      <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+        <Users className="h-4 w-4 text-[#D8A7B1]" />
+        <span>Waiting for {turnUserName}...</span>
+      </div>
+    );
+  };
+
+  // Determine what to show at the top
+  const topContentToShow = topContent || getTurnStatusContent() || (disabled && (
+    <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+      <Heart className="h-4 w-4 text-[#D8A7B1]" />
+      <span>The AI is preparing a thoughtful response...</span>
+    </div>
+  ));
+
   return (
     <div className="space-y-3">
-      {topContent || (disabled && (
-        <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
-          <Heart className="h-4 w-4 text-[#D8A7B1]" />
-          <span>The AI is preparing a thoughtful response...</span>
-        </div>
-      ))}
+      {topContentToShow}
       <form onSubmit={handleSubmit} className="flex gap-3">
         <div
           contentEditable
@@ -44,7 +170,7 @@ export function ChatInput({ onSend, disabled = false, placeholder = "Share your 
               el.textContent = content;
             }
           }}
-          onInput={(e) => setContent(e.currentTarget.textContent || '')}
+          onInput={handleInput}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
