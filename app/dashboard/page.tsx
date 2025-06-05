@@ -55,6 +55,8 @@ export default function DashboardPage() {
   const [isChatModalOpen, setIsChatModalOpen] = useState(false)
   const [chats, setChats] = useState<Chat[]>([])
   const [isLoadingChats, setIsLoadingChats] = useState(true)
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true)
   const { data: session } = useSession();
   
   // Get user's first name for welcome message
@@ -83,6 +85,27 @@ export default function DashboardPage() {
     }
   }, [session?.user?.id]);
 
+  // Fetch recent activity
+  useEffect(() => {
+    const fetchRecentActivity = async () => {
+      try {
+        const response = await fetch('/api/dashboard/activity');
+        if (response.ok) {
+          const data = await response.json();
+          setRecentActivity(data.activities || []);
+        }
+      } catch (error) {
+        console.error('Error fetching recent activity:', error);
+      } finally {
+        setIsLoadingActivity(false);
+      }
+    };
+
+    if (session?.user?.id) {
+      fetchRecentActivity();
+    }
+  }, [session?.user?.id]);
+
   // Helper function to format relative time
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -95,6 +118,18 @@ export default function DashboardPage() {
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays} days ago`;
     return `${Math.floor(diffInDays / 7)} weeks ago`;
+  };
+
+  // Get the latest active chat for resume button
+  const getLatestChat = () => {
+    const activeChats = chats.filter(chat => chat.status === 'active');
+    return activeChats.length > 0 ? activeChats[0] : null;
+  };
+
+  // Check how many chats user has turn in
+  const getChatsWithUserTurn = () => {
+    // TODO: Implement actual turn checking logic when turn management API is available
+    return Math.min(chats.length, 1); // Placeholder
   };
 
   const handleCreateChat = async (chatData: ChatData) => {
@@ -226,7 +261,21 @@ export default function DashboardPage() {
                 <Card className="p-6 bg-gradient-to-r from-[#D8A7B1]/10 to-[#7BAFB0]/10 border-none">
                   <h2 className="text-xl font-semibold text-[#3C4858]">Welcome back, {firstName} 👋</h2>
                   <p className="text-[#3C4858]/70 mt-1">Continue where you left off.</p>
-                  <Button className="mt-4 bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white">Resume Latest Chat</Button>
+                  {getLatestChat() ? (
+                    <Button 
+                      className="mt-4 bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white"
+                      onClick={() => window.location.href = `/chat/${getLatestChat()?.id}`}
+                    >
+                      Resume Latest Chat
+                    </Button>
+                  ) : (
+                    <Button 
+                      className="mt-4 bg-[#D8A7B1] hover:bg-[#D8A7B1]/90 text-white"
+                      onClick={openChatModal}
+                    >
+                      Start Your First Chat
+                    </Button>
+                  )}
                 </Card>
 
                 {/* Active Chats Summary */}
@@ -234,7 +283,7 @@ export default function DashboardPage() {
                   <ProgressStats 
                     title="Active Chats" 
                     value={chats.filter(chat => chat.status === 'active').length.toString()} 
-                    change={chats.length > 0 ? "+1" : ""} 
+                    change={chats.filter(chat => chat.status === 'active').length > 0 ? `+${chats.filter(chat => chat.status === 'active').length}` : ""} 
                     color="#D8A7B1" 
                   />
                   <ProgressStats 
@@ -245,7 +294,7 @@ export default function DashboardPage() {
                   />
                   <ProgressStats 
                     title="Your Turn" 
-                    value="✓" 
+                    value={getChatsWithUserTurn().toString()} 
                     change="" 
                     color="#D9C589" 
                   />
@@ -259,37 +308,34 @@ export default function DashboardPage() {
                       View all <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-start">
-                      <div className="p-2 rounded-full mr-3 mt-0.5 bg-[#D8A7B1]/20">
-                        <MessageSquare className="h-4 w-4 text-[#D8A7B1]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-[#3C4858]">🟣 New message from K.</div>
-                        <div className="text-xs text-[#3C4858]/70">today, 1:45 PM</div>
-                      </div>
+                  {isLoadingActivity ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#D8A7B1]"></div>
+                      <span className="ml-3 text-[#3C4858]/70 text-sm">Loading activity...</span>
                     </div>
-                    <div className="flex items-start">
-                      <div className="p-2 rounded-full mr-3 mt-0.5 bg-[#D9C589]/20">
-                        <Bot className="h-4 w-4 text-[#D9C589]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-[#3C4858]">
-                          🟢 AI mediator responded in "Household"
+                  ) : recentActivity.length === 0 ? (
+                    <div className="text-center py-8">
+                      <MessageSquare className="mx-auto h-8 w-8 text-[#3C4858]/30 mb-2" />
+                      <p className="text-sm text-[#3C4858]/70">No recent activity</p>
+                      <p className="text-xs text-[#3C4858]/50">Start a conversation to see activity here</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentActivity.slice(0, 3).map((activity, index) => (
+                        <div key={index} className="flex items-start">
+                          <div className="p-2 rounded-full mr-3 mt-0.5 bg-[#D8A7B1]/20">
+                            {activity.type === 'message' && <MessageSquare className="h-4 w-4 text-[#D8A7B1]" />}
+                            {activity.type === 'ai_response' && <Bot className="h-4 w-4 text-[#D9C589]" />}
+                            {activity.type === 'completion' && <CheckCircle className="h-4 w-4 text-[#7BAFB0]" />}
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-[#3C4858]">{activity.description}</div>
+                            <div className="text-xs text-[#3C4858]/70">{formatRelativeTime(activity.timestamp)}</div>
+                          </div>
                         </div>
-                        <div className="text-xs text-[#3C4858]/70">today, 12:30 PM</div>
-                      </div>
+                      ))}
                     </div>
-                    <div className="flex items-start">
-                      <div className="p-2 rounded-full mr-3 mt-0.5 bg-[#7BAFB0]/20">
-                        <CheckCircle className="h-4 w-4 text-[#7BAFB0]" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-[#3C4858]">🔵 You completed: Check-in Reflection</div>
-                        <div className="text-xs text-[#3C4858]/70">yesterday, 5:20 PM</div>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                 </Card>
 
                 {/* Upcoming Sessions */}
@@ -300,21 +346,10 @@ export default function DashboardPage() {
                       View calendar <ChevronRight className="ml-1 h-4 w-4" />
                     </Button>
                   </div>
-                  <div className="space-y-3">
-                    <div className="flex items-center p-3 rounded-lg bg-[#D8A7B1]/10 border-l-4 border-[#D8A7B1]">
-                      <Clock className="h-5 w-5 text-[#D8A7B1] mr-3" />
-                      <div>
-                        <h4 className="font-medium text-[#3C4858]">Financial Planning</h4>
-                        <p className="text-sm text-[#3C4858]/70">Today, 3:00 PM</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center p-3 rounded-lg bg-[#7BAFB0]/10 border-l-4 border-[#7BAFB0]">
-                      <Clock className="h-5 w-5 text-[#7BAFB0] mr-3" />
-                      <div>
-                        <h4 className="font-medium text-[#3C4858]">Communication Check-in</h4>
-                        <p className="text-sm text-[#3C4858]/70">Tomorrow, 10:00 AM</p>
-                      </div>
-                    </div>
+                  <div className="text-center py-8">
+                    <Calendar className="mx-auto h-8 w-8 text-[#3C4858]/30 mb-2" />
+                    <p className="text-sm text-[#3C4858]/70 mb-1">Calendar integration coming soon</p>
+                    <p className="text-xs text-[#3C4858]/50">Schedule and manage your mediation sessions</p>
                   </div>
                 </Card>
               </TabsContent>
