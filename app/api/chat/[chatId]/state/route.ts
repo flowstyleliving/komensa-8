@@ -10,11 +10,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { chatId } = await params;
   const session = await getServerSession(authOptions);
   
+  // Debug logging for guest sessions
+  console.log('[Chat State] Session debug:', {
+    hasSession: !!session,
+    userId: session?.user?.id,
+    isGuest: session?.user?.isGuest,
+    sessionChatId: session?.user?.chatId,
+    requestChatId: chatId
+  });
+  
   if (!session?.user?.id) {
+    console.log('[Chat State] No session or user ID, returning 401');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const userId = session.user.id;
+
+  // For guest users, verify they have access to this specific chat
+  if (session.user.isGuest && session.user.chatId !== chatId) {
+    return NextResponse.json({ error: 'Access denied - guest can only access their invited chat' }, { status: 403 });
+  }
 
   // Verify user is a participant in this chat
   const chat = await prisma.chat.findFirst({
@@ -116,6 +131,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Guests cannot modify chat settings
+  if (session.user.isGuest) {
+    return NextResponse.json({ error: 'Guests cannot modify chat settings' }, { status: 403 });
   }
 
   const body = await request.json();

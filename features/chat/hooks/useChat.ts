@@ -32,6 +32,7 @@ export function useChat(chatId: string) {
     isAssistantTyping: false,
     typingUsers: new Set<string>()
   });
+  const [lastActivity, setLastActivity] = useState(Date.now());
 
   // Get user ID from session
   const getUserId = () => {
@@ -40,6 +41,52 @@ export function useChat(chatId: string) {
     
     return null;
   };
+
+  // Mobile-specific: Add recovery mechanism for stuck AI
+  const recoverFromStuckAI = async () => {
+    console.log('[useChat] Attempting to recover from stuck AI...');
+    try {
+      // Force refresh the chat state
+      const res = await fetch(`/api/chat/${chatId}/state`);
+      if (res.ok) {
+        const state = await res.json();
+        const filteredMessages = state.messages.filter((msg: any) => 
+          msg.data && msg.data.content && msg.data.content.trim().length > 0
+        );
+        
+        setData(prev => ({
+          ...prev,
+          ...state,
+          messages: filteredMessages,
+          isAssistantTyping: false // Reset typing indicator
+        }));
+        console.log('[useChat] Recovery successful - state refreshed');
+      }
+    } catch (error) {
+      console.error('[useChat] Recovery failed:', error);
+    }
+  };
+
+  // Mobile-specific: Check for stuck AI (assistant typing for more than 2 minutes)
+  useEffect(() => {
+    if (!data.isAssistantTyping) {
+      setLastActivity(Date.now());
+      return;
+    }
+
+    const stuckCheckInterval = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivity;
+      const isStuck = timeSinceActivity > 120000; // 2 minutes
+
+      if (isStuck) {
+        console.warn('[useChat] AI appears stuck, attempting recovery...');
+        recoverFromStuckAI();
+        clearInterval(stuckCheckInterval);
+      }
+    }, 30000); // Check every 30 seconds
+
+    return () => clearInterval(stuckCheckInterval);
+  }, [data.isAssistantTyping, lastActivity, chatId]);
 
   useEffect(() => {
     if (!chatId) {
@@ -248,6 +295,7 @@ export function useChat(chatId: string) {
     typingUsers: data.typingUsers,
     currentTurn: data.currentTurn,
     sendMessage,
-    canSendMessage 
+    canSendMessage,
+    recoverFromStuckAI
   };
 }

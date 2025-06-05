@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { X, Heart, Shield, MessageCircle, Users, ArrowRight, ArrowLeft, CheckCircle } from 'lucide-react'
+import { X, Heart, Shield, MessageCircle, Users, ArrowRight, ArrowLeft, CheckCircle, Link2, Copy, Check } from 'lucide-react'
 
 interface User {
   id: string;
@@ -64,9 +64,77 @@ const PulsingDots = () => (
   </div>
 );
 
+// Invite Link Component
+const InviteLinkComponent = ({ inviteUrl, onClose }: { inviteUrl: string; onClose: () => void }) => {
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center">
+        <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-4">
+          <Link2 className="w-8 h-8 text-[#D8A7B1]" />
+        </div>
+        <h3 className="text-lg font-semibold text-[#3C4858] mb-2">Chat Created Successfully!</h3>
+        <p className="text-sm text-[#3C4858]/70">
+          Share this invite link to let others join your conversation.
+        </p>
+      </div>
+
+      <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
+        <Label className="text-xs font-medium text-[#3C4858]/80 mb-2 block">Invite Link</Label>
+        <div className="flex items-center space-x-2">
+          <Input
+            value={inviteUrl}
+            readOnly
+            className="flex-1 bg-white border-[#3C4858]/20 text-sm"
+          />
+          <Button
+            onClick={copyToClipboard}
+            variant="outline"
+            size="sm"
+            className="border-[#D8A7B1] text-[#D8A7B1] hover:bg-[#D8A7B1]/10"
+          >
+            {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+          </Button>
+        </div>
+        <p className="text-xs text-[#3C4858]/60 mt-2">
+          This link expires in 24 hours and can only be used once.
+        </p>
+      </div>
+
+      <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-4">
+        <h4 className="font-medium text-[#3C4858] text-sm mb-2">💡 How it works</h4>
+        <ul className="text-xs text-[#3C4858]/70 space-y-1">
+          <li>• Share the link with someone you'd like to have a conversation with</li>
+          <li>• They'll enter their name and join as a guest</li>
+          <li>• The AI mediator will facilitate your dialogue</li>
+        </ul>
+      </div>
+
+      <Button
+        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
+        onClick={onClose}
+      >
+        Continue to Chat
+        <ArrowRight className="w-4 h-4 ml-2" />
+      </Button>
+    </div>
+  );
+};
+
 // Define child components OUTSIDE the main ChatSetupModal component
 // They will receive props from ChatSetupModal
-const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating'>> }) => (
+const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating' | 'invite-success'>> }) => (
   <div className="space-y-6">
     <div className="text-center">
       <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-4">
@@ -128,14 +196,16 @@ const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<Re
 );
 
 interface ParticipantsStepProps {
-  setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating'>>;
+  setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating' | 'invite-success'>>;
   participantSearchQuery: string;
   setParticipantSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   searchedUsers: User[];
   selectedParticipants: User[];
   isSearching: boolean;
-  isCreatingChat: boolean; // Added prop for loading state
+  isCreatingChat: boolean;
   chatCreationError: string | null;
+  withInvite: boolean;
+  setWithInvite: React.Dispatch<React.SetStateAction<boolean>>;
   handleSelectParticipant: (user: User) => void;
   handleRemoveParticipant: (userId: string) => void;
   clearSearch: () => void;
@@ -149,8 +219,10 @@ const ParticipantsStep = ({
   searchedUsers,
   selectedParticipants,
   isSearching,
-  isCreatingChat, // Destructure the new prop
+  isCreatingChat,
   chatCreationError,
+  withInvite,
+  setWithInvite,
   handleSelectParticipant,
   handleRemoveParticipant,
   clearSearch,
@@ -172,10 +244,61 @@ const ParticipantsStep = ({
         </Button>
         <div>
           <h3 className="text-lg font-semibold text-[#3C4858]">Invite Participants</h3>
-          <p className="text-sm text-[#3C4858]/70">Choose who will join this mediated Chat</p>
+          <p className="text-sm text-[#3C4858]/70">Choose how to invite people to this mediated Chat</p>
         </div>
       </div>
 
+      {/* Invite Type Selection */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium text-[#3C4858]">How would you like to invite people?</Label>
+        
+        <div className="space-y-2">
+          <div
+            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+              !withInvite
+                ? 'border-[#D8A7B1] bg-[#D8A7B1]/10'
+                : 'border-[#3C4858]/20 hover:border-[#D8A7B1]/50'
+            }`}
+            onClick={() => setWithInvite(false)}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                !withInvite ? 'border-[#D8A7B1] bg-[#D8A7B1]' : 'border-[#3C4858]/30'
+              }`}>
+                {!withInvite && <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5" />}
+              </div>
+              <div>
+                <h4 className="font-medium text-[#3C4858] text-sm">Search & Add Users</h4>
+                <p className="text-xs text-[#3C4858]/70">Find registered users and add them directly</p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+              withInvite
+                ? 'border-[#D8A7B1] bg-[#D8A7B1]/10'
+                : 'border-[#3C4858]/20 hover:border-[#D8A7B1]/50'
+            }`}
+            onClick={() => setWithInvite(true)}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                withInvite ? 'border-[#D8A7B1] bg-[#D8A7B1]' : 'border-[#3C4858]/30'
+              }`}>
+                {withInvite && <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5" />}
+              </div>
+              <div>
+                <h4 className="font-medium text-[#3C4858] text-sm">Create Guest Invite</h4>
+                <p className="text-xs text-[#3C4858]/70">Generate a link for anyone to join as a guest</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Conditional content based on invite type */}
+      {!withInvite && (
       <div>
         <Label htmlFor="chat-participants" className="text-sm font-medium text-[#3C4858]">Search for Participants</Label>
         <div className="relative">
@@ -186,7 +309,7 @@ const ParticipantsStep = ({
             value={participantSearchQuery}
             onChange={(e) => setParticipantSearchQuery(e.target.value)}
             autoComplete="off"
-            disabled={isCreatingChat} // Disable input while creating chat
+              disabled={isCreatingChat}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 mt-0.5 flex items-center space-x-1">
             {participantSearchQuery && (
@@ -224,8 +347,26 @@ const ParticipantsStep = ({
           </div>
         )}
       </div>
+      )}
 
-      {selectedParticipants.length > 0 && (
+      {withInvite && (
+        <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <Link2 className="w-4 h-4 text-[#D8A7B1]" />
+            <h4 className="font-medium text-[#3C4858] text-sm">Guest Invite</h4>
+          </div>
+          <p className="text-xs text-[#3C4858]/70 mb-3">
+            A shareable link will be created that allows anyone to join your chat as a guest. Perfect for reaching out to people who don't have an account yet.
+          </p>
+          <ul className="text-xs text-[#3C4858]/60 space-y-1">
+            <li>• Link expires in 24 hours</li>
+            <li>• Can only be used once</li>
+            <li>• Guest will enter their name to join</li>
+          </ul>
+        </div>
+      )}
+
+      {!withInvite && selectedParticipants.length > 0 && (
         <div>
           <Label className="text-xs font-medium text-[#3C4858]/80">Selected Participants ({selectedParticipants.length}):</Label>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -255,14 +396,14 @@ const ParticipantsStep = ({
       <Button
         className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5 transition-all"
         onClick={handleStartChat}
-        disabled={selectedParticipants.length === 0 || isSearching || isCreatingChat} // Disable button when creating
+        disabled={(!withInvite && selectedParticipants.length === 0) || isSearching || isCreatingChat}
       >
         {isCreatingChat ? (
             <LoadingSpinner size="sm" color="white" />
         ) : (
             <>
-                Start Mediated Chat
-                <MessageCircle className="w-4 h-4 ml-2" />
+                {withInvite ? 'Create Chat & Generate Invite' : 'Start Mediated Chat'}
+                {withInvite ? <Link2 className="w-4 h-4 ml-2" /> : <MessageCircle className="w-4 h-4 ml-2" />}
             </>
         )}
       </Button>
@@ -325,14 +466,16 @@ const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
 );
 
 export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSetupModalProps) {
-  const [currentStep, setCurrentStep] = useState<'preparation' | 'participants' | 'creating'>('preparation');
+  const [currentStep, setCurrentStep] = useState<'preparation' | 'participants' | 'creating' | 'invite-success'>('preparation');
   const [participantSearchQuery, setParticipantSearchQuery] = useState("");
   const [searchedUsers, setSearchedUsers] = useState<User[]>([]);
   const [selectedParticipants, setSelectedParticipants] = useState<User[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [isCreatingChat, setIsCreatingChat] = useState(false); // New state for chat creation loading
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [chatCreationError, setChatCreationError] = useState<string | null>(null);
-  const [creationProgress, setCreationProgress] = useState(0); // New state for progress bar
+  const [creationProgress, setCreationProgress] = useState(0);
+  const [withInvite, setWithInvite] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const router = useRouter();
@@ -377,9 +520,11 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
       setSearchedUsers([]);
       setSelectedParticipants([]);
       setIsSearching(false);
-      setIsCreatingChat(false); // Reset this state too
+      setIsCreatingChat(false);
       setChatCreationError(null);
-      setCreationProgress(0); // Reset progress
+      setCreationProgress(0);
+      setWithInvite(false);
+      setInviteUrl(null);
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
         searchTimeoutRef.current = null;
@@ -405,57 +550,78 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
   }, []);
 
   const handleStartChat = async () => {
-    // Basic validation
-    if (selectedParticipants.length === 0) {
+    // Basic validation for user-selected participants mode
+    if (!withInvite && selectedParticipants.length === 0) {
       setChatCreationError("Please select at least one participant.");
       return;
     }
 
-    setCurrentStep('creating'); // Move to the creating step
+    setCurrentStep('creating');
     setIsCreatingChat(true);
-    setChatCreationError(null); // Clear previous errors
-    setCreationProgress(0); // Start progress from 0
+    setChatCreationError(null);
+    setCreationProgress(0);
 
     try {
-      // Simulate progress for better UX - longer duration for AI message generation
       const progressInterval = setInterval(() => {
         setCreationProgress(prev => {
-          if (prev >= 85) { // Stop at 85% to show final success after API response
+          if (prev >= 85) {
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 5; // Slower progress (5% instead of 10%)
+          return prev + 5;
         });
-      }, 300); // Update progress every 300ms (slower than before)
+      }, 300);
 
       const participantIds = selectedParticipants.map(p => p.id);
       const chatData = {
         title: "New Chat",
         description: "AI-mediated conversation",
         category: "general",
-        participants: participantIds.map(id => ({ id }))
+        participants: participantIds.map(id => ({ id })),
+        withInvite // Add the invite flag
       };
+      
       const response = await fetch('/api/chats/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(chatData),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to create chat');
+      if (!response.ok) {
+        // Show more detailed error information
+        const errorMessage = data.details ? `${data.error}: ${data.details}` : data.error || 'Failed to create chat';
+        throw new Error(errorMessage);
+      }
+      
       clearInterval(progressInterval);
       setCreationProgress(100);
+      
       if (onCreateChat) await onCreateChat(chatData);
+      
+      // Handle different outcomes based on invite creation
+      if (withInvite && data.inviteUrl) {
+        // Show invite success step
+        setInviteUrl(data.inviteUrl);
+        setCurrentStep('invite-success');
+      } else {
+        // Regular chat creation - redirect to chat
       setTimeout(() => {
         onClose();
         router.push(`/chat/${data.chatId}`);
       }, 500);
+      }
     } catch (error) {
       console.error("Error starting Chat:", error);
       setChatCreationError(error instanceof Error ? error.message : 'An unknown error occurred');
-      setCurrentStep('participants'); // Go back to participants step on error
+      setCurrentStep('participants');
     } finally {
-      setIsCreatingChat(false); // End loading state
+      setIsCreatingChat(false);
     }
+  };
+
+  const handleInviteSuccessClose = () => {
+    onClose();
+    // Don't auto-redirect, let user decide when to go to chat
   };
 
   return isOpen ? (
@@ -466,6 +632,7 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
             {currentStep === 'preparation' && 'Prepare for Connection'}
             {currentStep === 'participants' && 'Create Chat'}
             {currentStep === 'creating' && 'Almost Ready...'}
+            {currentStep === 'invite-success' && 'Share Your Invite'}
           </h2>
           {currentStep !== 'creating' && (
             <Button variant="ghost" size="icon" onClick={onClose} className="text-[#3C4858]/70 hover:bg-[#F9F7F4]">
@@ -485,8 +652,10 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
             searchedUsers={searchedUsers}
             selectedParticipants={selectedParticipants}
             isSearching={isSearching}
-            isCreatingChat={isCreatingChat} // Pass the new prop
+            isCreatingChat={isCreatingChat}
             chatCreationError={chatCreationError}
+            withInvite={withInvite}
+            setWithInvite={setWithInvite}
             handleSelectParticipant={handleSelectParticipant}
             handleRemoveParticipant={handleRemoveParticipant}
             clearSearch={clearSearch}
@@ -494,13 +663,19 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
           />
         )}
         {currentStep === 'creating' && <CreatingStep creationProgress={creationProgress} />}
+        {currentStep === 'invite-success' && inviteUrl && (
+          <InviteLinkComponent 
+            inviteUrl={inviteUrl} 
+            onClose={handleInviteSuccessClose}
+          />
+        )}
 
-        {currentStep !== 'creating' && (
+        {currentStep !== 'creating' && currentStep !== 'invite-success' && (
           <Button
             variant="outline"
             className="w-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-2.5 mt-4"
             onClick={onClose}
-            disabled={isCreatingChat} // Disable cancel button too
+            disabled={isCreatingChat}
           >
             Cancel
           </Button>

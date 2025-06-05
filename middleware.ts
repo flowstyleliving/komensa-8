@@ -1,6 +1,7 @@
 // GPT CONTEXT:
 // This middleware protects /chat and /dashboard routes using NextAuth session checks.
 // It allows bypass for public demo routes like /chat/demo and any ?demo=true links.
+// It also handles guest sessions for invite-based chat access.
 // Related: /lib/demoAuth.ts, /app/chat/[id]/page.tsx, /app/api/demo/seed/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,7 +15,7 @@ export async function middleware(req: NextRequest) {
   // Check if this is a demo request (either path-based or query parameter)
   const isDemo = pathname === '/demo' || pathname.startsWith('/demo/') || req.nextUrl.searchParams.get('demo') === 'true';
 
-  // Allow requests for NextAuth.js session management, sign-in page, demo routes, and public files
+  // Allow requests for NextAuth.js session management, sign-in page, demo routes, invite routes, and public files
   if (
     pathname === '/' || // Allow access to the splash page
     pathname.startsWith('/api/auth/') ||
@@ -22,8 +23,13 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/debug/') || // Allow debug API endpoints
     pathname.startsWith('/api/phone/') || // Allow phone verification API endpoints
     pathname.startsWith('/api/users/') || // Allow user search API endpoints
-    pathname.startsWith('/api/chats/') || // Allow chat API endpoints
+    pathname.startsWith('/api/chat/') || // Allow individual chat API endpoints
+    pathname.startsWith('/api/chats/') || // Allow chat creation API endpoints
+    pathname.startsWith('/api/messages') || // Allow messages API endpoints
+    pathname.startsWith('/api/typing') || // Allow typing indicator API endpoints
+    pathname.startsWith('/api/invite/') || // Allow invite API endpoints
     pathname.startsWith('/tests/api/') || // Allow test/debug API endpoints
+    pathname.startsWith('/invite/') || // Allow invite pages
     pathname === '/auth/signin' ||
     pathname === '/test-phone' || // Allow phone verification test page
     pathname === '/test-chat' || // Allow chat modal test page
@@ -54,6 +60,21 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
+  // For guest users, only allow access to their specific chat
+  if (token.isGuest && pathname.startsWith('/chat/')) {
+    const chatIdFromPath = pathname.split('/chat/')[1]?.split('/')[0];
+    if (chatIdFromPath && chatIdFromPath !== token.chatId) {
+      console.log('[Middleware] Guest trying to access unauthorized chat:', pathname);
+      return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
+    }
+  }
+
+  // Guests cannot access dashboard or other protected routes
+  if (token.isGuest && !pathname.startsWith('/chat/')) {
+    console.log('[Middleware] Guest trying to access unauthorized route:', pathname);
+    return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
+  }
+
   console.log('[Middleware] Token found, allowing request:', pathname);
   return NextResponse.next();
 }
@@ -68,7 +89,12 @@ export const config = {
      * - demo/api/ (Demo API routes under demo path)
      * - api/phone/ (Phone verification API routes)
      * - api/users/ (User search API routes)
-     * - api/chats/ (Chat API routes)
+     * - api/chat/ (Individual chat API routes)
+     * - api/chats/ (Chat creation API routes)
+     * - api/messages (Messages API routes)
+     * - api/typing (Typing indicator API routes)
+     * - api/invite/ (Invite API routes)
+     * - invite/ (Invite pages)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
@@ -81,7 +107,7 @@ export const config = {
      * This matcher is a broad-stroke. The logic inside the middleware function
      * provides more granular control.
      */
-    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chats/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
+    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chat/|api/chats/|api/messages|api/typing|api/invite/|invite/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
   ],
 };
 

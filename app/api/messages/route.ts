@@ -24,6 +24,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Missing chatId' }, { status: 400 });
     }
 
+    // For guest users, verify they have access to this specific chat
+    if (session.user.isGuest && session.user.chatId !== chatId) {
+      return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
+    }
+
     // Verify user is a participant in this chat
     const chat = await prisma.chat.findFirst({
       where: {
@@ -68,7 +73,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing chatId or content' }, { status: 400 });
     }
 
-    console.log('[Messages API] Sending message:', { chatId, senderId: session.user.id, content });
+    console.log('[Messages API] Sending message:', { chatId, senderId: session.user.id, content, isGuest: session.user.isGuest });
+
+    // For guest users, verify they have access to this specific chat
+    if (session.user.isGuest && session.user.chatId !== chatId) {
+      return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
+    }
 
     // Verify user is a participant and get chat info
     const chat = await prisma.chat.findFirst({
@@ -95,6 +105,11 @@ export async function POST(req: NextRequest) {
     
     const turn = await turnManager.getCurrentTurn();
     console.log('[Messages API] Current turn state:', turn);
+    console.log('[Messages API] User attempting to send:', { 
+      userId: session.user.id, 
+      isGuest: session.user.isGuest,
+      expectedTurn: turn?.next_user_id 
+    });
     
     if (turn?.next_user_id && turn.next_user_id !== session.user.id) {
       console.log('[Messages API] Not user turn:', { expected: turn.next_user_id, actual: session.user.id });
@@ -160,6 +175,24 @@ export async function POST(req: NextRequest) {
       } else {
         console.error('[AI Reply] Error (not an Error object):', err);
       }
+      
+      // Critical: Restore turn management when AI fails
+      try {
+        const turnManager = new TurnManager(chatId);
+        const nextUserId = await turnManager.getNextUserAfterAI();
+        
+        if (nextUserId) {
+          await turnManager.setTurnToUser(nextUserId);
+          console.log('[AI Reply] Turn restored to user after AI failure:', nextUserId);
+        } else {
+          // Fallback: set turn back to the original sender
+          await turnManager.setTurnToUser(session.user.id);
+          console.log('[AI Reply] Turn restored to original sender after AI failure');
+        }
+      } catch (turnError) {
+        console.error('[AI Reply] Failed to restore turn after AI error:', turnError);
+      }
+      
       try {
         await setTypingIndicator(chatId, 'assistant', false);
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });

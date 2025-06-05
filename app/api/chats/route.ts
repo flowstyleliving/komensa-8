@@ -7,6 +7,14 @@ export async function GET(request: NextRequest) {
   try {
     // Check if user is authenticated
     const session = await getServerSession(authOptions);
+    
+    console.log('[Chats API] Session debug:', {
+      hasSession: !!session,
+      userId: session?.user?.id,
+      isGuest: session?.user?.isGuest,
+      chatId: session?.user?.chatId
+    });
+    
     if (!session?.user?.id) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -51,6 +59,8 @@ export async function GET(request: NextRequest) {
         created_at: 'desc'
       }
     });
+
+    console.log('[Chats API] Found chats:', chats.length);
 
     // Transform data for frontend
     const transformedChats = chats.map(chat => {

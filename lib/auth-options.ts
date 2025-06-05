@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from 'uuid';
 
 declare module "next-auth" {
   interface Session {
@@ -11,6 +12,8 @@ declare module "next-auth" {
       name?: string | null;
       email?: string | null;
       image?: string | null;
+      isGuest?: boolean;
+      chatId?: string;
     };
   }
   
@@ -19,12 +22,16 @@ declare module "next-auth" {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    isGuest?: boolean;
+    chatId?: string;
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
+    isGuest?: boolean;
+    chatId?: string;
   }
 }
 
@@ -127,23 +134,31 @@ export const authOptions: NextAuthOptions = {
             }
           });
 
-          if (!existingUser) {
-            // Create new user if not found
+          if (!existingUser && user.email) {
+            // Generate a proper UUID for the user
+            const userId = uuidv4();
+            
             // Use their name to fill name and display_name, and their email username as fallback
             const emailUsername = user.email?.split('@')[0] || 'user';
             const displayName = user.name || emailUsername;
             
-            console.log('[NextAuth] Creating new user:', { email: user.email, displayName });
-            await prisma.user.create({
+            console.log('[NextAuth] Creating new user:', { email: user.email, displayName, userId });
+            const newUser = await prisma.user.create({
               data: {
-                id: user.id,
+                id: userId,
                 name: displayName,
                 display_name: displayName,
                 email: user.email,
               },
             });
-          } else {
+            
+            // Update the user object with the new ID so JWT callback gets it
+            user.id = userId;
+            console.log('[NextAuth] User created successfully:', newUser.id);
+          } else if (existingUser) {
             console.log('[NextAuth] User already exists:', existingUser.email);
+            // Update the user object with the existing ID
+            user.id = existingUser.id;
           }
           return true;
         } catch (error) {
@@ -154,19 +169,55 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async jwt({ token, user }) {
+      console.log('[NextAuth JWT]', { 
+        hasUser: !!user, 
+        tokenId: token.id, 
+        tokenIsGuest: token.isGuest,
+        tokenChatId: token.chatId,
+        userIsGuest: user?.isGuest 
+      });
+      
+      // Handle guest user sessions (when user is provided during login)
       if (user) {
         token.id = user.id;
+        token.isGuest = user.isGuest || false; // Explicitly set to false if not provided
+        token.chatId = user.chatId;
       }
+      
+      // For regular users, ensure isGuest is not set to true
+      if (!token.isGuest) {
+        token.isGuest = false;
+        // Don't set chatId for non-guest users
+        delete token.chatId;
+      }
+      
       return token;
     },
     async session({ session, token }) {
+      console.log('[NextAuth Session]', { 
+        tokenId: token.id, 
+        tokenIsGuest: token.isGuest,
+        tokenChatId: token.chatId 
+      });
+      
       if (session.user && token) {
         session.user.id = token.id;
+        session.user.isGuest = token.isGuest || false; // Explicitly set to false if not provided
+        session.user.chatId = token.chatId;
       }
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // Redirect to dashboard after successful sign in
+      // For guest users, redirect to their specific chat
+      if (url.includes('chatId=')) {
+        const urlParams = new URLSearchParams(url.split('?')[1]);
+        const chatId = urlParams.get('chatId');
+        if (chatId) {
+          return `${baseUrl}/chat/${chatId}`;
+        }
+      }
+      
+      // Redirect to dashboard after successful sign in for regular users
       if (url.startsWith("/")) return `${baseUrl}/dashboard`;
       if (new URL(url).origin === baseUrl) return `${baseUrl}/dashboard`;
       return baseUrl;

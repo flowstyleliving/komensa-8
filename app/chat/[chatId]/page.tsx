@@ -2,12 +2,15 @@
 
 import { useSession } from 'next-auth/react';
 import { useChat } from '@/features/chat/hooks/useChat';
+import { useCompletion } from '@/features/chat/hooks/useCompletion';
 import { useExtensions } from '@/hooks/useExtensions';
 import { useNotificationSound } from '@/hooks/useNotificationSound';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { TypingIndicator } from '@/components/chat/TypingIndicator';
 import { ChatInput } from '@/components/chat/ChatInput';
-import { MessageCircle, Users, ArrowLeft } from 'lucide-react';
+import { ChatSettingsModal } from '@/components/chat/ChatSettingsModal';
+import { SummaryDisplay } from '@/components/chat/SummaryDisplay';
+import { MessageCircle, Users, ArrowLeft, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -27,7 +30,22 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const { chatId } = use(params);
   const { data: session, status } = useSession();
   const chat = useChat(chatId);
-  const { messages, isAssistantTyping, typingUsers, sendMessage, canSendMessage, currentTurn } = chat;
+  const {
+    messages,
+    isAssistantTyping,
+    typingUsers,
+    currentTurn,
+    sendMessage,
+    canSendMessage,
+    recoverFromStuckAI
+  } = chat;
+  
+  // Completion functionality
+  const completion = useCompletion(chatId);
+  const { summaryData, markComplete, generateSummary } = completion;
+  const [showSummary, setShowSummary] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
   const { getVizCueContent } = useExtensions({
     chatId: chatId,
     userId: session?.user?.id || '',
@@ -42,9 +60,11 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [participantMap, setParticipantMap] = useState<Record<string, string>>({});
   const lastSentMessageRef = useRef<string | null>(null);
+  
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAssistantTyping, typingUsers]);
+  
   useEffect(() => {
     if (messages.length > previousMessageCount.current) {
       const newMessages = messages.slice(previousMessageCount.current);
@@ -57,6 +77,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       previousMessageCount.current = messages.length;
     }
   }, [messages, playReceiveNotification, session?.user?.id]);
+  
   useEffect(() => {
     if (!chatId) return;
     const fetchInitialState = async () => {
@@ -75,6 +96,14 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     };
     fetchInitialState();
   }, [chatId]);
+
+  // Show summary when it becomes available
+  useEffect(() => {
+    if (summaryData?.hasSummary && !showSummary) {
+      setShowSummary(true);
+    }
+  }, [summaryData, showSummary]);
+  
   const userId = session?.user?.id || '';
   const humanParticipants = participants.filter((p) => p.id !== 'assistant');
   const headerNames = humanParticipants.map((p) => p.display_name).join(' & ') + ' + AI Mediator';
@@ -91,6 +120,22 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     await sendMessage(content);
   };
 
+  const handleMarkComplete = async (completionType: string) => {
+    try {
+      await markComplete(completionType);
+    } catch (error) {
+      console.error('Failed to mark complete:', error);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    try {
+      await generateSummary();
+    } catch (error) {
+      console.error('Failed to generate summary:', error);
+    }
+  };
+
   if (status === 'loading') {
     return (
       <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center">
@@ -101,6 +146,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       </div>
     );
   }
+  
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
       <nav className="bg-white/80 backdrop-blur-sm border-b border-[#3C4858]/10 sticky top-0 z-50">
@@ -123,6 +169,15 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               <Button 
                 variant="outline" 
                 size="sm"
+                className="border-[#7BAFB0] text-[#7BAFB0] rounded-full hover:bg-[#7BAFB0] hover:text-white transition-all duration-300"
+                onClick={() => setShowSettings(true)}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
                 className="border-[#3C4858]/20 text-[#3C4858] rounded-full"
                 asChild
               >
@@ -135,6 +190,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           </div>
         </div>
       </nav>
+      
       <div className="flex flex-col h-[calc(100vh-80px)]">
         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-br from-[#F9F7F4] to-[#EAE8E5]">
           <div className="max-w-4xl mx-auto space-y-6">
@@ -175,6 +231,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             <div ref={messagesEndRef} />
           </div>
         </div>
+        
         <div className="border-t border-[#3C4858]/5 bg-white/90 backdrop-blur-sm p-6 shadow-lg">
           <div className="max-w-4xl mx-auto">
             <ChatInput
@@ -190,6 +247,27 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           </div>
         </div>
       </div>
+
+      {/* Chat Settings Modal */}
+      <ChatSettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        chatId={chatId}
+        currentUserId={userId}
+        onMarkComplete={handleMarkComplete}
+        onGenerateSummary={handleGenerateSummary}
+        onResetAI={recoverFromStuckAI}
+      />
+
+      {/* Summary Display */}
+      {showSummary && summaryData && (
+        <SummaryDisplay
+          summary={summaryData.summary}
+          generatedAt={summaryData.generatedAt}
+          chatId={chatId}
+          onClose={() => setShowSummary(false)}
+        />
+      )}
     </div>
   );
 } 

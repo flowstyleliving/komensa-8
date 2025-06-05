@@ -66,20 +66,21 @@ model ChatParticipant {
 }
 
 model User {
-  id            String             @id @default(uuid())
-  display_name  String?
-  email         String?            @unique
-  emailVerified DateTime?
-  image         String?
-  name          String?
-  username      String?            @unique
-  password      String?
-  email_verified Boolean           @default(false)
-  dateCreated   DateTime           @default(now())
-  accounts      Account[]
-  participants  ChatParticipant[]
-  states        ParticipantState[]
-  sessions      Session[]
+  id             String                 @id @default(uuid())
+  display_name   String?
+  email          String?                @unique
+  emailVerified  DateTime?
+  image          String?
+  name           String?
+  username       String?                @unique
+  password       String?
+  email_verified Boolean                @default(false)
+  dateCreated    DateTime               @default(now())
+  accounts       Account[]
+  participants   ChatParticipant[]
+  states         ParticipantState[]
+  sessions       Session[]
+  completions    ChatCompletionStatus[]
 }
 
 model Account {
@@ -117,17 +118,19 @@ model VerificationToken {
 }
 
 model Chat {
-  id             String             @id @default(uuid())
-  origin         String             @default("web")
-  mediator_style String             @default("default")
-  turn_taking    String             @default("strict")
-  status         String             @default("active")
-  created_at     DateTime           @default(now())
+  id             String                 @id @default(uuid())
+  origin         String                 @default("web")
+  mediator_style String                 @default("default")
+  turn_taking    String                 @default("strict")
+  status         String                 @default("active")
+  created_at     DateTime               @default(now())
   extensions     ChatExtension[]
   participants   ChatParticipant[]
-  turn_state     ChatTurnState?     @relation("ChatTurnState")
-  events         Event[]            @relation("ChatEvents")
+  turn_state     ChatTurnState?         @relation("ChatTurnState")
+  events         Event[]                @relation("ChatEvents")
   states         ParticipantState[]
+  completions    ChatCompletionStatus[]
+  invites        ChatInvite[]
 }
 
 model ParticipantState {
@@ -150,4 +153,30 @@ model ChatExtension {
   extension     Extension @relation(fields: [ext_id], references: [id])
 
   @@id([chat_id, ext_id])
+}
+
+model ChatInvite {
+  id          String    @id @default(uuid())
+  chat_id     String
+  email       String?
+  token       String?
+  expires_at  DateTime
+  accepted_at DateTime?
+  chat        Chat      @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+
+  @@map("chat_invites")
+}
+
+model ChatCompletionStatus {
+  id                 String   @id @default(uuid())
+  chat_id            String
+  user_id            String
+  marked_complete_at DateTime @default(now())
+  completion_type    String   @default("natural")
+  created_at         DateTime @default(now())
+  chat               Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  user               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([chat_id, user_id])
+  @@map("chat_completion_status")
 }
