@@ -64,7 +64,7 @@ export async function generateAIReply({
       console.error('[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after 60 seconds');
       await cleanup();
       reject(new Error('AI reply generation timed out after 60 seconds'));
-    }, 60000); // Reduced to 60 seconds
+    }, 60000); // 60 seconds - mobile-optimized timeout
   });
 
   const replyPromise = (async () => {

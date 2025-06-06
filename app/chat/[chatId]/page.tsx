@@ -288,7 +288,12 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             })}
             {(() => {
               console.log('[ChatPage] Typing indicator check:', { isAssistantTyping });
-              return isAssistantTyping && <TypingIndicator />;
+              return isAssistantTyping && (
+                <TypingIndicator 
+                  onRecover={recoverFromStuckAI}
+                  chatId={chatId}
+                />
+              );
             })()}
             {Array.from(typingUsers)
               .filter(typingUserId => typingUserId !== userId && typingUserId !== 'assistant')

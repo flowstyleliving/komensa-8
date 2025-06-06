@@ -116,25 +116,41 @@ export function useChat(chatId: string) {
     };
   }, [data.isAssistantTyping]);
 
-  // Mobile-specific: Check for stuck AI (assistant typing for more than 2 minutes)
+  // Mobile-specific: Aggressive stuck AI recovery
   useEffect(() => {
     if (!data.isAssistantTyping) {
       setLastActivity(Date.now());
       return;
     }
 
+    // More aggressive mobile timeouts
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const mobileTimeout = isMobile ? 90000 : 120000; // 1.5 min on mobile, 2 min on desktop
+    const checkInterval = isMobile ? 15000 : 30000; // Check every 15s on mobile, 30s on desktop
+
     const stuckCheckInterval = setInterval(() => {
       const timeSinceActivity = Date.now() - lastActivity;
-      const isStuck = timeSinceActivity > 120000; // 2 minutes
+      const isStuck = timeSinceActivity > mobileTimeout;
 
       if (isStuck) {
-        console.warn('[useChat] AI appears stuck, attempting recovery...');
+        console.warn(`[useChat] AI stuck for ${timeSinceActivity}ms (mobile: ${isMobile}), forcing recovery...`);
         recoverFromStuckAI();
         clearInterval(stuckCheckInterval);
       }
-    }, 30000); // Check every 30 seconds
+    }, checkInterval);
 
-    return () => clearInterval(stuckCheckInterval);
+    // Also set a hard timeout as backup
+    const hardTimeout = setTimeout(() => {
+      if (data.isAssistantTyping) {
+        console.error('[useChat] Hard timeout reached - force clearing AI typing');
+        recoverFromStuckAI();
+      }
+    }, mobileTimeout);
+
+    return () => {
+      clearInterval(stuckCheckInterval);
+      clearTimeout(hardTimeout);
+    };
   }, [data.isAssistantTyping, chatId]);
 
   useEffect(() => {
