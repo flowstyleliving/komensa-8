@@ -369,68 +369,45 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Determine turn management approach based on chat type
     console.log('[AI Reply] Determining turn management approach...');
     
-    // Check if this is a demo chat
-    const chat = await prisma.chat.findUnique({
-      where: { id: chatId },
-      select: { origin: true }
-    });
-    
-    const isDemoChat = chat?.origin === 'demo';
-    
-    if (isDemoChat) {
-      console.log('[AI Reply] Demo chat detected, skipping turn management (handled by DemoTurnManager)');
-      // Demo chats handle their own turn management
-    } else {
-      console.log('[AI Reply] Production chat - EventDrivenTurnManager handles turns automatically');
-      // The EventDrivenTurnManager automatically calculates the next turn based on events
-      // IMPORTANT: Sync the ChatTurnState table with the calculated turn state
+    // Sync ChatTurnState with EventDrivenTurnManager calculation
+    try {
+      const { TurnManager } = await import('@/features/chat/services/turnManager');
+      const turnManager = new TurnManager(chatId);
       
-      try {
-        const { TurnManager } = await import('@/features/chat/services/turnManager');
-        const turnManager = new TurnManager(chatId);
-        
-        // Get the calculated next turn from EventDrivenTurnManager
-        const calculatedTurn = await turnManager.getCurrentTurn();
-        
-        if (calculatedTurn && calculatedTurn.next_user_id) {
-          // Update the ChatTurnState table to match the calculated turn
-          await prisma.chatTurnState.upsert({
-            where: { chat_id: chatId },
-            update: { 
-              next_user_id: calculatedTurn.next_user_id,
-              updated_at: new Date()
-            },
-            create: {
-              chat_id: chatId,
-              next_user_id: calculatedTurn.next_user_id
-            }
-          });
-          
-          console.log('[AI Reply] ChatTurnState synced with EventDrivenTurnManager:', {
-            chatId,
-            nextUserId: calculatedTurn.next_user_id
-          });
-          
-          // Emit specific turn update with the calculated next user
-          await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+      // Get the calculated next turn from EventDrivenTurnManager
+      const calculatedTurn = await turnManager.getCurrentTurn();
+      
+      if (calculatedTurn && calculatedTurn.next_user_id) {
+        // Update the ChatTurnState table to match the calculated turn
+        await prisma.chatTurnState.upsert({
+          where: { chat_id: chatId },
+          update: { 
             next_user_id: calculatedTurn.next_user_id,
-            next_role: calculatedTurn.next_role
-          });
-          console.log('[AI Reply] Turn update event emitted with specific user:', calculatedTurn.next_user_id);
-        } else {
-          console.warn('[AI Reply] Could not calculate next turn, emitting generic refresh');
-          // Fallback: Emit a generic turn update event to refresh the frontend
-          await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-            timestamp: new Date().toISOString() // Just refresh the frontend
-          });
-        }
-      } catch (turnError) {
-        console.error('[AI Reply] ERROR: Failed to sync ChatTurnState with EventDrivenTurnManager:', turnError);
+            updated_at: new Date()
+          },
+          create: {
+            chat_id: chatId,
+            next_user_id: calculatedTurn.next_user_id
+          }
+        });
+        
+        // Emit specific turn update with the calculated next user
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+          next_user_id: calculatedTurn.next_user_id,
+          next_role: calculatedTurn.next_role
+        });
+      } else {
         // Fallback: Emit a generic turn update event to refresh the frontend
         await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
           timestamp: new Date().toISOString()
         });
       }
+    } catch (turnError) {
+      console.error('[AI Reply] Failed to sync turn state:', turnError);
+      // Fallback: Emit a generic turn update event to refresh the frontend
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+        timestamp: new Date().toISOString()
+      });
     }
 
     console.log('[AI Reply] Generation complete');

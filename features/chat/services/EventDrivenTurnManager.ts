@@ -15,21 +15,10 @@ export class EventDrivenTurnManager {
    */
   async getCurrentTurn(): Promise<TurnState> {
     try {
-      // Get chat events (messages) sorted by creation time
       const events = await this.getChatEvents();
       const participants = await this.getParticipants();
-
-      // Use policy to calculate current turn
       const turnState = this.policy.calculateNextTurn(events, participants);
       
-      console.log('[EventDrivenTurnManager] Current turn calculated:', {
-        chatId: this.chatId,
-        policy: this.policy.name,
-        turnState,
-        eventCount: events.length,
-        participantCount: participants.length
-      });
-
       return turnState;
     } catch (error) {
       console.error('[EventDrivenTurnManager] Error getting current turn:', error);
@@ -54,19 +43,7 @@ export class EventDrivenTurnManager {
         messageCount: await this.getMessageCount()
       };
 
-      const canSend = this.policy.canUserSendMessage(userId, currentTurn, context);
-      
-      console.log('[EventDrivenTurnManager] Can user send message - DETAILED:', {
-        chatId: this.chatId,
-        userId,
-        currentTurn,
-        participants: participants.map(p => ({ id: p.id, name: p.display_name })),
-        messageCount: context.messageCount,
-        canSend,
-        policyName: this.policy.name
-      });
-
-      return canSend;
+      return this.policy.canUserSendMessage(userId, currentTurn, context);
     } catch (error) {
       console.error('[EventDrivenTurnManager] Error checking user permission:', error);
       return false;
@@ -106,8 +83,6 @@ export class EventDrivenTurnManager {
         }
       });
 
-      console.log('[EventDrivenTurnManager] Turn reset to user:', { chatId: this.chatId, userId });
-
       return {
         next_user_id: userId,
         next_role: 'user'
@@ -137,11 +112,6 @@ export class EventDrivenTurnManager {
           chat_id: this.chatId,
           next_user_id: firstTurn.next_user_id
         }
-      });
-
-      console.log('[EventDrivenTurnManager] First turn initialized:', {
-        chatId: this.chatId,
-        firstTurn
       });
 
       return firstTurn;

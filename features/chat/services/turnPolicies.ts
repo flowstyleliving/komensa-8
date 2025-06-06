@@ -91,51 +91,33 @@ export class MediatedTurnPolicy implements TurnPolicy {
         };
       }
 
-      // Multiple participants: STRICT turn rotation - must wait for other participants
-      // Get all user messages (excluding AI) to determine who spoke last
+      // Multiple participants: STRICT turn rotation
       const userMessages = events
         .filter(e => e.type === 'message' && e.data.senderId !== 'assistant')
         .sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
       
       if (userMessages.length === 0) {
-        // No user messages yet (shouldn't happen if we're here after AI), start with first participant
         return {
           next_user_id: humanParticipants[0].id,
           next_role: 'user'
         };
       }
 
-      // Find the last user who spoke before this AI response
+      // Find the last user who spoke and move to next in rotation
       const lastUserMessage = userMessages.slice(-1)[0];
       const lastUserSenderId = lastUserMessage.data.senderId;
-      
-      // STRICT POLICY: Always move to the NEXT participant in rotation
-      // The previous speaker must wait for everyone else to have a turn
       const currentUserIndex = humanParticipants.findIndex(p => p.id === lastUserSenderId);
       
       if (currentUserIndex === -1) {
-        // Fallback: if we can't find the user, start with first
-        console.warn('[MediatedTurnPolicy] Could not find last speaker in participants, defaulting to first');
         return {
           next_user_id: humanParticipants[0].id,
           next_role: 'user'
         };
       }
       
-      // Move to next participant in rotation (creator must wait for others)
+      // Move to next participant in rotation
       const nextUserIndex = (currentUserIndex + 1) % humanParticipants.length;
       const nextUser = humanParticipants[nextUserIndex];
-      
-      console.log('[MediatedTurnPolicy] STRICT turn rotation - AI finished, next participant must speak:', {
-        lastUserSenderId,
-        lastUserName: humanParticipants[currentUserIndex]?.display_name,
-        currentUserIndex,
-        nextUserIndex,
-        nextUserId: nextUser.id,
-        nextUserName: nextUser.display_name,
-        totalHumanParticipants: humanParticipants.length,
-        strictPolicy: 'creator_must_wait'
-      });
 
       return {
         next_user_id: nextUser.id,
@@ -151,29 +133,14 @@ export class MediatedTurnPolicy implements TurnPolicy {
   }
 
   canUserSendMessage(userId: string, currentTurn: TurnState, context: ChatContext): boolean {
-    // Special case: Allow first message even if other participants haven't joined
+    // Allow first message from any human participant
     if (context.messageCount === 0) {
-      // Any human participant can send the first message to start the conversation
       const isHumanParticipant = context.participants.some(p => p.id === userId && p.id !== 'assistant');
-      if (isHumanParticipant) {
-        console.log('[MediatedTurnPolicy] Allowing first message from user:', userId);
-        return true;
-      }
+      return isHumanParticipant;
     }
 
     // Regular turn-based behavior: users can only send when it's their turn
-    const canSend = currentTurn.next_user_id === userId;
-    console.log('[MediatedTurnPolicy] canUserSendMessage - DETAILED:', {
-      userId,
-      currentTurnNextUserId: currentTurn.next_user_id,
-      currentTurnNextRole: currentTurn.next_role,
-      messageCount: context.messageCount,
-      participantIds: context.participants.map(p => p.id),
-      canSend,
-      reason: canSend ? 'user_id_match' : `expected_${currentTurn.next_user_id}_got_${userId}`
-    });
-    
-    return canSend;
+    return currentTurn.next_user_id === userId;
   }
 
   getDisplayText(currentTurn: TurnState, participants: Participant[]): string {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, Settings, CheckCircle, Clock, Users, FileText, Loader2, RefreshCw, AlertTriangle, RotateCcw, AlertCircle } from 'lucide-react';
+import { X, Settings, CheckCircle, Clock, Users, FileText, Loader2, RefreshCw, AlertTriangle, RotateCcw, AlertCircle, Link2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CompletionStatus {
@@ -57,6 +57,9 @@ export function ChatSettingsModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResettingTurn, setIsResettingTurn] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Fetch completion status
   const fetchCompletionStatus = async () => {
@@ -122,6 +125,40 @@ export function ChatSettingsModal({
       console.error('Failed to reset turn:', error);
     } finally {
       setIsResettingTurn(false);
+    }
+  };
+
+  const handleGenerateInvite = async () => {
+    setIsGeneratingInvite(true);
+    try {
+      const response = await fetch('/api/invite/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setInviteLink(data.inviteUrl);
+      } else {
+        console.error('Failed to generate invite link');
+      }
+    } catch (error) {
+      console.error('Error generating invite:', error);
+    } finally {
+      setIsGeneratingInvite(false);
+    }
+  };
+
+  const handleCopyInvite = async () => {
+    if (!inviteLink) return;
+    
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy invite link:', error);
     }
   };
 
@@ -192,6 +229,94 @@ export function ChatSettingsModal({
                   <p className="text-sm">No participants found</p>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Invite Link Section */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
+              <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-lg">
+                <Link2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[#3C4858]">Invite More People</h3>
+                <p className="text-sm text-[#3C4858]/70">
+                  Share a link to invite others to join this conversation
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-800 mb-1">
+                      Need to invite someone who missed the original link?
+                    </p>
+                    <p className="text-xs text-blue-700 mb-3">
+                      Generate a new invite link that others can use to join this conversation. 
+                      New participants will join the rotation after the AI mediator.
+                    </p>
+                    
+                    {!inviteLink ? (
+                      <Button
+                        onClick={handleGenerateInvite}
+                        disabled={isGeneratingInvite}
+                        className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-2 touch-manipulation"
+                      >
+                        {isGeneratingInvite ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating Link...
+                          </>
+                        ) : (
+                          <>
+                            <Link2 className="h-4 w-4 mr-2" />
+                            Generate Invite Link
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="bg-white rounded-lg p-3 border border-blue-200">
+                          <p className="text-xs font-medium text-blue-800 mb-2">Share this link:</p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={inviteLink}
+                              readOnly
+                              className="flex-1 text-xs bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-900 font-mono"
+                            />
+                            <Button
+                              onClick={handleCopyInvite}
+                              size="sm"
+                              variant="outline"
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100 px-3 touch-manipulation"
+                            >
+                              {isCopied ? (
+                                <>
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3 mr-1" />
+                                  Copy
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-xs text-blue-600">
+                          <p>💡 <strong>Turn Order:</strong> New participants will be added to the rotation in the order they join.</p>
+                          <p className="mt-1">⏰ <strong>Expires:</strong> This link is valid for 24 hours.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
