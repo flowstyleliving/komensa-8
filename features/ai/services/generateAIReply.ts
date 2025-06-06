@@ -62,7 +62,16 @@ export async function generateAIReply({
   
   console.log(`[AI Reply] ${replyId} - Environment check:`, {
     OPENAI_ASSISTANT_ID: OPENAI_ASSISTANT_ID ? 'SET' : 'NOT SET',
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET'
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET',
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+    IS_PRODUCTION: process.env.NODE_ENV === 'production'
+  });
+  
+  // Check network connectivity for mobile prod issues
+  console.log(`[AI Reply] ${replyId} - Network diagnostics:`, {
+    timestamp: new Date().toISOString(),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
   });
 
   const channelName = getChatChannelName(chatId);
@@ -158,35 +167,42 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     console.log('[AI Reply] Full prompt prepared using userMessage directly.');
 
     // Get or create thread
-    console.log('[AI Reply] Getting or creating thread...');
+    console.log(`[AI Reply] ${replyId} - Getting or creating thread...`);
     let threadId: string;
     let existingThread;
     try {
+      console.log(`[AI Reply] ${replyId} - Querying existing thread from database...`);
       existingThread = await prisma.chatTurnState.findUnique({
         where: { chat_id: chatId },
         select: { thread_id: true }
       });
+      console.log(`[AI Reply] ${replyId} - Database query successful, found thread: ${!!existingThread?.thread_id}`);
     } catch (dbError) {
-      console.error('[AI Reply] DATABASE ERROR: Failed to query existing thread:', dbError);
+      console.error(`[AI Reply] ${replyId} - DATABASE ERROR: Failed to query existing thread:`, dbError);
       if (dbError instanceof Error) {
-        console.error('[AI Reply] DB query error message:', dbError.message);
-        console.error('[AI Reply] DB query error stack:', dbError.stack);
+        console.error(`[AI Reply] ${replyId} - DB query error message:`, dbError.message);
+        console.error(`[AI Reply] ${replyId} - DB query error stack:`, dbError.stack);
       }
       throw dbError;
     }
 
     if (existingThread?.thread_id) {
       threadId = existingThread.thread_id;
-      console.log('[AI Reply] Using existing thread:', threadId);
+      console.log(`[AI Reply] ${replyId} - Using existing thread: ${threadId}`);
     } else {
-      console.log('[AI Reply] Creating new thread...');
-      const thread = await retryOpenAIOperation(
-        () => openai.beta.threads.create(),
-        'thread creation',
-        isMobile
-      );
-      threadId = thread.id;
-      console.log('[AI Reply] Created new thread:', threadId);
+      console.log(`[AI Reply] ${replyId} - Creating new thread...`);
+      try {
+        const thread = await retryOpenAIOperation(
+          () => openai.beta.threads.create(),
+          'thread creation',
+          isMobile
+        );
+        threadId = thread.id;
+        console.log(`[AI Reply] ${replyId} - Created new thread: ${threadId}`);
+      } catch (threadError) {
+        console.error(`[AI Reply] ${replyId} - OPENAI ERROR: Thread creation failed:`, threadError);
+        throw threadError;
+      }
       try {
         await prisma.chatTurnState.upsert({
           where: { chat_id: chatId },
