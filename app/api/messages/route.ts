@@ -193,36 +193,30 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Messages API] ${requestId} - Triggering AI reply generation...`);
-    // Trigger AI reply generation asynchronously via separate endpoint
-    fetch(`${process.env.NEXTAUTH_URL || 'https://www.komensa.com'}/api/ai/generate-reply`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': req.headers.get('cookie') || '',
-        'User-Agent': req.headers.get('user-agent') || '',
-        'Authorization': `Bearer ${session.user.id}` // Add auth header as backup
-      },
-      body: JSON.stringify({
-        chatId,
-        userMessage: content,
-        userId: session.user.id // Pass user ID directly as backup
-      })
-    }).then(response => {
-      console.log(`[Messages API] ${requestId} - AI generation fetch response: ${response.status}`);
-      if (!response.ok) {
-        console.error(`[Messages API] ${requestId} - AI generation failed with status: ${response.status}`);
-      }
-    }).catch(async (err: Error) => {
-      console.error(`[Messages API] ${requestId} - AI reply fetch failed:`, err);
-      
-      // Reset typing indicator on failure
+    // Trigger AI reply generation asynchronously with timeout protection
+    setTimeout(async () => {
       try {
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-        console.log(`[Messages API] ${requestId} - Typing indicator cleared after AI failure`);
-      } catch (cleanupError) {
-        console.error(`[Messages API] ${requestId} - Failed to reset typing indicator:`, cleanupError);
+        console.log(`[Messages API] ${requestId} - Starting AI generation in background...`);
+        const { generateAIReply } = await import('@/features/ai/services/generateAIReply');
+        await generateAIReply({ 
+          chatId, 
+          userId: session.user.id, 
+          userMessage: content,
+          userAgent: req.headers.get('user-agent') || undefined
+        });
+        console.log(`[Messages API] ${requestId} - AI generation completed successfully`);
+      } catch (err) {
+        console.error(`[Messages API] ${requestId} - AI reply failed:`, err);
+        
+        // Reset typing indicator on failure
+        try {
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+          console.log(`[Messages API] ${requestId} - Typing indicator cleared after AI failure`);
+        } catch (cleanupError) {
+          console.error(`[Messages API] ${requestId} - Failed to reset typing indicator:`, cleanupError);
+        }
       }
-    });
+    }, 100); // Small delay to let the main request complete first
 
     console.log(`[Messages API] ${requestId} - Request completed successfully`);
     return NextResponse.json({ ok: true });
