@@ -11,10 +11,10 @@ export function TypingIndicator({ onRecover, chatId }: TypingIndicatorProps) {
   const [showRecovery, setShowRecovery] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
 
-  // Show recovery option quickly on mobile
+  // Show recovery option if AI takes too long
   useEffect(() => {
     const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const timeout = isMobile ? 15000 : 30000; // 15s mobile, 30s desktop
+    const timeout = isMobile ? 25000 : 35000; // 25s mobile, 35s desktop
 
     const timer = setTimeout(() => {
       setShowRecovery(true);

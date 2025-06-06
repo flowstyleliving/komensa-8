@@ -90,14 +90,14 @@ export function useChat(chatId: string) {
         clearTimeout(typingTimeout);
       }
       
-      // Force clear after 10 seconds, no exceptions
+      // Force clear after 45 seconds - gives AI time to actually respond
       const newTimeout = setTimeout(() => {
-        console.log('[useChat] Force clearing AI typing after 10 seconds');
+        console.log('[useChat] Force clearing AI typing after 45 seconds');
         setData(prev => ({
           ...prev,
           isAssistantTyping: false
         }));
-      }, 10000); // 10 seconds max
+      }, 45000); // 45 seconds - reasonable for AI processing
       
       setTypingTimeout(newTimeout);
     } else {
