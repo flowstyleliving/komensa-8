@@ -63,16 +63,49 @@ if (typeof window !== 'undefined') {
     console.error('[Pusher] Connection error:', error);
   });
   
-  // Mobile-specific: Check connection state on visibility change
+  // Mobile-specific: Check connection state on visibility change and WebSocket suspension recovery
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && pusherClient.connection.state === 'disconnected') {
-      console.log('[Pusher] App became visible, checking connection...');
-      setTimeout(() => {
-        if (pusherClient.connection.state === 'disconnected') {
-          console.log('[Pusher] Still disconnected, attempting reconnection...');
-          pusherClient.connect();
-        }
-      }, 1000);
+    if (!document.hidden) {
+      const state = pusherClient.connection.state;
+      console.log(`[Pusher] App became visible, connection state: ${state}`);
+      
+      // Handle WebSocket suspension on mobile Safari
+      if (state === 'disconnected' || state === 'failed' || state === 'unavailable') {
+        console.log('[Pusher] Detected suspended/disconnected state, forcing reconnection...');
+        setTimeout(() => {
+          try {
+            // Force disconnect first to clear any stuck state
+            pusherClient.disconnect();
+            setTimeout(() => {
+              pusherClient.connect();
+              console.log('[Pusher] Forced reconnection after visibility change');
+            }, 500);
+          } catch (error) {
+            console.error('[Pusher] Error during forced reconnection:', error);
+          }
+        }, 1000);
+      }
+    }
+  });
+  
+  // Mobile Safari WebSocket suspension handling
+  document.addEventListener('resume', () => {
+    console.log('[Pusher] App resumed from suspension, checking connection...');
+    const state = pusherClient.connection.state;
+    if (state !== 'connected') {
+      console.log(`[Pusher] Not connected after resume (${state}), forcing reconnection...`);
+      pusherClient.disconnect();
+      setTimeout(() => pusherClient.connect(), 1000);
+    }
+  });
+  
+  // Handle page focus (additional mobile support)
+  window.addEventListener('focus', () => {
+    const state = pusherClient.connection.state;
+    if (state !== 'connected') {
+      console.log(`[Pusher] Focus event - not connected (${state}), attempting reconnection...`);
+      pusherClient.disconnect();
+      setTimeout(() => pusherClient.connect(), 500);
     }
   });
   
