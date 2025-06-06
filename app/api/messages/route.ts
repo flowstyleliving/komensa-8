@@ -59,6 +59,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   console.log(`[Messages API] ${requestId} - Request started`);
+  console.log(`[Messages API] ${requestId} - URL:`, req.url);
+  console.log(`[Messages API] ${requestId} - Method:`, req.method);
   
   try {
     console.log(`[Messages API] ${requestId} - Getting session...`);
