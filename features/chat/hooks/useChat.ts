@@ -91,10 +91,10 @@ export function useChat(chatId: string) {
         clearTimeout(typingTimeout);
       }
       
-      // Mobile production gets faster timeout due to network conditions
+      // Mobile production optimized for new 60s Vercel timeout
       const isProduction = process.env.NODE_ENV === 'production';
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const timeout = isMobile && isProduction ? 30000 : 45000; // 30s mobile prod, 45s otherwise
+      const timeout = isMobile && isProduction ? 55000 : 45000; // 55s mobile prod, 45s otherwise
       
       const newTimeout = setTimeout(() => {
         console.warn(`[useChat] TIMEOUT: Force clearing AI typing after ${timeout}ms (mobile prod: ${isMobile && isProduction})`);

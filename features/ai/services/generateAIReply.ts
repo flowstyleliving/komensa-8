@@ -45,12 +45,12 @@ export async function generateAIReply({
   const isMobile = userAgent ? /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) : false;
   console.log(`[AI Reply] ${replyId} - Mobile detection: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
   
-  // Mobile production needs faster timeouts due to network conditions
+  // Mobile production optimized for new 60s Vercel timeout
   const isProduction = process.env.NODE_ENV === 'production';
-  const globalTimeout = isMobile && isProduction ? 25000 : (isMobile ? 35000 : 40000);
-  const runCreationTimeout = isMobile && isProduction ? 10000 : (isMobile ? 15000 : 20000);
+  const globalTimeout = isMobile && isProduction ? 50000 : (isMobile ? 35000 : 40000);
+  const runCreationTimeout = isMobile && isProduction ? 15000 : (isMobile ? 15000 : 20000);
   const pollingInterval = isMobile ? 2000 : 1000; // 2s vs 1s polling  
-  const maxWaitTime = isMobile && isProduction ? 20000 : (isMobile ? 30000 : 35000);
+  const maxWaitTime = isMobile && isProduction ? 40000 : (isMobile ? 30000 : 35000);
   
   // Log mobile-specific optimizations
   console.log(`[AI Reply] ${replyId} - Timeouts configured:`, {
