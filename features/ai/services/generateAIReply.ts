@@ -45,12 +45,11 @@ export async function generateAIReply({
   const isMobile = userAgent ? /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) : false;
   console.log(`[AI Reply] ${replyId} - Mobile detection: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
   
-  // Mobile production optimized for new 60s Vercel timeout
-  const isProduction = process.env.NODE_ENV === 'production';
-  const globalTimeout = isMobile && isProduction ? 50000 : (isMobile ? 35000 : 40000);
-  const runCreationTimeout = isMobile && isProduction ? 15000 : (isMobile ? 15000 : 20000);
-  const pollingInterval = isMobile ? 2000 : 1000; // 2s vs 1s polling  
-  const maxWaitTime = isMobile && isProduction ? 40000 : (isMobile ? 30000 : 35000);
+  // Simplified timeouts (demo pattern)
+  const globalTimeout = 90000; // 90 seconds
+  const runCreationTimeout = 30000; // 30 seconds
+  const pollingInterval = 1000; // 1 second
+  const maxWaitTime = 120000; // 2 minutes max
   
   // Log mobile-specific optimizations
   console.log(`[AI Reply] ${replyId} - Timeouts configured:`, {
@@ -87,28 +86,21 @@ export async function generateAIReply({
     cleanupPerformed = true;
     
     console.log(`[AI Reply] ${replyId} - Cleanup initiated from: ${source}`);
-    const cleanupTimestamp = Date.now();
     
-    // Mobile-safe cleanup: Pusher first for immediate UI feedback
+    // Simplified cleanup (demo pattern)
     try {
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { 
-        isTyping: false,
-        timestamp: cleanupTimestamp,
-        source: `cleanup_${source}`,
-        replyId
+        isTyping: false
       });
-      console.log(`[AI Reply] ${replyId} - Pusher cleanup completed (${source})`);
+      console.log(`[AI Reply] ${replyId} - Pusher cleanup completed`);
     } catch (pusherError) {
-      console.error(`[AI Reply] ${replyId} - Pusher cleanup failed (${source}):`, pusherError);
+      console.error(`[AI Reply] ${replyId} - Pusher cleanup failed:`, pusherError);
     }
     
-    // Clear Redis state
-    try {
-      await setTypingIndicator(chatId, 'assistant', false);
-      console.log(`[AI Reply] ${replyId} - Redis cleanup completed (${source})`);
-    } catch (redisError) {
-      console.error(`[AI Reply] ${replyId} - Redis cleanup failed (${source}):`, redisError);
-    }
+    // Non-blocking Redis cleanup
+    setTypingIndicator(chatId, 'assistant', false).catch(err => 
+      console.warn(`[AI Reply] ${replyId} - Redis cleanup failed:`, err)
+    );
   };
 
   const timeoutPromise = new Promise<never>((_, reject) => {
@@ -136,10 +128,12 @@ export async function generateAIReply({
         });
         console.log(`[AI Reply] ${replyId} - Pusher typing indicator set`);
         
-        // Set Redis with longer TTL for mobile reliability
+        // Set Redis with non-blocking approach (demo pattern)
         console.log(`[AI Reply] ${replyId} - About to set Redis typing indicator...`);
-        await setTypingIndicator(chatId, 'assistant', true);
-        console.log(`[AI Reply] ${replyId} - Redis typing indicator set`);
+        setTypingIndicator(chatId, 'assistant', true).catch(err => 
+          console.warn(`[AI Reply] ${replyId} - Redis failed, continuing:`, err)
+        );
+        console.log(`[AI Reply] ${replyId} - Redis typing indicator initiated`);
         typingSetSuccessfully = true;
       } catch (error) {
         console.error(`[AI Reply] ${replyId} - Failed to set typing indicators:`, error);

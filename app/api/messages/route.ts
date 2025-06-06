@@ -195,30 +195,29 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Messages API] ${requestId} - Triggering AI reply generation...`);
-    // Trigger AI reply generation asynchronously with timeout protection
-    setTimeout(async () => {
-      try {
-        console.log(`[Messages API] ${requestId} - Starting AI generation in background...`);
-        const { generateAIReply } = await import('@/features/ai/services/generateAIReply');
-        await generateAIReply({ 
+    // Fire-and-forget AI generation (demo pattern)
+    const targetUrl = `${req.nextUrl.origin}/api/ai/generate-reply`;
+    try {
+      const aiResponse = await fetch(targetUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cookie': req.headers.get('cookie') || '',
+        },
+        body: JSON.stringify({ 
           chatId, 
           userId: session.user.id, 
-          userMessage: content,
-          userAgent: req.headers.get('user-agent') || undefined
-        });
-        console.log(`[Messages API] ${requestId} - AI generation completed successfully`);
-      } catch (err) {
-        console.error(`[Messages API] ${requestId} - AI reply failed:`, err);
-        
-        // Reset typing indicator on failure
-        try {
-          await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-          console.log(`[Messages API] ${requestId} - Typing indicator cleared after AI failure`);
-        } catch (cleanupError) {
-          console.error(`[Messages API] ${requestId} - Failed to reset typing indicator:`, cleanupError);
-        }
+          userMessage: content 
+        }),
+      });
+      console.log(`[Messages API] ${requestId} - AI generation fetch initiated: ${aiResponse.status}`);
+      if (!aiResponse.ok) {
+        console.error(`[Messages API] ${requestId} - AI generation failed with status: ${aiResponse.status}`);
       }
-    }, 100); // Small delay to let the main request complete first
+    } catch (aiError) {
+      console.error(`[Messages API] ${requestId} - Error calling AI generation:`, aiError);
+      // Continue - don't fail the message sending
+    }
 
     console.log(`[Messages API] ${requestId} - Request completed successfully`);
     return NextResponse.json({ ok: true });
