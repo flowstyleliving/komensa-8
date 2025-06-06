@@ -199,12 +199,19 @@ export async function POST(req: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
         'Cookie': req.headers.get('cookie') || '',
-        'User-Agent': req.headers.get('user-agent') || ''
+        'User-Agent': req.headers.get('user-agent') || '',
+        'Authorization': `Bearer ${session.user.id}` // Add auth header as backup
       },
       body: JSON.stringify({
         chatId,
-        userMessage: content
+        userMessage: content,
+        userId: session.user.id // Pass user ID directly as backup
       })
+    }).then(response => {
+      console.log(`[Messages API] ${requestId} - AI generation fetch response: ${response.status}`);
+      if (!response.ok) {
+        console.error(`[Messages API] ${requestId} - AI generation failed with status: ${response.status}`);
+      }
     }).catch(async (err: Error) => {
       console.error(`[Messages API] ${requestId} - AI reply fetch failed:`, err);
       

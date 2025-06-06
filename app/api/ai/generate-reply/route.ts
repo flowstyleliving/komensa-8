@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
   console.log(`[AI Generate API] ${requestId} - Request started`);
   
   try {
+    console.log(`[AI Generate API] ${requestId} - Checking authentication...`);
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -16,8 +17,9 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[AI Generate API] ${requestId} - Session found for user: ${session.user.id}`);
 
+    console.log(`[AI Generate API] ${requestId} - Parsing request body...`);
     const body = await req.json();
-    const { chatId, userMessage } = body;
+    const { chatId, userMessage, userId } = body;
 
     if (!chatId || !userMessage) {
       console.log(`[AI Generate API] ${requestId} - Missing data: chatId=${!!chatId}, userMessage=${!!userMessage}`);
