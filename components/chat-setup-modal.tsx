@@ -65,8 +65,9 @@ const PulsingDots = () => (
 );
 
 // Invite Link Component
-const InviteLinkComponent = ({ inviteUrl, onClose }: { inviteUrl: string; onClose: () => void }) => {
+const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string; chatId: string; onClose: () => void }) => {
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
 
   const copyToClipboard = async () => {
     try {
@@ -76,6 +77,11 @@ const InviteLinkComponent = ({ inviteUrl, onClose }: { inviteUrl: string; onClos
     } catch (err) {
       console.error('Failed to copy:', err);
     }
+  };
+
+  const handleContinueToChat = () => {
+    onClose();
+    router.push(`/chat/${chatId}`);
   };
 
   return (
@@ -123,7 +129,7 @@ const InviteLinkComponent = ({ inviteUrl, onClose }: { inviteUrl: string; onClos
 
       <Button
         className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
-        onClick={onClose}
+        onClick={handleContinueToChat}
       >
         Continue to Chat
         <ArrowRight className="w-4 h-4 ml-2" />
@@ -476,9 +482,30 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
   const [creationProgress, setCreationProgress] = useState(0);
   const [withInvite, setWithInvite] = useState(false);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [chatId, setChatId] = useState<string | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentStep('preparation');
+      setParticipantSearchQuery("");
+      setSearchedUsers([]);
+      setSelectedParticipants([]);
+      setIsSearching(false);
+      setIsCreatingChat(false);
+      setChatCreationError(null);
+      setCreationProgress(0);
+      setWithInvite(false);
+      setInviteUrl(null);
+      setChatId(null);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+        searchTimeoutRef.current = null;
+      }
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -512,25 +539,6 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
       }
     };
   }, [isOpen, participantSearchQuery]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setCurrentStep('preparation');
-      setParticipantSearchQuery("");
-      setSearchedUsers([]);
-      setSelectedParticipants([]);
-      setIsSearching(false);
-      setIsCreatingChat(false);
-      setChatCreationError(null);
-      setCreationProgress(0);
-      setWithInvite(false);
-      setInviteUrl(null);
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-        searchTimeoutRef.current = null;
-      }
-    }
-  }, [isOpen]);
 
   const handleSelectParticipant = useCallback((user: User) => {
     if (!selectedParticipants.find(p => p.id === user.id)) {
@@ -602,6 +610,7 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
       if (withInvite && data.inviteUrl) {
         // Show invite success step
         setInviteUrl(data.inviteUrl);
+        setChatId(data.chatId);
         setCurrentStep('invite-success');
       } else {
         // Regular chat creation - redirect to chat
@@ -663,9 +672,10 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
           />
         )}
         {currentStep === 'creating' && <CreatingStep creationProgress={creationProgress} />}
-        {currentStep === 'invite-success' && inviteUrl && (
+        {currentStep === 'invite-success' && inviteUrl && chatId && (
           <InviteLinkComponent 
             inviteUrl={inviteUrl} 
+            chatId={chatId}
             onClose={handleInviteSuccessClose}
           />
         )}

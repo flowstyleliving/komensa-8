@@ -28,6 +28,7 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/messages') || // Allow messages API endpoints
     pathname.startsWith('/api/typing') || // Allow typing indicator API endpoints
     pathname.startsWith('/api/invite/') || // Allow invite API endpoints
+    pathname.startsWith('/api/feedback') || // Allow feedback API endpoints
     pathname.startsWith('/tests/api/') || // Allow test/debug API endpoints
     pathname.startsWith('/invite/') || // Allow invite pages
     pathname === '/auth/signin' ||
@@ -69,8 +70,20 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Guests cannot access dashboard or other protected routes
-  if (token.isGuest && !pathname.startsWith('/chat/')) {
+  // For guest users, allow access to feedback pages for their specific chat
+  if (token.isGuest && pathname.startsWith('/feedback/')) {
+    const chatIdFromPath = pathname.split('/feedback/')[1]?.split('/')[0];
+    if (chatIdFromPath && chatIdFromPath !== token.chatId) {
+      console.log('[Middleware] Guest trying to access unauthorized feedback:', pathname);
+      return NextResponse.json({ error: 'Access denied - guests can only access feedback for their invited chat' }, { status: 403 });
+    }
+    // Allow access to feedback for their chat
+    console.log('[Middleware] Allowing guest feedback access for their chat:', pathname);
+    return NextResponse.next();
+  }
+
+  // Guests cannot access dashboard or other protected routes (except chat and feedback)
+  if (token.isGuest && !pathname.startsWith('/chat/') && !pathname.startsWith('/feedback/')) {
     console.log('[Middleware] Guest trying to access unauthorized route:', pathname);
     return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
   }
@@ -94,6 +107,7 @@ export const config = {
      * - api/messages (Messages API routes)
      * - api/typing (Typing indicator API routes)
      * - api/invite/ (Invite API routes)
+     * - api/feedback (Feedback API routes)
      * - invite/ (Invite pages)
      * - _next/static (static files)
      * - _next/image (image optimization files)
@@ -107,7 +121,7 @@ export const config = {
      * This matcher is a broad-stroke. The logic inside the middleware function
      * provides more granular control.
      */
-    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chat/|api/chats/|api/messages|api/typing|api/invite/|invite/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
+    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chat/|api/chats/|api/messages|api/typing|api/invite/|api/feedback|invite/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
   ],
 };
 

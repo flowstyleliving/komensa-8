@@ -16,11 +16,23 @@ export async function GET(request: NextRequest) {
     });
     
     if (!session?.user?.id) {
+      console.log('[Chats API] No session or user ID found');
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized - Please sign in' },
         { status: 401 }
       );
     }
+
+    // Guest users cannot access the general chats list - they can only access their specific chat
+    if (session.user.isGuest) {
+      console.log('[Chats API] Guest user attempted to access chats list');
+      return NextResponse.json(
+        { error: 'Access denied - Guests can only access their invited chat' },
+        { status: 403 }
+      );
+    }
+
+    console.log('[Chats API] Fetching chats for user:', session.user.id);
 
     // Fetch chats where the user is a participant
     const chats = await prisma.chat.findMany({
@@ -88,13 +100,15 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    console.log('[Chats API] Returning transformed chats:', transformedChats.length);
+
     return NextResponse.json({
       success: true,
       chats: transformedChats
     });
 
   } catch (error: any) {
-    console.error('Error fetching chats:', error);
+    console.error('[Chats API] Error fetching chats:', error);
     
     return NextResponse.json(
       { 

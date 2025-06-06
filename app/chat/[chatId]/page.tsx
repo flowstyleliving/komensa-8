@@ -95,6 +95,22 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       } catch (error) {}
     };
     fetchInitialState();
+
+    // Subscribe to real-time participant updates
+    const { pusherClient, getChatChannelName, PUSHER_EVENTS } = require('@/lib/pusher');
+    const channelName = getChatChannelName(chatId);
+    const channel = pusherClient.subscribe(channelName);
+    
+    // Handle participant joining
+    channel.bind(PUSHER_EVENTS.PARTICIPANT_JOINED, (data: any) => {
+      console.log('[ChatPage] Participant joined, refreshing participant list');
+      fetchInitialState(); // Refresh participant data
+    });
+
+    return () => {
+      channel.unbind(PUSHER_EVENTS.PARTICIPANT_JOINED);
+      pusherClient.unsubscribe(channelName);
+    };
   }, [chatId]);
 
   // Show summary when it becomes available
@@ -133,6 +149,25 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
       await generateSummary();
     } catch (error) {
       console.error('Failed to generate summary:', error);
+    }
+  };
+
+  const handleResetTurn = async () => {
+    try {
+      const response = await fetch(`/api/chat/${chatId}/reset-turn`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset turn');
+      }
+
+      console.log('Turn state reset successfully');
+    } catch (error) {
+      console.error('Failed to reset turn:', error);
     }
   };
 
@@ -257,6 +292,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         onMarkComplete={handleMarkComplete}
         onGenerateSummary={handleGenerateSummary}
         onResetAI={recoverFromStuckAI}
+        onResetTurn={handleResetTurn}
       />
 
       {/* Summary Display */}

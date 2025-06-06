@@ -66,12 +66,28 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchChats = async () => {
       try {
+        // Check if user is a guest - guests shouldn't be on dashboard
+        if (session?.user?.isGuest) {
+          console.log('[Dashboard] Guest user detected, redirecting to chat');
+          window.location.href = `/chat/${session.user.chatId}`;
+          return;
+        }
+
         const response = await fetch('/api/chats');
         if (response.ok) {
           const data = await response.json();
           setChats(data.chats || []);
         } else {
-          console.error('Failed to fetch chats');
+          const errorData = await response.json();
+          console.error('Failed to fetch chats:', response.status, errorData);
+          
+          // Handle specific error cases
+          if (response.status === 403) {
+            console.log('[Dashboard] Access denied - redirecting guest to chat');
+            if (session?.user?.isGuest && session?.user?.chatId) {
+              window.location.href = `/chat/${session.user.chatId}`;
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching chats:', error);
@@ -83,7 +99,7 @@ export default function DashboardPage() {
     if (session?.user?.id) {
       fetchChats();
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, session?.user?.isGuest, session?.user?.chatId]);
 
   // Fetch recent activity
   useEffect(() => {

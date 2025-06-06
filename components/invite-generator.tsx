@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Link2, Copy, Check, Clock, Users } from 'lucide-react';
+import { Link2, Copy, Check, Clock, Users, MessageCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 interface InviteGeneratorProps {
   chatId: string;
@@ -18,6 +19,7 @@ export default function InviteGenerator({ chatId, onClose, className = '' }: Inv
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   const generateInvite = async () => {
     setGenerating(true);
@@ -163,12 +165,28 @@ export default function InviteGenerator({ chatId, onClose, className = '' }: Inv
         </div>
 
         {onClose && (
-          <Button
-            onClick={onClose}
-            className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white"
-          >
-            Done
-          </Button>
+          <div className="flex space-x-3">
+            <Button
+              onClick={() => {
+                router.push(`/chat/${chatId}`);
+              }}
+              className="flex-1 bg-[#7BAFB0] hover:bg-[#6D9E9F] text-white"
+            >
+              Continue to Chat
+            </Button>
+            <Button
+              onClick={onClose}
+              variant="outline"
+              className="border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4]"
+            >
+              Done
+            </Button>
+          </div>
+        )}
+        {!onClose && (
+          <div className="text-center text-sm text-[#3C4858]/70">
+            Share this link to invite someone to join your conversation.
+          </div>
         )}
       </div>
     </Card>

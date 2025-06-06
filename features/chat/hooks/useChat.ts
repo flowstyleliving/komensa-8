@@ -86,7 +86,7 @@ export function useChat(chatId: string) {
     }, 30000); // Check every 30 seconds
 
     return () => clearInterval(stuckCheckInterval);
-  }, [data.isAssistantTyping, lastActivity, chatId]);
+  }, [data.isAssistantTyping, chatId]);
 
   useEffect(() => {
     if (!chatId) {
@@ -227,6 +227,21 @@ export function useChat(chatId: string) {
           }
         } catch (e) {
           console.error('[useChat] Error processing STATE_UPDATE event:', e, { receivedData: state });
+        }
+      });
+
+      // Handle participant joining (e.g., guest users)
+      channel.bind(PUSHER_EVENTS.PARTICIPANT_JOINED, (data: any) => {
+        try {
+          console.log('[useChat] Participant joined:', data);
+          if (data && data.participant) {
+            // Refresh the chat state to get updated participant list
+            fetchInitialState();
+          } else {
+            console.warn('[useChat] Received malformed participant joined event:', data);
+          }
+        } catch (e) {
+          console.error('[useChat] Error processing PARTICIPANT_JOINED event:', e, { receivedData: data });
         }
       });
 

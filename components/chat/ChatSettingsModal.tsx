@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, Settings, CheckCircle, Clock, Users, FileText, Loader2, RefreshCw, AlertTriangle } from 'lucide-react';
+import { X, Settings, CheckCircle, Clock, Users, FileText, Loader2, RefreshCw, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CompletionStatus {
@@ -24,6 +24,7 @@ interface ChatSettingsModalProps {
   onMarkComplete: (completionType: string) => Promise<void>;
   onGenerateSummary: () => Promise<void>;
   onResetAI?: () => Promise<void>;
+  onResetTurn?: () => Promise<void>;
 }
 
 export function ChatSettingsModal({ 
@@ -33,7 +34,8 @@ export function ChatSettingsModal({
   currentUserId, 
   onMarkComplete, 
   onGenerateSummary,
-  onResetAI
+  onResetAI,
+  onResetTurn
 }: ChatSettingsModalProps) {
   const [completionData, setCompletionData] = useState<{
     completionStatuses: CompletionStatus[];
@@ -44,6 +46,7 @@ export function ChatSettingsModal({
   const [isMarking, setIsMarking] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isResettingTurn, setIsResettingTurn] = useState(false);
 
   // Fetch completion status
   const fetchCompletionStatus = async () => {
@@ -97,6 +100,18 @@ export function ChatSettingsModal({
       console.error('Failed to reset AI:', error);
     } finally {
       setIsResetting(false);
+    }
+  };
+
+  const handleResetTurn = async () => {
+    if (!onResetTurn) return;
+    setIsResettingTurn(true);
+    try {
+      await onResetTurn();
+    } catch (error) {
+      console.error('Failed to reset turn:', error);
+    } finally {
+      setIsResettingTurn(false);
     }
   };
 
@@ -179,6 +194,54 @@ export function ChatSettingsModal({
                       <RefreshCw className="h-4 w-4 mr-2" />
                     )}
                     Reset AI Mediator
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Turn Management Section */}
+          {onResetTurn && (
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
+                <div className="p-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg">
+                  <RotateCcw className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#3C4858]">Turn Management</h3>
+                  <p className="text-sm text-[#3C4858]/70">
+                    Reset the turn order if it gets confused or stuck
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2">
+                    <RotateCcw className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-[#3C4858]/80">
+                      <p className="font-medium mb-1">When to reset turns:</p>
+                      <ul className="text-xs space-y-1 text-[#3C4858]/70">
+                        <li>• Wrong person's turn is displayed</li>
+                        <li>• Turn state appears stuck or frozen</li>
+                        <li>• Want to restart from the beginning</li>
+                        <li>• After someone joins or leaves</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    onClick={handleResetTurn}
+                    disabled={isResettingTurn}
+                    variant="outline"
+                    className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-300"
+                  >
+                    {isResettingTurn ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                    )}
+                    Reset Turn Order
                   </Button>
                 </div>
               </div>

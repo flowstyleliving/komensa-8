@@ -118,13 +118,22 @@ export async function POST(request: NextRequest) {
       // Check if turn state exists
       const currentTurn = await turnManager.getCurrentTurn();
       if (!currentTurn) {
-        // Initialize turn management with the guest as the first speaker
-        await turnManager.initializeTurn(guestUserId);
-        console.log('[Invite Accept] Turn management initialized with guest as first speaker');
+        // Get the chat creator from the participants
+        const creator = chat.participants.find(p => p.role === 'user' || p.role === 'creator');
+        const creatorId = creator?.user_id;
+        
+        if (creatorId) {
+          // Initialize turn management with the creator as the first speaker
+          await turnManager.initializeTurn(creatorId);
+          console.log('[Invite Accept] Turn management initialized with creator as first speaker');
+        } else {
+          // Fallback to the guest if no creator found
+          await turnManager.initializeTurn(guestUserId);
+          console.log('[Invite Accept] Turn management initialized with guest as first speaker (no creator found)');
+        }
       } else {
-        // Set the turn to the guest user so they can immediately participate
-        await turnManager.setTurnToUser(guestUserId);
-        console.log('[Invite Accept] Turn set to guest user for immediate participation');
+        // Turn state exists, don't change it - let the current conversation continue
+        console.log('[Invite Accept] Existing turn state preserved, guest can participate when it\'s their turn');
       }
     } catch (turnError) {
       console.warn('[Invite Accept] Failed to update turn management for guest:', turnError);
@@ -172,6 +181,24 @@ export async function POST(request: NextRequest) {
       });
     } catch (error) {
       console.warn('Failed to create guest joined event:', error);
+    }
+
+    // Notify existing participants about the new guest joining via Pusher
+    try {
+      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+      const channelName = getChatChannelName(invite.chat_id);
+      
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.PARTICIPANT_JOINED, {
+        participant: {
+          id: guestUserId,
+          display_name: guestName,
+          role: 'guest'
+        },
+        joinedAt: now.toISOString()
+      });
+      console.log('[Invite Accept] Pusher notification sent for new guest participant');
+    } catch (error) {
+      console.warn('Failed to send Pusher notification for guest joining:', error);
     }
 
     // Generate AI welcome message for the guest

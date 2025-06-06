@@ -206,6 +206,69 @@ export class TurnManager {
     return canSend;
   }
 
+  // Reset turn state to the first participant (chat creator if available)
+  async resetTurn(): Promise<TurnState> {
+    console.log('[TurnManager] Resetting turn state for chat:', this.chatId);
+    
+    // Get chat participants to determine who should go first
+    const chat = await prisma.chat.findUnique({
+      where: { id: this.chatId },
+      include: {
+        participants: {
+          include: { user: true }
+        },
+        events: {
+          where: { type: 'chat_created' },
+          take: 1
+        }
+      }
+    });
+
+    if (!chat) {
+      throw new Error('Chat not found when resetting turn');
+    }
+
+    // Try to get the chat creator from the chat_created event
+    const chatCreatedEvent = chat.events[0];
+    const creatorId = (chatCreatedEvent?.data as any)?.createdBy;
+    
+    // Get human participants (excluding AI)
+    const humanParticipants = chat.participants
+      .filter(p => p.user_id !== 'assistant')
+      .map(p => p.user_id);
+
+    if (humanParticipants.length === 0) {
+      throw new Error('No human participants found when resetting turn');
+    }
+
+    // Determine who should go first: creator if available, otherwise first participant
+    const firstUserId = creatorId && humanParticipants.includes(creatorId) 
+      ? creatorId 
+      : humanParticipants[0];
+
+    // Reset the turn state
+    await prisma.chatTurnState.upsert({
+      where: { chat_id: this.chatId },
+      update: { next_user_id: firstUserId },
+      create: { 
+        chat_id: this.chatId, 
+        next_user_id: firstUserId 
+      }
+    });
+
+    // Clear any stale typing indicators
+    await this.clearStaleTypingIndicators(firstUserId);
+    
+    // Emit turn update via Pusher
+    const channelName = getChatChannelName(this.chatId);
+    await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+      next_user_id: firstUserId 
+    });
+    
+    console.log('[TurnManager] Turn reset to user:', firstUserId);
+    return { next_user_id: firstUserId };
+  }
+
   // Clear stale typing indicators - this is a generic utility and can stay
   private async clearStaleTypingIndicators(newActiveUserId?: string): Promise<void> {
     try {

@@ -59,4 +59,5 @@ export const PUSHER_EVENTS = {
   STATE_UPDATE: 'state-update',
   COMPLETION_UPDATE: 'completion-update',
   COMPLETION_READY: 'completion-ready',
+  PARTICIPANT_JOINED: 'participant-joined',
 } as const; 

@@ -1,6 +1,6 @@
 'use client';
 
-import { Bell, Search, LogOut, User, Settings, MessageSquare, Users, Clock, CheckCircle, Mail, X, Zap, Plus, Check } from "lucide-react"
+import { Search, LogOut, User, Settings, MessageSquare, Users, Plus } from "lucide-react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,19 +13,7 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu"
 import { useSession, signOut } from "next-auth/react"
-import { useState, useEffect, useRef } from "react"
-import { Badge } from "@/components/ui/badge"
-
-interface Notification {
-  id: string;
-  type: 'message' | 'invite' | 'completion' | 'turn';
-  title: string;
-  description: string;
-  timestamp: string;
-  priority: 'high' | 'medium' | 'low';
-  actionUrl: string;
-  unread: boolean;
-}
+import { useState, useRef } from "react"
 
 interface SearchResult {
   id: string;
@@ -44,14 +32,10 @@ interface DashboardHeaderProps {
 export function DashboardHeader(props: DashboardHeaderProps = {}) {
   const { onNewChat } = props;
   const { data: session } = useSession();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Get user display name and initials
@@ -68,70 +52,6 @@ export function DashboardHeader(props: DashboardHeaderProps = {}) {
   };
 
   const initials = getInitials(displayName);
-
-  // Fetch notifications
-  const fetchNotifications = async () => {
-    try {
-      const response = await fetch('/api/notifications');
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
-      }
-    } catch (error) {
-      console.error('Failed to fetch notifications:', error);
-    }
-  };
-
-  useEffect(() => {
-    if (session?.user?.id) {
-      fetchNotifications();
-      // Refresh notifications every 30 seconds
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [session?.user?.id]);
-
-  // Mark all notifications as read
-  const markAllAsRead = async () => {
-    if (unreadCount === 0 || isMarkingAsRead) return;
-    
-    setIsMarkingAsRead(true);
-    
-    try {
-      // Close dropdown first to prevent DOM conflicts
-      setIsNotificationsOpen(false);
-      
-      // Small delay to allow dropdown to close
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const response = await fetch('/api/notifications', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          action: 'mark_all_read'
-        })
-      });
-
-      if (response.ok) {
-        // Update local state immediately for better UX
-        setNotifications(prev => prev.map(notification => ({
-          ...notification,
-          unread: false
-        })));
-        setUnreadCount(0);
-        
-        // Refresh from server to ensure consistency
-        setTimeout(fetchNotifications, 500);
-      }
-    } catch (error) {
-      console.error('Failed to mark notifications as read:', error);
-    } finally {
-      setIsMarkingAsRead(false);
-    }
-  };
 
   // Handle search with debouncing
   const handleSearch = async (query: string) => {
@@ -172,35 +92,6 @@ export function DashboardHeader(props: DashboardHeaderProps = {}) {
 
   const handleSignOut = () => {
     signOut({ callbackUrl: '/' });
-  };
-
-  const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
-    return `${Math.floor(diffInMinutes / 1440)}d ago`;
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'message': return <MessageSquare className="h-4 w-4" />;
-      case 'invite': return <Mail className="h-4 w-4" />;
-      case 'completion': return <CheckCircle className="h-4 w-4" />;
-      case 'turn': return <Clock className="h-4 w-4" />;
-      default: return <Bell className="h-4 w-4" />;
-    }
-  };
-
-  const getNotificationColor = (type: string, priority: string) => {
-    if (priority === 'high') return 'text-red-600 bg-red-50';
-    if (type === 'message') return 'text-[#D8A7B1] bg-[#D8A7B1]/10';
-    if (type === 'invite') return 'text-[#7BAFB0] bg-[#7BAFB0]/10';
-    if (type === 'completion') return 'text-green-600 bg-green-50';
-    return 'text-[#3C4858] bg-gray-50';
   };
 
   const getSearchIcon = (type: string) => {
@@ -276,106 +167,6 @@ export function DashboardHeader(props: DashboardHeaderProps = {}) {
               <Plus className="h-4 w-4 mr-2" />
               New Chat
             </Button>
-
-            {/* Enhanced Notifications */}
-            <DropdownMenu open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="h-5 w-5 text-[#3C4858]" />
-                  {unreadCount > 0 && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs bg-[#D8A7B1] hover:bg-[#D8A7B1]"
-                    >
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </Badge>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-80 max-h-96 overflow-y-auto" align="end">
-                <DropdownMenuLabel className="flex items-center justify-between">
-                  <span>Notifications</span>
-                  <div className="flex items-center gap-2">
-                    {unreadCount > 0 && (
-                      <Badge variant="secondary" className="bg-[#D8A7B1]/10 text-[#D8A7B1]">
-                        {unreadCount} new
-                      </Badge>
-                    )}
-                    {unreadCount > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={markAllAsRead}
-                        disabled={isMarkingAsRead}
-                        className="h-6 px-2 text-xs text-[#7BAFB0] hover:bg-[#7BAFB0]/10 hover:text-[#7BAFB0]"
-                      >
-                        {isMarkingAsRead ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b border-current" />
-                        ) : (
-                          <Check className="h-3 w-3 mr-1" />
-                        )}
-                        {!isMarkingAsRead && 'Clear all'}
-                      </Button>
-                    )}
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                
-                {notifications.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <Bell className="h-8 w-8 text-[#3C4858]/30 mx-auto mb-2" />
-                    <p className="text-sm text-[#3C4858]/70">No notifications yet</p>
-                    <p className="text-xs text-[#3C4858]/50">You'll see updates here when they arrive</p>
-                  </div>
-                ) : (
-                  <div className="max-h-80 overflow-y-auto">
-                    {notifications.map((notification) => (
-                      <a
-                        key={notification.id}
-                        href={notification.actionUrl}
-                        className="block"
-                        onClick={() => setIsNotificationsOpen(false)}
-                      >
-                        <div className={`flex items-start gap-3 p-3 hover:bg-[#F9F7F4] transition-colors border-b border-[#3C4858]/5 last:border-b-0 ${notification.unread ? 'bg-[#F9F7F4]/50' : ''}`}>
-                          <div className={`flex-shrink-0 p-2 rounded-full ${getNotificationColor(notification.type, notification.priority)}`}>
-                            {getNotificationIcon(notification.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between">
-                              <p className={`text-sm font-medium text-[#3C4858] truncate ${notification.unread ? 'font-semibold' : ''}`}>{notification.title}</p>
-                              <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                                <span className="text-xs text-[#3C4858]/60">
-                                  {formatRelativeTime(notification.timestamp)}
-                                </span>
-                                {notification.unread && (
-                                  <div className="w-2 h-2 bg-[#D8A7B1] rounded-full"></div>
-                                )}
-                              </div>
-                            </div>
-                            <p className="text-xs text-[#3C4858]/70 mt-1">{notification.description}</p>
-                            {notification.priority === 'high' && (
-                              <div className="flex items-center mt-2">
-                                <Zap className="h-3 w-3 text-orange-500 mr-1" />
-                                <span className="text-xs text-orange-600 font-medium">High Priority</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-                )}
-                
-                {notifications.length > 0 && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-center text-[#7BAFB0] hover:bg-[#7BAFB0]/10 cursor-pointer justify-center">
-                      View all notifications
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
 
             {/* User Menu */}
             <div className="flex items-center space-x-3">

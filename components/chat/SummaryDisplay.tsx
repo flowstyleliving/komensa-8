@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from 'react';
-import { FileText, Download, Copy, Check, X } from 'lucide-react';
+import { FileText, Download, Copy, Check, X, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface SummaryDisplayProps {
   summary: string;
@@ -18,6 +19,7 @@ export function SummaryDisplay({
   chatId 
 }: SummaryDisplayProps) {
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
 
   const handleCopy = async () => {
     try {
@@ -39,6 +41,10 @@ export function SummaryDisplay({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const handleFeedback = () => {
+    router.push(`/feedback/${chatId}`);
   };
 
   const formatDate = (dateString: string) => {
@@ -80,7 +86,7 @@ export function SummaryDisplay({
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
           <div className="prose prose-slate max-w-none">
             <div 
               className="text-[#3C4858] leading-relaxed whitespace-pre-wrap"
@@ -92,8 +98,23 @@ export function SummaryDisplay({
         </div>
 
         {/* Actions */}
-        <div className="border-t border-[#3C4858]/10 p-6 bg-[#F9F7F4]">
-          <div className="flex items-center justify-between">
+        <div className="border-t border-[#3C4858]/10 p-6 bg-[#F9F7F4] space-y-4">
+          {/* Primary Action - Feedback */}
+          <div className="text-center">
+            <Button
+              onClick={handleFeedback}
+              className="bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white hover:from-[#C99BA4] hover:to-[#6D9E9F] transition-all duration-300 px-8 py-3 text-lg font-medium"
+            >
+              <MessageSquare className="h-5 w-5 mr-2" />
+              Continue Completion
+            </Button>
+            <p className="text-sm text-[#3C4858]/70 mt-2">
+              Help us improve your conversation experience
+            </p>
+          </div>
+
+          {/* Secondary Actions */}
+          <div className="flex items-center justify-between pt-4 border-t border-[#3C4858]/10">
             <p className="text-sm text-[#3C4858]/70">
               Save this summary for your records
             </p>
