@@ -345,32 +345,37 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.error('[AI Reply] ERROR: Failed to emit new message event via Pusher:', pusherError);
     }
 
-    // THIS IS THE NON-DEMO (LEGACY) TURN MANAGEMENT LOGIC
-    // It was previously in an ELSE block, now it's the main path.
-    console.log('[AI Reply] Non-demo chat, using legacy turn management...');
-    try {
-      await prisma.chatTurnState.update({
-        where: { chat_id: chatId },
-        data: { next_user_id: userId } // AI has responded, next turn is the user who messaged.
-      });
-      console.log('[AI Reply] Chat turn state updated in DB.');
-    } catch (dbError) {
-      console.error('[AI Reply] DATABASE ERROR: Failed to update legacy turn state:', dbError);
-      if (dbError instanceof Error) {
-        console.error('[AI Reply] DB update (legacy turn) error message:', dbError.message);
-        console.error('[AI Reply] DB update (legacy turn) error stack:', dbError.stack);
-      }
-      throw dbError; // Critical for turn management
-    }
+    // Determine turn management approach based on chat type
+    console.log('[AI Reply] Determining turn management approach...');
     
-    try {
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { next_user_id: userId });
-      console.log('[AI Reply] Pusher turn update event emitted.');
-    } catch (pusherError) {
-      console.error('[AI Reply] PUSHER ERROR: Failed to emit legacy turn update:', pusherError);
-      // Log details, but don't re-throw as the main operation (DB update) succeeded.
+    // Check if this is a demo chat
+    const chat = await prisma.chat.findUnique({
+      where: { id: chatId },
+      select: { origin: true }
+    });
+    
+    const isDemoChat = chat?.origin === 'demo';
+    
+    if (isDemoChat) {
+      console.log('[AI Reply] Demo chat detected, skipping turn management (handled by DemoTurnManager)');
+      // Demo chats handle their own turn management
+    } else {
+      console.log('[AI Reply] Production chat, turn will be automatically calculated by EventDrivenTurnManager');
+      // The EventDrivenTurnManager will automatically calculate the next turn based on events
+      // No need to manually update turn state - it's calculated from the message history
+      
+      // Optional: Emit a turn update event to refresh the frontend immediately
+      // The next turn will be calculated when requested
+      try {
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+          next_user_id: userId // This will be recalculated by EventDrivenTurnManager
+        });
+        console.log('[AI Reply] Turn update event emitted for frontend refresh.');
+      } catch (pusherError) {
+        console.error('[AI Reply] ERROR: Failed to emit turn update for frontend refresh:', pusherError);
+        // Non-critical, continue
+      }
     }
-    // END OF NON-DEMO TURN MANAGEMENT
 
     console.log('[AI Reply] Generation complete');
     if (timeoutId) clearTimeout(timeoutId);
