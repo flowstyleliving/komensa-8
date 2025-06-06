@@ -126,12 +126,26 @@ export function ChatInput({
     const isMyTurn = currentTurn.next_user_id === currentUserId;
     
     if (isMyTurn) {
-      return (
-        <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
-          <Users className="h-4 w-4" />
-          <span className="font-medium">It's your turn...</span>
-        </div>
-      );
+      // Check if this might be the first message scenario
+      const otherParticipants = participants.filter(p => p.id !== currentUserId && p.id !== 'assistant');
+      
+      if (otherParticipants.length === 0) {
+        // User is alone, encourage them to start
+        return (
+          <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
+            <Users className="h-4 w-4" />
+            <span className="font-medium">Start the conversation! Your partner will be invited to join.</span>
+          </div>
+        );
+      } else {
+        // Normal turn messaging
+        return (
+          <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
+            <Users className="h-4 w-4" />
+            <span className="font-medium">It's your turn...</span>
+          </div>
+        );
+      }
     }
 
     // Find who's turn it is

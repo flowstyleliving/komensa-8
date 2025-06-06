@@ -163,7 +163,7 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
                       <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
                       <div className="w-1.5 h-1.5 bg-[#7BAFB0] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                     </div>
-                    <span className="text-[#7BAFB0]/80 font-medium text-xs">User is typing...</span>
+                    <span className="text-[#7BAFB0]/80 font-medium text-xs">Jordan is typing...</span>
                   </div>
                 </div>
               </div>

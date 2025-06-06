@@ -42,10 +42,19 @@ export class MediatedTurnPolicy implements TurnPolicy {
   name = 'mediated';
 
   initializeFirstTurn(participants: Participant[]): TurnState {
-    // First turn goes to the first non-assistant participant (chat creator)
+    // Find the first non-assistant participant (usually the chat creator)
     const firstUser = participants.find(p => p.id !== 'assistant');
+    
+    if (firstUser) {
+      return {
+        next_user_id: firstUser.id,
+        next_role: 'user'
+      };
+    }
+    
+    // Fallback: if only assistant exists, return assistant (shouldn't happen in normal flow)
     return {
-      next_user_id: firstUser?.id || participants[0]?.id || 'assistant',
+      next_user_id: participants[0]?.id || 'assistant',
       next_role: 'user'
     };
   }
@@ -92,13 +101,35 @@ export class MediatedTurnPolicy implements TurnPolicy {
   }
 
   canUserSendMessage(userId: string, currentTurn: TurnState, context: ChatContext): boolean {
-    // In mediated chats, users can only send when it's their turn
+    // Special case: Allow first message even if other participants haven't joined
+    if (context.messageCount === 0) {
+      // Any human participant can send the first message to start the conversation
+      const isHumanParticipant = context.participants.some(p => p.id === userId && p.id !== 'assistant');
+      if (isHumanParticipant) {
+        console.log('[MediatedTurnPolicy] Allowing first message from user:', userId);
+        return true;
+      }
+    }
+
+    // Regular turn-based behavior: users can only send when it's their turn
     return currentTurn.next_user_id === userId;
   }
 
   getDisplayText(currentTurn: TurnState, participants: Participant[]): string {
     if (currentTurn.next_user_id === 'assistant') {
       return 'AI Mediator is thinking...';
+    }
+
+    // Special case: If this is the first turn and multiple participants exist
+    const humanParticipants = participants.filter(p => p.id !== 'assistant');
+    if (humanParticipants.length > 1 && currentTurn.next_role === 'user') {
+      // Check if this might be the initial state where anyone can start
+      const user = participants.find(p => p.id === currentTurn.next_user_id);
+      if (user) {
+        return `${user.display_name || 'User'} can start the conversation...`;
+      } else {
+        return 'Anyone can start the conversation...';
+      }
     }
 
     const user = participants.find(p => p.id === currentTurn.next_user_id);
