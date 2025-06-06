@@ -32,6 +32,18 @@ export default function SignInPage() {
   const router = useRouter()
   const { data: session, status } = useSession()
 
+  // Clear any problematic guest sessions when visiting signin page
+  useEffect(() => {
+    const clearGuestSession = () => {
+      // Clear any guest session cookies that might be causing issues
+      document.cookie = 'next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+      document.cookie = '__Secure-next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; secure;';
+      console.log('[SignIn] Cleared potentially problematic session cookies');
+    };
+    
+    clearGuestSession();
+  }, []);
+
   // Auto-redirect if already authenticated
   useEffect(() => {
     if (status === 'authenticated') {

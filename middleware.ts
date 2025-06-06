@@ -50,7 +50,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  console.log('[Middleware] Blocking request, checking auth:', pathname);
+  console.log('[Middleware] Blocked request, checking auth:', pathname);
   
   // Use the correct cookie name for production
   const cookieName = process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https://')
@@ -82,7 +82,8 @@ export async function middleware(req: NextRequest) {
       tokenId: token.id,
       isGuest: token.isGuest,
       chatId: token.chatId,
-      cookieUsed: cookieName
+      cookieUsed: cookieName,
+      pathname: pathname
     });
   }
 
@@ -115,9 +116,19 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Guests cannot access dashboard or other protected routes (except chat and feedback)
-  if (token.isGuest && !pathname.startsWith('/chat/') && !pathname.startsWith('/feedback/')) {
-    console.log('[Middleware] Guest trying to access unauthorized route:', pathname);
+  // IMPORTANT FIX: Guests should NOT be blocked from accessing /auth/signin
+  // This allows guests to sign up for a proper account
+  if (token.isGuest && pathname === '/auth/signin') {
+    console.log('[Middleware] Allowing guest access to signin page:', pathname);
+    return NextResponse.next();
+  }
+
+  // Guests cannot access dashboard or other protected routes (except chat, feedback, and signin)
+  if (token.isGuest && !pathname.startsWith('/chat/') && !pathname.startsWith('/feedback/') && pathname !== '/auth/signin') {
+    console.log('[Middleware] Guest trying to access unauthorized route:', pathname, {
+      isGuest: token.isGuest,
+      chatId: token.chatId
+    });
     return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
   }
 
