@@ -401,16 +401,26 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     }
 
     // Emit new message event
-    console.log('[AI Reply] Emitting new message event...');
+    console.log(`[AI Reply] ${replyId} - Emitting new message event...`);
     try {
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
+      const messagePayload = {
         id: newMessage.id,
         created_at: newMessage.created_at.toISOString(),
         data: { content: cleanedMessage, senderId: 'assistant' }
-      });
-      console.log('[AI Reply] New message event emitted successfully');
+      };
+      console.log(`[AI Reply] ${replyId} - Message payload:`, messagePayload);
+      console.log(`[AI Reply] ${replyId} - Channel:`, channelName);
+      console.log(`[AI Reply] ${replyId} - Event:`, PUSHER_EVENTS.NEW_MESSAGE);
+      
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, messagePayload);
+      console.log(`[AI Reply] ${replyId} - New message event emitted successfully`);
     } catch (pusherError) {
-      console.error('[AI Reply] ERROR: Failed to emit new message event via Pusher:', pusherError);
+      console.error(`[AI Reply] ${replyId} - ERROR: Failed to emit new message event via Pusher:`, pusherError);
+      // Log additional details
+      if (pusherError instanceof Error) {
+        console.error(`[AI Reply] ${replyId} - Pusher error message:`, pusherError.message);
+        console.error(`[AI Reply] ${replyId} - Pusher error stack:`, pusherError.stack);
+      }
     }
 
     // Determine turn management approach based on chat type
