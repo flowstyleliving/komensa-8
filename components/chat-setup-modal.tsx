@@ -102,7 +102,7 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
           <Input
             value={inviteUrl}
             readOnly
-            className="flex-1 bg-white border-[#3C4858]/20 text-xs sm:text-sm font-mono"
+            className="flex-1 bg-white border-[#3C4858]/20 text-base sm:text-sm font-mono"
           />
           <Button
             onClick={copyToClipboard}
@@ -312,7 +312,7 @@ const ParticipantsStep = ({
           <Input
             id="chat-participants"
             placeholder="Search by name or username (min 3 chars)"
-            className="mt-1 border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white placeholder:text-[#3C4858]/50 pr-16 sm:pr-20 text-base sm:text-sm"
+            className="mt-1 border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white placeholder:text-[#3C4858]/50 pr-16 sm:pr-20 text-base"
             value={participantSearchQuery}
             onChange={(e) => setParticipantSearchQuery(e.target.value)}
             autoComplete="off"

@@ -188,7 +188,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Link href="/" className="flex items-center space-x-2">
+              <Link href="/dashboard" className="flex items-center space-x-2">
                 <Image src="/images/komensa-logo.png" alt="Komensa" width={120} height={40} className="h-8 w-auto" />
               </Link>
               <div className="hidden md:flex items-center space-x-2 text-[#3C4858]/60">
