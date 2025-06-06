@@ -166,14 +166,35 @@ export function useChat(chatId: string) {
       // Handle new messages
       channel.bind(PUSHER_EVENTS.NEW_MESSAGE, (message: ChatMessage) => {
         try {
-          console.log('[useChat] Received new message:', message);
+          console.log('[useChat] NEW_MESSAGE event received:', {
+            event: PUSHER_EVENTS.NEW_MESSAGE,
+            channel: channelName,
+            messageId: message?.id,
+            senderId: message?.data?.senderId,
+            contentLength: message?.data?.content?.length,
+            timestamp: message?.created_at,
+            fullMessage: message
+          });
+          
           if (message && message.data && message.data.content && message.data.content.trim().length > 0) {
+            console.log('[useChat] Message validation passed, updating state...');
             setData(prev => {
+              console.log('[useChat] Previous messages count:', prev.messages.length);
+              
+              // Check for duplicate messages
+              const isDuplicate = prev.messages.some(existingMsg => existingMsg.id === message.id);
+              if (isDuplicate) {
+                console.warn('[useChat] Duplicate message detected, skipping:', message.id);
+                return prev;
+              }
+              
               // Auto-recovery: If this is an AI message, ensure typing indicator is off
               const newState = {
                 ...prev,
                 messages: [...prev.messages, message]
               };
+              
+              console.log('[useChat] New messages count:', newState.messages.length);
               
               // If the new message is from the assistant, clear the typing indicator
               if (message.data.senderId === 'assistant') {
@@ -181,10 +202,18 @@ export function useChat(chatId: string) {
                 newState.isAssistantTyping = false;
               }
               
+              console.log('[useChat] State updated successfully');
               return newState;
             });
           } else {
-            console.warn('[useChat] Received malformed or empty new message event:', message);
+            console.warn('[useChat] Message validation failed:', {
+              hasMessage: !!message,
+              hasData: !!message?.data,
+              hasContent: !!message?.data?.content,
+              contentLength: message?.data?.content?.length,
+              contentTrimmed: message?.data?.content?.trim()?.length,
+              receivedMessage: message
+            });
           }
         } catch (e) {
           console.error('[useChat] Error processing NEW_MESSAGE event:', e, { receivedData: message });
