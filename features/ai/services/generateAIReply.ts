@@ -121,6 +121,7 @@ export async function generateAIReply({
 
   const replyPromise = (async () => {
     try {
+      console.log(`[AI Reply] ${replyId} - Starting main reply promise...`);
       // Set typing indicator with mobile-safe sequencing
       console.log(`[AI Reply] ${replyId} - Setting typing indicator...`);
       let typingSetSuccessfully = false;
@@ -136,6 +137,7 @@ export async function generateAIReply({
         console.log(`[AI Reply] ${replyId} - Pusher typing indicator set`);
         
         // Set Redis with longer TTL for mobile reliability
+        console.log(`[AI Reply] ${replyId} - About to set Redis typing indicator...`);
         await setTypingIndicator(chatId, 'assistant', true);
         console.log(`[AI Reply] ${replyId} - Redis typing indicator set`);
         typingSetSuccessfully = true;

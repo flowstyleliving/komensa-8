@@ -5,7 +5,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/prisma';
-import { generateAIReply } from '@/features/ai/services/generateAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { TurnManager } from '@/features/chat/services/turnManager';
 
@@ -194,14 +193,20 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(`[Messages API] ${requestId} - Triggering AI reply generation...`);
-    // Trigger AI reply generation asynchronously with mobile detection
-    generateAIReply({ 
-      chatId, 
-      userId: session.user.id, 
-      userMessage: content,
-      userAgent: req.headers.get('user-agent') || undefined
+    // Trigger AI reply generation asynchronously via separate endpoint
+    fetch(`${process.env.NEXTAUTH_URL || 'https://www.komensa.com'}/api/ai/generate-reply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': req.headers.get('cookie') || '',
+        'User-Agent': req.headers.get('user-agent') || ''
+      },
+      body: JSON.stringify({
+        chatId,
+        userMessage: content
+      })
     }).catch(async (err: Error) => {
-      console.error(`[Messages API] ${requestId} - AI reply failed:`, err);
+      console.error(`[Messages API] ${requestId} - AI reply fetch failed:`, err);
       
       // Reset typing indicator on failure
       try {
