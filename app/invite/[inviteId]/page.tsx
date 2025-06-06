@@ -29,6 +29,26 @@ const LoadingSpinner = ({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) => {
   );
 };
 
+// Progress bar component for join process
+const JoinProgress = ({ step, totalSteps }: { step: number; totalSteps: number }) => {
+  const progress = ((step + 1) / totalSteps) * 100;
+  
+  return (
+    <div className="w-full space-y-2">
+      <div className="flex justify-between text-xs text-[#3C4858]/60">
+        <span>Step {step + 1} of {totalSteps}</span>
+        <span>{Math.round(progress)}%</span>
+      </div>
+      <div className="w-full bg-[#3C4858]/10 rounded-full h-2">
+        <div
+          className="bg-[#D8A7B1] h-2 rounded-full transition-all duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
 export default function InvitePage({ params }: { params: Promise<{ inviteId: string }> }) {
   const { inviteId } = use(params);
   const router = useRouter();
@@ -37,7 +57,43 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
   const [loading, setLoading] = useState(true);
   const [guestName, setGuestName] = useState('');
   const [joining, setJoining] = useState(false);
+  const [joinStep, setJoinStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Join steps for better UX
+  const joinSteps = [
+    'Creating your guest profile...',
+    'Adding you to the conversation...',
+    'Setting up AI mediator...',
+    'Preparing welcome message...',
+    'Almost ready!'
+  ];
+
+  // Tips to show during loading
+  const loadingTips = [
+    '💡 The AI mediator will help facilitate balanced conversation',
+    '🎯 You\'ll take turns speaking to ensure everyone is heard',
+    '🛡️ This is a safe space for authentic dialogue',
+    '✨ Your voice matters in this conversation',
+    '🚀 Get ready for meaningful connection!'
+  ];
+
+  // Auto-advance join steps for visual progress
+  useEffect(() => {
+    if (joining) {
+      setJoinStep(0);
+      const interval = setInterval(() => {
+        setJoinStep(prev => {
+          if (prev < joinSteps.length - 1) {
+            return prev + 1;
+          }
+          return prev;
+        });
+      }, 1500); // Change step every 1.5 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [joining]);
 
   // Validate invite on page load
   useEffect(() => {
@@ -97,6 +153,7 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
       setError('Network error occurred');
     } finally {
       setJoining(false);
+      setJoinStep(0); // Reset join step
     }
   };
 
@@ -263,35 +320,56 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
 
           {/* Action Buttons */}
           <div className="space-y-3">
-            <Button
-              onClick={handleJoinChat}
-              disabled={!guestName.trim() || joining}
-              className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
-            >
-              {joining ? (
-                <>
+            {joining ? (
+              // Enhanced loading state during join process
+              <div className="space-y-4">
+                <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
+                  <div className="flex items-center justify-center mb-3">
+                    <LoadingSpinner size="md" />
+                    <span className="ml-3 text-[#3C4858] font-medium">{joinSteps[joinStep]}</span>
+                  </div>
+                  <JoinProgress step={joinStep} totalSteps={joinSteps.length} />
+                  
+                  {/* Loading tip */}
+                  <div className="mt-4 p-3 bg-[#FFFBF5] border border-[#D8A7B1]/20 rounded-lg">
+                    <p className="text-xs text-[#3C4858]/70 text-center">
+                      {loadingTips[joinStep]}
+                    </p>
+                  </div>
+                </div>
+                
+                <Button
+                  disabled
+                  className="w-full bg-[#D8A7B1]/60 text-white py-2.5 cursor-not-allowed"
+                >
                   <LoadingSpinner size="sm" />
-                  <span className="ml-2">Joining conversation...</span>
-                </>
-              ) : (
-                <>
-                  Join as Guest
-                  <MessageCircle className="w-4 h-4 ml-2" />
-                </>
-              )}
-            </Button>
-
-            <div className="text-center">
-              <p className="text-xs text-[#3C4858]/60 mb-2">Already have an account?</p>
+                  <span className="ml-2">Joining...</span>
+                </Button>
+              </div>
+            ) : (
               <Button
-                onClick={handleSignUp}
-                variant="outline"
-                size="sm"
-                className="border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4]"
+                onClick={handleJoinChat}
+                disabled={!guestName.trim()}
+                className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
               >
-                Sign In Instead
+                Join as Guest
+                <MessageCircle className="w-4 h-4 ml-2" />
               </Button>
-            </div>
+            )}
+
+            {!joining && (
+              <div className="text-center">
+                <p className="text-xs text-[#3C4858]/60 mb-2">Already have an account?</p>
+                <Button
+                  onClick={handleSignUp}
+                  variant="outline"
+                  size="sm"
+                  className="border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4]"
+                >
+                  Sign In Instead
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* Footer Note */}
