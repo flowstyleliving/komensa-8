@@ -162,7 +162,18 @@ export class MediatedTurnPolicy implements TurnPolicy {
     }
 
     // Regular turn-based behavior: users can only send when it's their turn
-    return currentTurn.next_user_id === userId;
+    const canSend = currentTurn.next_user_id === userId;
+    console.log('[MediatedTurnPolicy] canUserSendMessage - DETAILED:', {
+      userId,
+      currentTurnNextUserId: currentTurn.next_user_id,
+      currentTurnNextRole: currentTurn.next_role,
+      messageCount: context.messageCount,
+      participantIds: context.participants.map(p => p.id),
+      canSend,
+      reason: canSend ? 'user_id_match' : `expected_${currentTurn.next_user_id}_got_${userId}`
+    });
+    
+    return canSend;
   }
 
   getDisplayText(currentTurn: TurnState, participants: Participant[]): string {

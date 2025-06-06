@@ -56,10 +56,14 @@ export class EventDrivenTurnManager {
 
       const canSend = this.policy.canUserSendMessage(userId, currentTurn, context);
       
-      console.log('[EventDrivenTurnManager] Can user send message:', {
+      console.log('[EventDrivenTurnManager] Can user send message - DETAILED:', {
+        chatId: this.chatId,
         userId,
         currentTurn,
-        canSend
+        participants: participants.map(p => ({ id: p.id, name: p.display_name })),
+        messageCount: context.messageCount,
+        canSend,
+        policyName: this.policy.name
       });
 
       return canSend;

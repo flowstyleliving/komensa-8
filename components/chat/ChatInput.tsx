@@ -87,10 +87,27 @@ export function ChatInput({
     return () => {
       clearTypingTimeout();
       if (isTyping) {
+        console.log('[ChatInput] Component unmounting - clearing typing indicator');
         sendTypingIndicator(false);
       }
     };
   }, [clearTypingTimeout, isTyping, sendTypingIndicator]);
+
+  // Additional safety: Force clear typing indicator on page visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isTyping) {
+        console.log('[ChatInput] Page hidden - clearing typing indicator');
+        handleTypingStop();
+        clearTypingTimeout();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isTyping, handleTypingStop, clearTypingTimeout]);
 
   const handleInput = (e: React.FormEvent<HTMLDivElement>) => {
     const newContent = e.currentTarget.textContent || '';

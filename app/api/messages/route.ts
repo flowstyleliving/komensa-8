@@ -102,6 +102,29 @@ export async function POST(req: NextRequest) {
     const turnManager = new TurnManager(chatId);
     console.log('[Messages API] Using EventDrivenTurnManager');
     
+    // FIRST: Clear any stale typing indicators that might interfere with turn management
+    try {
+      const { getTypingUsers, setTypingIndicator } = await import('@/lib/redis');
+      const typingUsers = await getTypingUsers(chatId);
+      console.log('[Messages API] Current typing users:', typingUsers);
+      
+      // Clear typing indicators for users who aren't the current sender
+      for (const typingUserId of typingUsers) {
+        if (typingUserId !== session.user.id && typingUserId !== 'assistant') {
+          console.log('[Messages API] Clearing stale typing indicator for user:', typingUserId);
+          await setTypingIndicator(chatId, typingUserId, false);
+          // Also emit via Pusher to clear frontend
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
+            userId: typingUserId, 
+            isTyping: false 
+          });
+        }
+      }
+    } catch (typingError) {
+      console.warn('[Messages API] Failed to clear stale typing indicators:', typingError);
+      // Continue anyway - this is not critical
+    }
+    
     // Check if user can send message (EventDrivenTurnManager handles this)
     const canSend = await turnManager.canUserSendMessage(session.user.id);
     const currentTurn = await turnManager.getCurrentTurn();

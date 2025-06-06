@@ -87,8 +87,8 @@ export const redis = createRedisClient();
 export const setTypingIndicator = async (chatId: string, userId: string, isTyping: boolean) => {
   const key = `chat:${chatId}:typing:${userId}`;
   if (isTyping) {
-    // Set with 30 second expiration
-    await redis.setex(key, 30, '1');
+    // Set with shorter expiration to match frontend timeout (3 seconds for safety buffer)
+    await redis.setex(key, 3, '1');
   } else {
     await redis.del(key);
   }

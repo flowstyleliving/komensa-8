@@ -24,6 +24,7 @@ interface MessageData {
 interface Participant {
   id: string;
   display_name: string;
+  role?: string;
 }
 
 export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
@@ -93,10 +94,20 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         });
         
         if (state.participants && Array.isArray(state.participants)) {
-          setParticipants(state.participants);
-          console.log('[ChatPage] Set participants:', state.participants);
+          // Add assistant to participants if not already present
+          const participantsWithAssistant = [...state.participants];
+          if (!participantsWithAssistant.find(p => p.id === 'assistant')) {
+            participantsWithAssistant.push({
+              id: 'assistant',
+              display_name: 'AI Mediator',
+              role: 'assistant'
+            });
+          }
           
-          const participantMap = state.participants.reduce((acc: Record<string, string>, p: any) => {
+          setParticipants(participantsWithAssistant);
+          console.log('[ChatPage] Set participants with assistant:', participantsWithAssistant);
+          
+          const participantMap = participantsWithAssistant.reduce((acc: Record<string, string>, p: any) => {
             acc[p.id] = p.display_name;
             return acc;
           }, {});
@@ -280,7 +291,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               return isAssistantTyping && <TypingIndicator />;
             })()}
             {Array.from(typingUsers)
-              .filter(typingUserId => typingUserId !== userId)
+              .filter(typingUserId => typingUserId !== userId && typingUserId !== 'assistant')
               .map(typingUserId => {
                 const displayName = participantMap[typingUserId] || 'Unknown User';
                 return (
@@ -328,6 +339,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         onGenerateSummary={handleGenerateSummary}
         onResetAI={recoverFromStuckAI}
         onResetTurn={handleResetTurn}
+        participants={participants}
       />
 
       {/* Summary Display */}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { encode } from 'next-auth/jwt';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth-options';
 
 export async function POST(request: NextRequest) {
   try {
@@ -11,6 +13,20 @@ export async function POST(request: NextRequest) {
         { error: 'inviteId and guestName are required' },
         { status: 400 }
       );
+    }
+
+    // Check if user already has a guest session
+    const session = await getServerSession(authOptions);
+    let guestUserId: string;
+    
+    if (session?.user?.isGuest && session.user.id) {
+      // Reuse existing guest session ID to prevent turn management mismatch
+      guestUserId = session.user.id;
+      console.log('[Invite Accept] Reusing existing guest session:', { guestUserId, guestName });
+    } else {
+      // Create a new guest user ID only if no existing guest session
+      guestUserId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('[Invite Accept] Creating new guest session:', { guestUserId, guestName });
     }
 
     // Check if invite exists and is valid using Prisma model
@@ -79,21 +95,38 @@ export async function POST(request: NextRequest) {
       data: { accepted_at: now }
     });
 
-    // Create a guest user ID
-    const guestUserId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
     // Create a guest user record in the database FIRST (before creating participant)
     try {
-      await prisma.user.create({
-        data: {
-          id: guestUserId,
-          display_name: guestName,
-          name: guestName,
-          email: null
-        }
-      });
+      if (session?.user?.isGuest && session.user.id) {
+        // Update existing guest user with new name if different
+        await prisma.user.upsert({
+          where: { id: guestUserId },
+          update: { 
+            display_name: guestName,
+            name: guestName 
+          },
+          create: {
+            id: guestUserId,
+            display_name: guestName,
+            name: guestName,
+            email: null
+          }
+        });
+        console.log('[Invite Accept] Updated existing guest user record:', { guestUserId, guestName });
+      } else {
+        // Create new guest user
+        await prisma.user.create({
+          data: {
+            id: guestUserId,
+            display_name: guestName,
+            name: guestName,
+            email: null
+          }
+        });
+        console.log('[Invite Accept] Created new guest user record:', { guestUserId, guestName });
+      }
     } catch (error) {
-      console.error('Failed to create guest user record:', error);
+      console.error('Failed to create/update guest user record:', error);
       return NextResponse.json(
         { error: 'Failed to create guest user' },
         { status: 500 }
@@ -101,13 +134,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Add guest as participant to the chat (now the user exists)
-    await prisma.chatParticipant.create({
-      data: {
+    // Check if guest is already a participant in this chat
+    const existingParticipant = await prisma.chatParticipant.findFirst({
+      where: {
         chat_id: invite.chat_id,
-        user_id: guestUserId,
-        role: 'guest'
+        user_id: guestUserId
       }
     });
+
+    if (!existingParticipant) {
+      await prisma.chatParticipant.create({
+        data: {
+          chat_id: invite.chat_id,
+          user_id: guestUserId,
+          role: 'guest'
+        }
+      });
+      console.log('[Invite Accept] Added guest as new participant:', { guestUserId, chatId: invite.chat_id });
+    } else {
+      console.log('[Invite Accept] Guest already participant in this chat:', { guestUserId, chatId: invite.chat_id });
+    }
     
     // Initialize or update turn management to include the new guest participant
     console.log('[Invite Accept] Updating turn management for guest user...');
@@ -206,11 +252,16 @@ export async function POST(request: NextRequest) {
     try {
       const existingParticipantNames = chat.participants
         .filter(p => p.user_id !== guestUserId)
-        .map(p => p.user?.display_name || p.user?.name || 'Participant');
+        .map(p => {
+          const fullName = p.user?.display_name || p.user?.name || 'Participant';
+          return fullName.split(' ')[0]; // Use just first name
+        });
       
-      const systemPrompt = `You are an AI mediator. ${guestName} has just joined the conversation with ${existingParticipantNames.join(' and ')}. 
-      Welcome ${guestName} warmly and briefly explain that you're facilitating this conversation. 
-      Invite them to introduce themselves and share what brought them here. 
+      const guestFirstName = guestName.split(' ')[0]; // Use just first name for guest too
+      
+      const systemPrompt = `You are an AI mediator. ${guestFirstName} has just joined the conversation with ${existingParticipantNames.join(' and ')}. 
+      Welcome ${guestFirstName} warmly, briefly acknowledge that they've joined the ongoing conversation, and invite them to introduce themselves. 
+      Ask them to share what brought them here and what they hope to get from this conversation.
       Keep it concise, welcoming, and create psychological safety for everyone.`;
 
       const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {

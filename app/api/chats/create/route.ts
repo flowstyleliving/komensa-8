@@ -158,16 +158,29 @@ export async function POST(request: NextRequest) {
 
     // Generate initial AI mediator message with participant names
     console.log('[Chat Creation] Generating initial AI message...');
-    const participantNames = [
-      session.user.name || 'User',
-      ...chat.participants
-        .filter(p => p.user_id !== session.user.id)
-        .map(p => p.user?.display_name || 'Participant')
-    ];
-
-    const systemPrompt = `You are an AI mediator facilitating a conversation between ${participantNames.join(' and ')}. 
-    Welcome them warmly and ask for context to help them begin sharing and try to get out what they're intentions are for the conversation. 
-    Keep your message concise but welcoming. Focus on creating psychological safety.`;
+    
+    // Use just the first name to avoid AI confusion with full names
+    const creatorDisplayName = session.user.name || 'User';
+    const creatorFirstName = creatorDisplayName.split(' ')[0]; // Get just first name
+    
+    // Check if there are other actual participants (not including the creator)
+    const otherParticipants = chat.participants.filter(p => p.user_id !== session.user.id);
+    
+    let systemPrompt: string;
+    
+    if (otherParticipants.length > 0 && !withInvite) {
+      // There are pre-selected participants - use their names
+      const otherParticipantNames = otherParticipants.map(p => p.user?.display_name || 'Participant');
+      systemPrompt = `You are an AI mediator facilitating a conversation between ${creatorFirstName} and ${otherParticipantNames.join(' and ')}. 
+      Welcome them warmly and ask for context to help them begin sharing and try to get out what their intentions are for the conversation. 
+      Keep your message concise but welcoming. Focus on creating psychological safety.`;
+    } else {
+      // Solo start or invite-based chat - refer to partner generically
+      systemPrompt = `You are an AI mediator. ${creatorFirstName} is starting a conversation and will be inviting someone to join. 
+      Welcome ${creatorFirstName} warmly and ask them to share what they'd like to discuss and what they hope to achieve from this conversation. 
+      Let them know their partner will be invited to join after they share their initial thoughts. 
+      Keep your message concise but welcoming. Focus on creating psychological safety.`;
+    }
 
     // Generate AI response
     try {

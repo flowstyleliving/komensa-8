@@ -25,6 +25,11 @@ interface ChatSettingsModalProps {
   onGenerateSummary: () => Promise<void>;
   onResetAI?: () => Promise<void>;
   onResetTurn?: () => Promise<void>;
+  participants?: Array<{
+    id: string;
+    display_name: string;
+    role?: string;
+  }>;
 }
 
 export function ChatSettingsModal({ 
@@ -35,7 +40,8 @@ export function ChatSettingsModal({
   onMarkComplete, 
   onGenerateSummary,
   onResetAI,
-  onResetTurn
+  onResetTurn,
+  participants = []
 }: ChatSettingsModalProps) {
   const [completionData, setCompletionData] = useState<{
     completionStatuses: CompletionStatus[];
@@ -141,6 +147,219 @@ export function ChatSettingsModal({
         </div>
 
         <div className="p-4 sm:p-6 h-[calc(90vh-88px)] sm:h-[calc(100vh-88px)] overflow-y-auto">
+          {/* Participants Section */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
+              <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
+                <Users className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[#3C4858]">Participants</h3>
+                <p className="text-sm text-[#3C4858]/70">
+                  Who's in this conversation
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              {participants.length > 0 ? (
+                participants.map((participant) => (
+                  <div key={participant.id} className="flex items-center gap-3 p-3 bg-[#F9F7F4] rounded-lg">
+                    <div className="w-8 h-8 bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] rounded-full flex items-center justify-center text-white text-sm font-medium">
+                      {participant.display_name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[#3C4858]">
+                        {participant.display_name || 'Unknown User'}
+                        {participant.id === currentUserId && (
+                          <span className="text-xs text-[#7BAFB0] ml-2">(You)</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-[#3C4858]/60">
+                        {participant.id === 'assistant' ? (
+                          <span className="text-[#3C4858]/60 font-medium">AI Facilitator</span>
+                        ) : participant.role === 'guest' || participant.id.startsWith('guest_') ? (
+                          <span className="text-[#3C4858]/60 font-medium">Guest User</span>
+                        ) : (
+                          'Member'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-[#3C4858]/60">
+                  <p className="text-sm">No participants found</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Session Completion Section */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
+              <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[#3C4858]">Session Management</h3>
+                <p className="text-sm text-[#3C4858]/70">
+                  Complete the session or pause and return later
+                </p>
+              </div>
+            </div>
+
+            {completionData?.isCompleted ? (
+              <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
+                <div className="flex items-center gap-2 text-green-700 mb-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">Session Completed</span>
+                </div>
+                <p className="text-xs text-green-600">
+                  Completed on {completionData.completedAt ? new Date(completionData.completedAt).toLocaleDateString() : 'Unknown date'}
+                </p>
+                {completionData.hasSummary && (
+                  <Button
+                    onClick={handleGenerateSummary}
+                    size="sm"
+                    variant="outline"
+                    className="border-green-300 text-green-700 hover:bg-green-100 w-full sm:w-auto mt-3 touch-manipulation"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    View Summary & Feedback
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Individual Completion Status */}
+                <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+                  <div className="flex items-center gap-2 text-blue-700 mb-3">
+                    <Users className="h-4 w-4" />
+                    <span className="text-sm font-medium">Completion Progress</span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-blue-600">Participants completed:</span>
+                      <span className="font-medium text-blue-800">
+                        {completionData?.completedCount || 0} of {completionData?.totalParticipants || 0}
+                      </span>
+                    </div>
+                    <div className="w-full bg-blue-200/50 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ 
+                          width: `${Math.round(((completionData?.completedCount || 0) / Math.max(completionData?.totalParticipants || 1, 1)) * 100)}%` 
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Show completion list */}
+                  {completionData?.completionStatuses && completionData.completionStatuses.length > 0 && (
+                    <div className="mt-3 space-y-1">
+                      {completionData.completionStatuses.map(status => (
+                        <div key={status.id} className="flex items-center gap-2 text-xs">
+                          <CheckCircle className="h-3 w-3 text-green-600" />
+                          <span className="text-blue-700">
+                            {status.user.display_name || 'Unknown User'} completed
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Individual Mark Complete */}
+                {!currentUserCompleted ? (
+                  <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-green-800 mb-1">Ready to complete this session?</p>
+                        <p className="text-xs text-green-700">
+                          Mark when you feel ready to finish. All participants need to complete before summary generation. You can always pause and return to continue the conversation.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Button
+                          onClick={() => handleMarkComplete('complete')}
+                          disabled={isMarking}
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white w-full px-4 py-2 touch-manipulation"
+                        >
+                          {isMarking ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Completing...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Complete Session
+                            </>
+                          )}
+                        </Button>
+                        
+                        <div className="text-center">
+                          <p className="text-xs text-green-700 mb-2">Or take a break and come back later:</p>
+                          <Button
+                            onClick={onClose}
+                            variant="outline"
+                            size="sm"
+                            className="border-green-300 text-green-700 hover:bg-green-50 px-4 py-1 text-xs touch-manipulation"
+                          >
+                            Pause & Return Later
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
+                    <div className="flex items-center gap-2 text-green-700 mb-2">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">You've marked this session complete</span>
+                    </div>
+                    <p className="text-xs text-green-600">
+                      Waiting for other participants to complete before summary generation becomes available.
+                    </p>
+                  </div>
+                )}
+
+                {/* Generate Summary (only when all complete) */}
+                {completionData?.allComplete && (
+                  <div className="bg-emerald-50/50 rounded-lg p-4 border border-emerald-200/50">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-emerald-700 mb-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm font-medium">Ready for Summary Generation</span>
+                      </div>
+                      <p className="text-xs text-emerald-600 mb-3">
+                        All participants have completed the session. Either participant can now generate the conversation summary and proceed to feedback.
+                      </p>
+                      <Button
+                        onClick={handleGenerateSummary}
+                        disabled={isGenerating}
+                        className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white w-full sm:w-auto px-6 py-2 touch-manipulation"
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generating Summary...
+                          </>
+                        ) : (
+                          <>
+                            <FileText className="h-4 w-4 mr-2" />
+                            Generate Summary
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* AI Troubleshooting Section */}
           {onResetAI && (
             <div className="space-y-4 mb-8">
@@ -220,85 +439,6 @@ export function ChatSettingsModal({
               </div>
             </div>
           )}
-
-          {/* Completion Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-              <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-[#3C4858]">Session Completion</h3>
-                <p className="text-sm text-[#3C4858]/70">
-                  Mark this conversation as complete and generate insights
-                </p>
-              </div>
-            </div>
-
-            {completionData?.isCompleted ? (
-              <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
-                <div className="flex items-center gap-2 text-green-700 mb-2">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm font-medium">Session Completed</span>
-                </div>
-                <p className="text-xs text-green-600">
-                  Completed on {completionData.completedAt ? new Date(completionData.completedAt).toLocaleDateString() : 'Unknown date'}
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-[#3C4858]/80">
-                  When you're ready to end this conversation, you can mark it as complete. 
-                  This will generate a summary and insights about your session.
-                </p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Button
-                    onClick={() => handleMarkComplete('natural')}
-                    disabled={completionData?.isCompleting}
-                    variant="outline"
-                    className="border-green-300 text-green-700 hover:bg-green-50 p-3 touch-manipulation"
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Natural Ending
-                  </Button>
-                  
-                  <Button
-                    onClick={() => handleMarkComplete('time')}
-                    disabled={completionData?.isCompleting}
-                    variant="outline"
-                    className="border-blue-300 text-blue-700 hover:bg-blue-50 p-3 touch-manipulation"
-                  >
-                    <Clock className="h-4 w-4 mr-2" />
-                    Time's Up
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {completionData?.hasSummary && (
-              <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-blue-700">
-                    <FileText className="h-4 w-4" />
-                    <span className="text-sm font-medium">Summary Available</span>
-                  </div>
-                </div>
-                <p className="text-xs text-blue-600 mb-3">
-                  A summary of your conversation has been generated and is ready to view.
-                </p>
-                <Button
-                  onClick={handleGenerateSummary}
-                  size="sm"
-                  variant="outline"
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100 w-full sm:w-auto touch-manipulation"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  View Summary
-                </Button>
-              </div>
-            )}
-          </div>
 
           {/* Future Settings Sections */}
           <div className="mt-8 pt-6 border-t border-[#3C4858]/10">
