@@ -45,11 +45,12 @@ export async function generateAIReply({
   const isMobile = userAgent ? /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) : false;
   console.log(`[AI Reply] ${replyId} - Mobile detection: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
   
-  // Reasonable timeouts - give AI time to process but not hang forever
-  const globalTimeout = isMobile ? 35000 : 40000; // 35s mobile, 40s desktop
-  const runCreationTimeout = isMobile ? 15000 : 20000; // 15s vs 20s
-  const pollingInterval = isMobile ? 2000 : 1000; // 2s vs 1s polling
-  const maxWaitTime = isMobile ? 30000 : 35000; // 30s vs 35s
+  // Mobile production needs faster timeouts due to network conditions
+  const isProduction = process.env.NODE_ENV === 'production';
+  const globalTimeout = isMobile && isProduction ? 25000 : (isMobile ? 35000 : 40000);
+  const runCreationTimeout = isMobile && isProduction ? 10000 : (isMobile ? 15000 : 20000);
+  const pollingInterval = isMobile ? 2000 : 1000; // 2s vs 1s polling  
+  const maxWaitTime = isMobile && isProduction ? 20000 : (isMobile ? 30000 : 35000);
   
   // Log mobile-specific optimizations
   console.log(`[AI Reply] ${replyId} - Timeouts configured:`, {

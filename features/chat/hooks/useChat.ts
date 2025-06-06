@@ -91,14 +91,18 @@ export function useChat(chatId: string) {
         clearTimeout(typingTimeout);
       }
       
-      // Force clear after 45 seconds - gives AI time to actually respond
+      // Mobile production gets faster timeout due to network conditions
+      const isProduction = process.env.NODE_ENV === 'production';
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const timeout = isMobile && isProduction ? 30000 : 45000; // 30s mobile prod, 45s otherwise
+      
       const newTimeout = setTimeout(() => {
-        console.warn('[useChat] TIMEOUT: Force clearing AI typing after 45 seconds');
+        console.warn(`[useChat] TIMEOUT: Force clearing AI typing after ${timeout}ms (mobile prod: ${isMobile && isProduction})`);
         setData(prev => ({
           ...prev,
           isAssistantTyping: false
         }));
-      }, 45000); // 45 seconds - reasonable for AI processing
+      }, timeout);
       
       setTypingTimeout(newTimeout);
     } else {
