@@ -188,9 +188,9 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       } catch (dbError) {
         console.error(`[AI Reply] ${replyId} - DATABASE ERROR: Failed to query existing thread:`, dbError);
         
-        // For mobile production, skip thread lookup and create new one
-        if (isMobile && isProduction) {
-          console.log(`[AI Reply] ${replyId} - Mobile production: skipping thread lookup, will create new thread`);
+        // For mobile, skip thread lookup and create new one
+        if (isMobile) {
+          console.log(`[AI Reply] ${replyId} - Mobile: skipping thread lookup, will create new thread`);
           existingThread = null;
         } else {
           if (dbError instanceof Error) {
