@@ -33,6 +33,7 @@ export function useChat(chatId: string) {
     typingUsers: new Set<string>()
   });
   const [lastActivity, setLastActivity] = useState(Date.now());
+  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Get user ID from session
   const getUserId = () => {
@@ -42,11 +43,25 @@ export function useChat(chatId: string) {
     return null;
   };
 
-  // Mobile-specific: Add recovery mechanism for stuck AI
+  // Recovery function for stuck AI
   const recoverFromStuckAI = async () => {
-    console.log('[useChat] Attempting to recover from stuck AI...');
+    console.log('[useChat] Manual recovery triggered - clearing AI typing state');
+    
+    // Force clear the typing indicator
+    setData(prev => ({
+      ...prev,
+      isAssistantTyping: false
+    }));
+    
+    // Clear any existing timeout
+    if (typingTimeout) {
+      clearTimeout(typingTimeout);
+      setTypingTimeout(null);
+    }
+    
+    // Refresh chat state to get any missing messages
     try {
-      // Force refresh the chat state
+      console.log('[useChat] Refreshing chat state for recovery');
       const res = await fetch(`/api/chat/${chatId}/state`);
       if (res.ok) {
         const state = await res.json();
@@ -56,16 +71,50 @@ export function useChat(chatId: string) {
         
         setData(prev => ({
           ...prev,
-          ...state,
           messages: filteredMessages,
-          isAssistantTyping: false // Reset typing indicator
+          currentTurn: state.currentTurn || prev.currentTurn,
+          isAssistantTyping: false // Ensure it's definitely off
         }));
-        console.log('[useChat] Recovery successful - state refreshed');
+        console.log('[useChat] Chat state refreshed for recovery');
       }
     } catch (error) {
-      console.error('[useChat] Recovery failed:', error);
+      console.error('[useChat] Failed to refresh chat state during recovery:', error);
     }
   };
+
+  // Auto-clear typing indicator if it gets stuck (recovery mechanism)
+  useEffect(() => {
+    if (data.isAssistantTyping) {
+      // Clear any existing timeout
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+      
+      // Set a new timeout to auto-clear if stuck for more than 2 minutes
+      const newTimeout = setTimeout(() => {
+        console.log('[useChat] Auto-clearing stuck AI typing indicator after timeout');
+        setData(prev => ({
+          ...prev,
+          isAssistantTyping: false
+        }));
+      }, 120000); // 2 minutes
+      
+      setTypingTimeout(newTimeout);
+    } else {
+      // Clear timeout when typing stops
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+        setTypingTimeout(null);
+      }
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+    };
+  }, [data.isAssistantTyping]);
 
   // Mobile-specific: Check for stuck AI (assistant typing for more than 2 minutes)
   useEffect(() => {
@@ -135,10 +184,21 @@ export function useChat(chatId: string) {
         try {
           console.log('[useChat] Received new message:', message);
           if (message && message.data && message.data.content && message.data.content.trim().length > 0) {
-            setData(prev => ({
-              ...prev,
-              messages: [...prev.messages, message]
-            }));
+            setData(prev => {
+              // Auto-recovery: If this is an AI message, ensure typing indicator is off
+              const newState = {
+                ...prev,
+                messages: [...prev.messages, message]
+              };
+              
+              // If the new message is from the assistant, clear the typing indicator
+              if (message.data.senderId === 'assistant') {
+                console.log('[useChat] AI message received, clearing typing indicator');
+                newState.isAssistantTyping = false;
+              }
+              
+              return newState;
+            });
           } else {
             console.warn('[useChat] Received malformed or empty new message event:', message);
           }
