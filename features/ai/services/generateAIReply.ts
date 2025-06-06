@@ -69,48 +69,19 @@ export async function generateAIReply({
 
   const replyPromise = (async () => {
     try {
-      // Set typing indicator in Redis first
-      console.log('[AI Reply] Setting typing indicator in Redis...');
-      try {
-        await setTypingIndicator(chatId, 'assistant', true);
-        console.log('[AI Reply] Redis typing indicator set successfully');
-      } catch (redisError) {
-        console.error('[AI Reply] REDIS ERROR: Failed to set typing indicator in Redis:', redisError);
-        console.error('[AI Reply] Redis error details:', JSON.stringify(redisError, Object.getOwnPropertyNames(redisError)));
-        if (redisError instanceof Error) {
-          console.error('[AI Reply] Redis error message:', redisError.message);
-          console.error('[AI Reply] Redis error stack:', redisError.stack);
-          if (redisError.cause) {
-            console.error('[AI Reply] Redis error cause:', redisError.cause);
-          }
-        }
-        console.log('[AI Reply] Continuing without Redis typing indicator...');
-      }
-      
-      console.log('[AI Reply] Attempting to emit typing indicator (Pusher trigger)...');
-      console.log('[AI Reply] Channel name:', channelName);
-      console.log('[AI Reply] Event:', PUSHER_EVENTS.ASSISTANT_TYPING);
-      console.log('[AI Reply] Data:', { isTyping: true });
-      try {
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
-        console.log('[AI Reply] SUCCESSFULLY emitted typing indicator via Pusher.');
-      } catch (pusherTriggerError) {
-        console.error('[AI Reply] ERROR: Failed to emit typing indicator via Pusher:', pusherTriggerError);
-        if (pusherTriggerError instanceof Error) {
-          console.error('[AI Reply] Pusher error message:', pusherTriggerError.message);
-          console.error('[AI Reply] Pusher error stack:', pusherTriggerError.stack);
-          if ((pusherTriggerError as any).code) console.error('[AI Reply] Pusher error code:', (pusherTriggerError as any).code);
-          if ((pusherTriggerError as any).statusCode) console.error('[AI Reply] Pusher error statusCode:', (pusherTriggerError as any).statusCode);
-          if ((pusherTriggerError as any).response) console.error('[AI Reply] Pusher error response:', (pusherTriggerError as any).response);
-          if ((pusherTriggerError as any).body) console.error('[AI Reply] Pusher error body:', (pusherTriggerError as any).body);
-          if (pusherTriggerError.cause) console.error('[AI Reply] Pusher error cause:', pusherTriggerError.cause);
-          console.error('[AI Reply] Pusher error all properties:', JSON.stringify(pusherTriggerError, Object.getOwnPropertyNames(pusherTriggerError)));
-        } else {
-          console.error('[AI Reply] Pusher error (not an Error object):', String(pusherTriggerError));
-        }
-        console.log('[AI Reply] Continuing despite Pusher typing indicator failure...');
-      }
-      console.log('[AI Reply] Proceeding after Pusher typing indicator attempt.');
+      // Set typing indicator immediately with parallel Redis + Pusher
+      console.log('[AI Reply] Setting typing indicator...');
+      await Promise.all([
+        // Redis typing indicator (non-blocking if fails)
+        setTypingIndicator(chatId, 'assistant', true).catch(redisError => {
+          console.error('[AI Reply] Redis typing indicator failed:', redisError);
+        }),
+        // Pusher typing indicator (immediate user feedback)
+        pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true }).catch(pusherError => {
+          console.error('[AI Reply] Pusher typing indicator failed:', pusherError);
+        })
+      ]);
+      console.log('[AI Reply] Typing indicators set');
     
     // Get current state -- THIS BLOCK WILL BE REMOVED
     // console.log('[AI Reply] Formatting state for prompt...');

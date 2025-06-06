@@ -98,28 +98,36 @@ export async function POST(req: NextRequest) {
 
     const channelName = getChatChannelName(chatId);
 
-    // Clear stale typing indicators before checking turn permissions
-    try {
-      const { getTypingUsers, setTypingIndicator } = await import('@/lib/redis');
-      const typingUsers = await getTypingUsers(chatId);
-      
-      for (const typingUserId of typingUsers) {
-        if (typingUserId !== session.user.id && typingUserId !== 'assistant') {
-          await setTypingIndicator(chatId, typingUserId, false);
-          await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
-            userId: typingUserId, 
-            isTyping: false 
-          });
-        }
-      }
-    } catch (typingError) {
-      console.warn('[Messages API] Failed to clear stale typing indicators:', typingError);
-    }
-    
-    // Check if user can send message
+    // Run typing cleanup and turn validation in parallel
     const turnManager = new TurnManager(chatId);
-    const canSend = await turnManager.canUserSendMessage(session.user.id);
-    const currentTurn = await turnManager.getCurrentTurn();
+    
+    const [, canSend, currentTurn] = await Promise.all([
+      // Clear stale typing indicators in parallel (non-blocking)
+      (async () => {
+        try {
+          const { getTypingUsers, setTypingIndicator } = await import('@/lib/redis');
+          const typingUsers = await getTypingUsers(chatId);
+          
+          // Parallelize typing indicator cleanup
+          const typingPromises = typingUsers
+            .filter(typingUserId => typingUserId !== session.user.id && typingUserId !== 'assistant')
+            .map(typingUserId => Promise.all([
+              setTypingIndicator(chatId, typingUserId, false),
+              pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, { 
+                userId: typingUserId, 
+                isTyping: false 
+              })
+            ]));
+          
+          await Promise.all(typingPromises);
+        } catch (typingError) {
+          console.warn('[Messages API] Failed to clear stale typing indicators:', typingError);
+        }
+      })(),
+      // Check turn permissions in parallel
+      turnManager.canUserSendMessage(session.user.id),
+      turnManager.getCurrentTurn()
+    ]);
     
     if (!canSend) {
       // Recovery: Try to initialize turn if no state exists
@@ -140,23 +148,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Save the message
-    const newMessage = await prisma.event.create({
-      data: {
-        chat_id: chatId,
-        type: 'message',
-        data: { content, senderId: session.user.id },
-        created_at: new Date(),
-        seq: 0,
-      },
-    });
+    // Generate optimistic message ID and timestamp for immediate broadcast
+    const optimisticId = `opt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = new Date();
 
-    // Emit message via Pusher
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
-      id: newMessage.id,
-      created_at: newMessage.created_at.toISOString(),
-      data: { content, senderId: session.user.id }
-    });
+    // Broadcast message immediately for better UX, then save to database
+    const [newMessage] = await Promise.all([
+      // Database write (parallel)
+      prisma.event.create({
+        data: {
+          chat_id: chatId,
+          type: 'message',
+          data: { content, senderId: session.user.id },
+          created_at: timestamp,
+          seq: 0,
+        },
+      }),
+      // Pusher broadcast (parallel) - users see message immediately
+      pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
+        id: optimisticId, // Use optimistic ID for immediate display
+        created_at: timestamp.toISOString(),
+        data: { content, senderId: session.user.id }
+      })
+    ]);
+
+    // Send correction with real ID if different (rarely needed)
+    if (newMessage.id !== optimisticId) {
+      await pusherServer.trigger(channelName, 'MESSAGE_ID_UPDATE', {
+        optimisticId,
+        realId: newMessage.id
+      });
+    }
 
     // Trigger AI reply generation asynchronously
     generateAIReply({ 

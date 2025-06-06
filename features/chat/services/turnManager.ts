@@ -14,8 +14,8 @@ export interface TurnState {
 export class TurnManager {
   private eventDrivenManager: EventDrivenTurnManager;
 
-  constructor(private chatId: string) {
-    this.eventDrivenManager = new EventDrivenTurnManager(chatId);
+  constructor(protected chatId: string, chatType: string = 'mediated') {
+    this.eventDrivenManager = new EventDrivenTurnManager(chatId, chatType);
   }
 
   // Get current turn state
@@ -61,9 +61,11 @@ export class TurnManager {
         }
       });
       
-      // Clear stale typing indicators and emit update
-      await this.clearStaleTypingIndicators(actualFirstUserId);
-      await this.emitTurnUpdate(actualFirstUserId);
+      // Emit turn update
+      const channelName = getChatChannelName(this.chatId);
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+        next_user_id: actualFirstUserId 
+      });
       
       return { next_user_id: actualFirstUserId };
     } catch (error) {
@@ -78,9 +80,11 @@ export class TurnManager {
       const firstUserId = await this.getFirstParticipantId();
       const turnState = await this.eventDrivenManager.resetTurn(firstUserId);
       
-      // Clear stale typing indicators and emit update
-      await this.clearStaleTypingIndicators(firstUserId);
-      await this.emitTurnUpdate(firstUserId);
+      // Emit turn update
+      const channelName = getChatChannelName(this.chatId);
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+        next_user_id: firstUserId 
+      });
       
       return { next_user_id: turnState.next_user_id };
     } catch (error) {
@@ -127,137 +131,4 @@ export class TurnManager {
     return firstParticipant.user_id;
   }
 
-  // Advance turn to next participant
-  async advanceTurn(): Promise<TurnState> {
-    try {
-      const currentTurn = await this.getCurrentTurn();
-      if (!currentTurn) {
-        throw new Error('No current turn state');
-      }
-
-      // Get next participant based on policy
-      const events = await this.getChatEvents();
-      const participants = await this.getParticipants();
-      const nextTurn = await this.eventDrivenManager.getCurrentTurn();
-
-      // Update state
-      const updatedState = await this.stateManager.updateTurnState({
-        next_user_id: nextTurn.next_user_id,
-        next_role: nextTurn.next_role,
-        current_turn_index: (currentTurn.current_turn_index || 0) + 1
-      });
-
-      // Clear typing indicators from previous user
-      await this.stateManager.clearStaleTypingIndicators(nextTurn.next_user_id || undefined);
-
-      return {
-        next_user_id: updatedState.next_user_id,
-        next_role: updatedState.next_role,
-        current_turn_index: updatedState.current_turn_index,
-        turn_queue: updatedState.turn_queue
-      };
-    } catch (error) {
-      console.error('[TurnManager] Error advancing turn:', error);
-      throw error;
-    }
-  }
-
-  // Set typing indicator with turn awareness
-  async setTypingIndicator(userId: string, isTyping: boolean): Promise<void> {
-    try {
-      await this.stateManager.setTypingIndicator(userId, isTyping);
-    } catch (error) {
-      console.error('[TurnManager] Error setting typing indicator:', error);
-    }
-  }
-
-  // Get complete state snapshot
-  async getStateSnapshot() {
-    try {
-      return await this.stateManager.getStateSnapshot();
-    } catch (error) {
-      console.error('[TurnManager] Error getting state snapshot:', error);
-      throw error;
-    }
-  }
-
-  // Health check
-  async checkHealth() {
-    try {
-      return await this.stateManager.checkConnectionHealth();
-    } catch (error) {
-      console.error('[TurnManager] Error checking health:', error);
-      return { healthy: false, lastCheck: new Date() };
-    }
-  }
-
-  // Invalidate caches
-  async invalidateCache(): Promise<void> {
-    try {
-      await this.stateManager.invalidateCache();
-    } catch (error) {
-      console.error('[TurnManager] Error invalidating cache:', error);
-    }
-  }
-
-  // Private helper methods for backward compatibility
-  
-  private async getChatEvents() {
-    return await prisma.event.findMany({
-      where: { 
-        chat_id: this.chatId,
-        type: 'message'
-      },
-      orderBy: { created_at: 'asc' },
-      select: {
-        id: true,
-        chat_id: true,
-        type: true,
-        data: true,
-        created_at: true,
-        seq: true
-      }
-    });
-  }
-
-  private async getParticipants() {
-    const chat = await prisma.chat.findUnique({
-      where: { id: this.chatId },
-      include: {
-        participants: {
-          include: {
-            user: {
-              select: { id: true, display_name: true }
-            }
-          }
-        }
-      }
-    });
-
-    if (!chat) {
-      throw new Error(`Chat not found: ${this.chatId}`);
-    }
-
-    const participants = [];
-
-    // Add all participants from the participants table
-    for (const participant of chat.participants) {
-      if (participant.user) {
-        participants.push({
-          id: participant.user.id,
-          display_name: participant.user.display_name || 'Unknown User',
-          role: participant.role
-        });
-      }
-    }
-
-    // Always add assistant
-    participants.push({
-      id: 'assistant',
-      display_name: 'AI Mediator',
-      role: 'assistant'
-    });
-
-    return participants;
-  }
 } 

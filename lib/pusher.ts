@@ -103,4 +103,5 @@ export const PUSHER_EVENTS = {
   COMPLETION_UPDATE: 'completion-update',
   COMPLETION_READY: 'completion-ready',
   PARTICIPANT_JOINED: 'participant-joined',
+  USER_PRESENCE: 'user-presence',
 } as const; 
