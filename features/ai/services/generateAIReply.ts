@@ -167,24 +167,40 @@ export async function generateAIReply({
 Respond thoughtfully as a mediator, drawing from the current emotional and conversational state.`;
     console.log('[AI Reply] Full prompt prepared using userMessage directly.');
 
-    // Get or create thread
+    // Get or create thread with timeout protection
     console.log(`[AI Reply] ${replyId} - Getting or creating thread...`);
     let threadId: string;
     let existingThread;
+    
     try {
       console.log(`[AI Reply] ${replyId} - Querying existing thread from database...`);
-      existingThread = await prisma.chatTurnState.findUnique({
+      
+      // Add database query timeout for mobile
+      const dbTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout')), 5000);
+      });
+      
+      const dbQuery = prisma.chatTurnState.findUnique({
         where: { chat_id: chatId },
         select: { thread_id: true }
       });
+      
+      existingThread = await Promise.race([dbQuery, dbTimeout]) as any;
       console.log(`[AI Reply] ${replyId} - Database query successful, found thread: ${!!existingThread?.thread_id}`);
     } catch (dbError) {
       console.error(`[AI Reply] ${replyId} - DATABASE ERROR: Failed to query existing thread:`, dbError);
-      if (dbError instanceof Error) {
-        console.error(`[AI Reply] ${replyId} - DB query error message:`, dbError.message);
-        console.error(`[AI Reply] ${replyId} - DB query error stack:`, dbError.stack);
+      
+      // For mobile production, skip thread lookup and create new one
+      if (isMobile && isProduction) {
+        console.log(`[AI Reply] ${replyId} - Mobile production: skipping thread lookup, will create new thread`);
+        existingThread = null;
+      } else {
+        if (dbError instanceof Error) {
+          console.error(`[AI Reply] ${replyId} - DB query error message:`, dbError.message);
+          console.error(`[AI Reply] ${replyId} - DB query error stack:`, dbError.stack);
+        }
+        throw dbError;
       }
-      throw dbError;
     }
 
     if (existingThread?.thread_id) {
