@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -52,6 +53,7 @@ const JoinProgress = ({ step, totalSteps }: { step: number; totalSteps: number }
 export default function InvitePage({ params }: { params: Promise<{ inviteId: string }> }) {
   const { inviteId } = use(params);
   const router = useRouter();
+  const session = useSession();
   
   const [validation, setValidation] = useState<InviteValidation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,6 +106,13 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
         
         if (response.ok) {
           setValidation(data);
+          
+          // If user is already authenticated and invite is valid, auto-route to chat
+          if (session.status === 'authenticated' && data.valid && data.chatId) {
+            console.log('[Invite] User already authenticated, redirecting to chat:', data.chatId);
+            router.push(`/chat/${data.chatId}`);
+            return;
+          }
         } else {
           setError('Failed to validate invite');
         }
@@ -114,8 +123,11 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
       }
     };
 
-    validateInvite();
-  }, [inviteId]);
+    // Only validate once we know the session status
+    if (session.status !== 'loading') {
+      validateInvite();
+    }
+  }, [inviteId, session.status, router]);
 
   const handleJoinChat = async () => {
     if (!guestName.trim()) {
@@ -161,14 +173,16 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
     router.push('/auth/signin');
   };
 
-  // Loading state
-  if (loading) {
+  // Loading state (authentication + validation)
+  if (loading || session.status === 'loading') {
     return (
       <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
         <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
           <div className="text-center space-y-4">
             <LoadingSpinner size="lg" />
-            <p className="text-[#3C4858]/70">Validating your invite...</p>
+            <p className="text-[#3C4858]/70">
+              {session.status === 'loading' ? 'Checking authentication...' : 'Validating your invite...'}
+            </p>
           </div>
         </Card>
       </div>

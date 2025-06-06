@@ -11,8 +11,8 @@ import { Mail, Eye, EyeOff, User, Lock } from "lucide-react"
 import KomensaLogoPath from "@/public/images/komensa-logo.png"
 import Link from "next/link"
 import Image from "next/image"
-import { useSearchParams } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { useSearchParams, useRouter } from "next/navigation"
+import { signIn, useSession } from "next-auth/react"
 
 type AuthStep = "email-check" | "signin" | "signup"
 
@@ -29,6 +29,16 @@ export default function SignInPage() {
   const [error, setError] = useState("")
   const [userExists, setUserExists] = useState(false)
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const { data: session, status } = useSession()
+
+  // Auto-redirect if already authenticated
+  useEffect(() => {
+    if (status === 'authenticated') {
+      console.log('[SignIn] User already authenticated, redirecting to dashboard');
+      router.push('/dashboard');
+    }
+  }, [status, router]);
 
   // Check for OAuth errors in URL parameters
   useEffect(() => {
@@ -166,6 +176,27 @@ export default function SignInPage() {
     setUsername("")
     setError("")
     setUserExists(false)
+  }
+
+  // Show loading while checking authentication
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <Link href="/" className="inline-block">
+              <Image src={KomensaLogoPath} alt="Komensa Logo" className="h-12 w-auto mx-auto" />
+            </Link>
+          </div>
+          <Card className="border-0 shadow-lg">
+            <CardContent className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D8A7B1] mx-auto mb-4"></div>
+              <p className="text-[#3C4858]/70">Checking authentication...</p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (

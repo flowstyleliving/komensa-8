@@ -85,42 +85,43 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div className="text-center">
-        <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-4">
-          <Link2 className="w-8 h-8 text-[#D8A7B1]" />
+        <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+          <Link2 className="w-6 h-6 sm:w-8 sm:h-8 text-[#D8A7B1]" />
         </div>
-        <h3 className="text-lg font-semibold text-[#3C4858] mb-2">Chat Created Successfully!</h3>
+        <h3 className="text-base sm:text-lg font-semibold text-[#3C4858] mb-2">Chat Created Successfully!</h3>
         <p className="text-sm text-[#3C4858]/70">
           Share this invite link to let others join your conversation.
         </p>
       </div>
 
-      <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
+      <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-3 sm:p-4">
         <Label className="text-xs font-medium text-[#3C4858]/80 mb-2 block">Invite Link</Label>
         <div className="flex items-center space-x-2">
           <Input
             value={inviteUrl}
             readOnly
-            className="flex-1 bg-white border-[#3C4858]/20 text-sm"
+            className="flex-1 bg-white border-[#3C4858]/20 text-xs sm:text-sm font-mono"
           />
           <Button
             onClick={copyToClipboard}
             variant="outline"
             size="sm"
-            className="border-[#D8A7B1] text-[#D8A7B1] hover:bg-[#D8A7B1]/10"
+            className="border-[#D8A7B1] text-[#D8A7B1] hover:bg-[#D8A7B1]/10 px-3 py-2 touch-manipulation flex-shrink-0"
           >
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            <span className="hidden sm:inline ml-1">{copied ? 'Copied' : 'Copy'}</span>
           </Button>
         </div>
-        <p className="text-xs text-[#3C4858]/60 mt-2">
+        <p className="text-xs text-[#3C4858]/60 mt-2 leading-relaxed">
           This link expires in 24 hours and can only be used once.
         </p>
       </div>
 
-      <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-4">
+      <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-3 sm:p-4">
         <h4 className="font-medium text-[#3C4858] text-sm mb-2">💡 How it works</h4>
-        <ul className="text-xs text-[#3C4858]/70 space-y-1">
+        <ul className="text-xs text-[#3C4858]/70 space-y-1 leading-relaxed">
           <li>• Share the link with someone you'd like to have a conversation with</li>
           <li>• They'll enter their name and join as a guest</li>
           <li>• The AI mediator will facilitate your dialogue</li>
@@ -128,7 +129,7 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
       </div>
 
       <Button
-        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
+        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 text-base sm:text-sm font-medium touch-manipulation"
         onClick={handleContinueToChat}
       >
         Continue to Chat
@@ -141,58 +142,58 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
 // Define child components OUTSIDE the main ChatSetupModal component
 // They will receive props from ChatSetupModal
 const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating' | 'invite-success'>> }) => (
-  <div className="space-y-6">
+  <div className="space-y-4 sm:space-y-6">
     <div className="text-center">
-      <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-4">
-        <Heart className="w-8 h-8 text-[#D8A7B1]" />
+      <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+        <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-[#D8A7B1]" />
       </div>
-      <h3 className="text-lg font-semibold text-[#3C4858] mb-2">Preparing for Intimate Chat</h3>
+      <h3 className="text-base sm:text-lg font-semibold text-[#3C4858] mb-2">Preparing for Intimate Chat</h3>
       <p className="text-sm text-[#3C4858]/70">
         Creating a safe space for meaningful dialogue requires intention and care.
       </p>
     </div>
 
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
-        <Shield className="w-5 h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
+        <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
         <div>
           <h4 className="font-medium text-[#3C4858] text-sm">Create Psychological Safety</h4>
-          <p className="text-xs text-[#3C4858]/70 mt-1">
+          <p className="text-xs sm:text-xs text-[#3C4858]/70 mt-1 leading-relaxed">
             Ensure all participants feel safe to express themselves without judgment. The AI mediator will help maintain this environment.
           </p>
         </div>
       </div>
 
       <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
-        <MessageCircle className="w-5 h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
+        <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
         <div>
           <h4 className="font-medium text-[#3C4858] text-sm">Practice Active Listening</h4>
-          <p className="text-xs text-[#3C4858]/70 mt-1">
+          <p className="text-xs sm:text-xs text-[#3C4858]/70 mt-1 leading-relaxed">
             Focus on understanding rather than responding. The mediator will guide turn-taking and ensure everyone is heard.
           </p>
         </div>
       </div>
 
       <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
-        <Users className="w-5 h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
+        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
         <div>
           <h4 className="font-medium text-[#3C4858] text-sm">Embrace Vulnerability</h4>
-          <p className="text-xs text-[#3C4858]/70 mt-1">
+          <p className="text-xs sm:text-xs text-[#3C4858]/70 mt-1 leading-relaxed">
             Authentic connection requires openness. Share your truth while respecting others' boundaries.
           </p>
         </div>
       </div>
     </div>
 
-    <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-4">
+    <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-3 sm:p-4">
       <h4 className="font-medium text-[#3C4858] text-sm mb-2">💡 Pro Tip</h4>
-      <p className="text-xs text-[#3C4858]/70">
+      <p className="text-xs text-[#3C4858]/70 leading-relaxed">
         The AI mediator will help facilitate the Chat, suggest reflection questions, and ensure balanced participation. Trust the process and be present.
       </p>
     </div>
 
     <Button
-      className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
+      className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 text-base sm:text-sm font-medium"
       onClick={() => setCurrentStep('participants')}
     >
       I'm Ready to Begin
@@ -244,13 +245,13 @@ const ParticipantsStep = ({
           variant="ghost"
           size="icon"
           onClick={() => setCurrentStep('preparation')}
-          className="text-[#3C4858]/70 hover:bg-[#F9F7F4]"
+          className="text-[#3C4858]/70 hover:bg-[#F9F7F4] h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div>
-          <h3 className="text-lg font-semibold text-[#3C4858]">Invite Participants</h3>
-          <p className="text-sm text-[#3C4858]/70">Choose how to invite people to this mediated Chat</p>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base sm:text-lg font-semibold text-[#3C4858] truncate">Invite Participants</h3>
+          <p className="text-xs sm:text-sm text-[#3C4858]/70 leading-tight">Choose how to invite people to this mediated Chat</p>
         </div>
       </div>
 
@@ -260,7 +261,7 @@ const ParticipantsStep = ({
         
         <div className="space-y-2">
           <div
-            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+            className={`p-3 border rounded-lg cursor-pointer transition-colors touch-manipulation ${
               !withInvite
                 ? 'border-[#D8A7B1] bg-[#D8A7B1]/10'
                 : 'border-[#3C4858]/20 hover:border-[#D8A7B1]/50'
@@ -268,20 +269,20 @@ const ParticipantsStep = ({
             onClick={() => setWithInvite(false)}
           >
             <div className="flex items-center space-x-3">
-              <div className={`w-4 h-4 rounded-full border-2 ${
+              <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
                 !withInvite ? 'border-[#D8A7B1] bg-[#D8A7B1]' : 'border-[#3C4858]/30'
               }`}>
                 {!withInvite && <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5" />}
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-[#3C4858] text-sm">Search & Add Users</h4>
-                <p className="text-xs text-[#3C4858]/70">Find registered users and add them directly</p>
+                <p className="text-xs text-[#3C4858]/70 leading-relaxed">Find registered users and add them directly</p>
               </div>
             </div>
           </div>
 
           <div
-            className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+            className={`p-3 border rounded-lg cursor-pointer transition-colors touch-manipulation ${
               withInvite
                 ? 'border-[#D8A7B1] bg-[#D8A7B1]/10'
                 : 'border-[#3C4858]/20 hover:border-[#D8A7B1]/50'
@@ -289,14 +290,14 @@ const ParticipantsStep = ({
             onClick={() => setWithInvite(true)}
           >
             <div className="flex items-center space-x-3">
-              <div className={`w-4 h-4 rounded-full border-2 ${
+              <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
                 withInvite ? 'border-[#D8A7B1] bg-[#D8A7B1]' : 'border-[#3C4858]/30'
               }`}>
                 {withInvite && <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5" />}
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-[#3C4858] text-sm">Create Guest Invite</h4>
-                <p className="text-xs text-[#3C4858]/70">Generate a link for anyone to join as a guest</p>
+                <p className="text-xs text-[#3C4858]/70 leading-relaxed">Generate a link for anyone to join as a guest</p>
               </div>
             </div>
           </div>
@@ -311,7 +312,7 @@ const ParticipantsStep = ({
           <Input
             id="chat-participants"
             placeholder="Search by name or username (min 3 chars)"
-            className="mt-1 border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white placeholder:text-[#3C4858]/50 pr-20"
+            className="mt-1 border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white placeholder:text-[#3C4858]/50 pr-16 sm:pr-20 text-base sm:text-sm"
             value={participantSearchQuery}
             onChange={(e) => setParticipantSearchQuery(e.target.value)}
             autoComplete="off"
@@ -323,25 +324,26 @@ const ParticipantsStep = ({
                 variant="ghost"
                 size="sm"
                 onClick={clearSearch}
-                className="h-6 w-6 p-0 text-[#3C4858]/50 hover:text-[#3C4858] hover:bg-[#D8A7B1]/10"
+                className="h-7 w-7 sm:h-6 sm:w-6 p-0 text-[#3C4858]/50 hover:text-[#3C4858] hover:bg-[#D8A7B1]/10 touch-manipulation"
               >
-                <X size={12} />
+                <X size={14} className="sm:hidden" />
+                <X size={12} className="hidden sm:block" />
               </Button>
             )}
             {isSearching && <LoadingSpinner size="sm" color="primary" />}
           </div>
         </div>
         {displayedUsers.length > 0 && (
-          <div className="mt-2 border border-[#3C4858]/20 rounded-md max-h-40 overflow-y-auto bg-white shadow-sm">
+          <div className="mt-2 border border-[#3C4858]/20 rounded-md max-h-36 sm:max-h-40 overflow-y-auto bg-white shadow-sm">
             {displayedUsers.map(user => (
               <div
                 key={user.id}
-                className="p-3 hover:bg-[#D8A7B1]/10 cursor-pointer text-sm text-[#3C4858] transition-colors border-b border-[#3C4858]/10 last:border-b-0"
+                className="p-3 hover:bg-[#D8A7B1]/10 cursor-pointer text-sm text-[#3C4858] transition-colors border-b border-[#3C4858]/10 last:border-b-0 touch-manipulation"
                 onClick={() => handleSelectParticipant(user)}
               >
-                <div className="font-medium text-[#3C4858]">{user.display_name}</div>
+                <div className="font-medium text-[#3C4858] truncate">{user.display_name}</div>
                 {user.username && (
-                  <div className="text-xs text-[#3C4858]/80">@{user.username}</div>
+                  <div className="text-xs text-[#3C4858]/80 truncate">@{user.username}</div>
                 )}
               </div>
             ))}
@@ -356,12 +358,12 @@ const ParticipantsStep = ({
       )}
 
       {withInvite && (
-        <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
+        <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-3 sm:p-4">
           <div className="flex items-center space-x-2 mb-2">
-            <Link2 className="w-4 h-4 text-[#D8A7B1]" />
+            <Link2 className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
             <h4 className="font-medium text-[#3C4858] text-sm">Guest Invite</h4>
           </div>
-          <p className="text-xs text-[#3C4858]/70 mb-3">
+          <p className="text-xs text-[#3C4858]/70 mb-3 leading-relaxed">
             A shareable link will be created that allows anyone to join your chat as a guest. Perfect for reaching out to people who don't have an account yet.
           </p>
           <ul className="text-xs text-[#3C4858]/60 space-y-1">
@@ -377,15 +379,16 @@ const ParticipantsStep = ({
           <Label className="text-xs font-medium text-[#3C4858]/80">Selected Participants ({selectedParticipants.length}):</Label>
           <div className="mt-2 flex flex-wrap gap-2">
             {selectedParticipants.map(user => (
-              <div key={user.id} className="flex items-center bg-[#D8A7B1]/20 text-[#3C4858] text-sm px-3 py-1.5 rounded-full transition-all hover:bg-[#D8A7B1]/30 group">
-                <span className="font-medium">{user.display_name}</span>
+              <div key={user.id} className="flex items-center bg-[#D8A7B1]/20 text-[#3C4858] text-sm px-3 py-1.5 rounded-full transition-all hover:bg-[#D8A7B1]/30 group touch-manipulation">
+                <span className="font-medium truncate max-w-[120px] sm:max-w-none">{user.display_name}</span>
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => handleRemoveParticipant(user.id)}
-                  className="h-4 w-4 ml-2 p-0 rounded-full hover:bg-[#D8A7B1]/40 opacity-60 group-hover:opacity-100 transition-opacity"
+                  className="h-5 w-5 sm:h-4 sm:w-4 ml-2 p-0 rounded-full hover:bg-[#D8A7B1]/40 opacity-60 group-hover:opacity-100 transition-opacity flex-shrink-0 touch-manipulation"
                 >
-                  <X size={12} />
+                  <X size={14} className="sm:hidden" />
+                  <X size={12} className="hidden sm:block" />
                 </Button>
               </div>
             ))}
@@ -400,7 +403,7 @@ const ParticipantsStep = ({
       )}
 
       <Button
-        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5 transition-all"
+        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 transition-all text-base sm:text-sm font-medium touch-manipulation"
         onClick={handleStartChat}
         disabled={(!withInvite && selectedParticipants.length === 0) || isSearching || isCreatingChat}
       >
@@ -418,13 +421,13 @@ const ParticipantsStep = ({
 };
 
 const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
-  <div className="space-y-6 text-center">
-    <div className="mx-auto w-20 h-20 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center">
+  <div className="space-y-4 sm:space-y-6 text-center">
+    <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center">
       <LoadingSpinner size="lg" color="primary" />
     </div>
 
     <div>
-      <h3 className="text-lg font-semibold text-[#3C4858] mb-2">Creating Your Sacred Space</h3>
+      <h3 className="text-base sm:text-lg font-semibold text-[#3C4858] mb-2">Creating Your Sacred Space</h3>
       <p className="text-sm text-[#3C4858]/70 mb-4">
         Setting up the Chat environment and preparing the AI mediator
       </p>
@@ -440,30 +443,30 @@ const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
 
     <div className="space-y-2 text-xs text-[#3C4858]/60">
       <div className="flex items-center justify-center space-x-2">
-        <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+        <CheckCircle className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
         <span>Initializing secure Chat space</span>
       </div>
       {creationProgress > 20 && (
         <div className="flex items-center justify-center space-x-2">
-          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
           <span>Configuring AI mediator</span>
         </div>
       )}
       {creationProgress > 40 && (
         <div className="flex items-center justify-center space-x-2">
-          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
           <span>Inviting participants</span>
         </div>
       )}
       {creationProgress > 60 && (
         <div className="flex items-center justify-center space-x-2">
-          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
           <span>Generating AI welcome message</span>
         </div>
       )}
       {creationProgress > 85 && (
         <div className="flex items-center justify-center space-x-2">
-          <CheckCircle className="w-4 h-4 text-[#D8A7B1]" />
+          <CheckCircle className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
           <span>Ready to begin!</span>
         </div>
       )}
@@ -634,19 +637,26 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
   };
 
   return isOpen ? (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 transition-opacity duration-300 ease-in-out">
-      <Card className="bg-[#FFFBF5] p-6 rounded-lg shadow-xl w-full max-w-md transform transition-all duration-300 ease-in-out scale-100 opacity-100">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-[#3C4858]">
-            {currentStep === 'preparation' && 'Prepare for Connection'}
-            {currentStep === 'participants' && 'Create Chat'}
-            {currentStep === 'creating' && 'Almost Ready...'}
-            {currentStep === 'invite-success' && 'Share Your Invite'}
-          </h2>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2 sm:p-4 transition-opacity duration-300 ease-in-out">
+      <Card className="bg-[#FFFBF5] p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-sm sm:max-w-md max-h-[90vh] sm:max-h-none overflow-y-auto transform transition-all duration-300 ease-in-out scale-100 opacity-100">
+        <div className="flex justify-between items-start mb-4 sm:mb-6">
+          <div className="flex-1 mr-3">
+            <h2 className="text-lg sm:text-xl font-semibold text-[#3C4858] leading-tight">
+              {currentStep === 'preparation' && 'Prepare for Connection'}
+              {currentStep === 'participants' && 'Create Chat'}
+              {currentStep === 'creating' && 'Almost Ready...'}
+              {currentStep === 'invite-success' && 'Share Your Invite'}
+            </h2>
+          </div>
           {currentStep !== 'creating' && (
-            <Button variant="ghost" size="icon" onClick={onClose} className="text-[#3C4858]/70 hover:bg-[#F9F7F4]">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={onClose} 
+              className="text-[#3C4858]/70 hover:bg-[#F9F7F4] h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
+            >
               <span className="sr-only">Close modal</span>
-              ✕
+              <X className="h-4 w-4 sm:h-5 sm:w-5" />
             </Button>
           )}
         </div>
@@ -683,7 +693,7 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
         {currentStep !== 'creating' && currentStep !== 'invite-success' && (
           <Button
             variant="outline"
-            className="w-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-2.5 mt-4"
+            className="w-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-3 sm:py-2.5 mt-4 text-base sm:text-sm font-medium touch-manipulation"
             onClick={onClose}
             disabled={isCreatingChat}
           >

@@ -130,9 +130,9 @@ export function ChatSettingsModal({
       />
 
       {/* Slide-out modal */}
-      <div className="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out">
+      <div className="fixed right-0 top-0 h-full w-full sm:w-96 lg:w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white p-6">
+        <div className="bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">
@@ -152,7 +152,7 @@ export function ChatSettingsModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 h-[calc(100vh-88px)] overflow-y-auto">
+        <div className="p-4 sm:p-6 h-[calc(100vh-88px)] overflow-y-auto">
           {/* AI Troubleshooting Section */}
           {onResetAI && (
             <div className="space-y-4 mb-8">
