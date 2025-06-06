@@ -69,41 +69,66 @@ export async function generateAIReply({
   let timeoutId: NodeJS.Timeout | undefined;
   let cleanupPerformed = false;
   
-  const cleanup = async () => {
+  const cleanup = async (source: string = 'timeout') => {
     if (cleanupPerformed) return;
     cleanupPerformed = true;
     
+    console.log(`[AI Reply] Cleanup initiated from: ${source}`);
+    const cleanupTimestamp = Date.now();
+    
+    // Mobile-safe cleanup: Pusher first for immediate UI feedback
     try {
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      console.log('[AI Reply] Cleanup: Typing indicator reset');
-    } catch (error) {
-      console.error('[AI Reply] Cleanup: Failed to reset typing indicator:', error);
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { 
+        isTyping: false,
+        timestamp: cleanupTimestamp,
+        source: `cleanup_${source}`
+      });
+      console.log(`[AI Reply] Pusher cleanup completed (${source})`);
+    } catch (pusherError) {
+      console.error(`[AI Reply] Pusher cleanup failed (${source}):`, pusherError);
+    }
+    
+    // Clear Redis state
+    try {
+      await setTypingIndicator(chatId, 'assistant', false);
+      console.log(`[AI Reply] Redis cleanup completed (${source})`);
+    } catch (redisError) {
+      console.error(`[AI Reply] Redis cleanup failed (${source}):`, redisError);
     }
   };
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(async () => {
       console.error('[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after 60 seconds');
-      await cleanup();
+      await cleanup('global_timeout');
       reject(new Error('AI reply generation timed out after 60 seconds'));
     }, globalTimeout); // Mobile-optimized timeout
   });
 
   const replyPromise = (async () => {
     try {
-      // Set typing indicator immediately with parallel Redis + Pusher
+      // Set typing indicator with mobile-safe sequencing
       console.log('[AI Reply] Setting typing indicator...');
-      await Promise.all([
-        // Redis typing indicator (non-blocking if fails)
-        setTypingIndicator(chatId, 'assistant', true).catch(redisError => {
-          console.error('[AI Reply] Redis typing indicator failed:', redisError);
-        }),
-        // Pusher typing indicator (immediate user feedback)
-        pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true }).catch(pusherError => {
-          console.error('[AI Reply] Pusher typing indicator failed:', pusherError);
-        })
-      ]);
-      console.log('[AI Reply] Typing indicators set');
+      let typingSetSuccessfully = false;
+      
+      try {
+        // Mobile-safe: Set Pusher first (immediate user feedback), then Redis
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { 
+          isTyping: true,
+          timestamp: Date.now(), // Add timestamp for mobile ordering
+          source: 'ai_start'
+        });
+        console.log('[AI Reply] Pusher typing indicator set');
+        
+        // Set Redis with longer TTL for mobile reliability
+        await setTypingIndicator(chatId, 'assistant', true);
+        console.log('[AI Reply] Redis typing indicator set');
+        typingSetSuccessfully = true;
+      } catch (error) {
+        console.error('[AI Reply] Failed to set typing indicators:', error);
+        // If we fail to set typing, still proceed but log the issue
+        // The timeout mechanism will still clear any stuck state
+      }
     
     // Get current state -- THIS BLOCK WILL BE REMOVED
     // console.log('[AI Reply] Formatting state for prompt...');
@@ -307,32 +332,12 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Message retrieved:', fullMessage);
     } catch (error) {
       console.error('[AI Reply] Failed to generate AI response:', error);
-      await setTypingIndicator(chatId, 'assistant', false); // Ensure typing indicator is off
-      try {
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      } catch (pusherError) {
-        console.error('[AI Reply] ERROR: Failed to reset typing indicator via Pusher on error:', pusherError);
-      }
+      await cleanup('ai_error');
       throw error;
     }
 
-    // Stop typing indicator
-    console.log('[AI Reply] Stopping typing indicator...');
-    try {
-      await setTypingIndicator(chatId, 'assistant', false);
-      console.log('[AI Reply] Typing indicator stopped in Redis');
-    } catch (redisError) {
-       console.error('[AI Reply] REDIS ERROR: Failed to stop typing indicator in Redis:', redisError);
-    }
-    try {
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      console.log('[AI Reply] Typing indicator stopped via Pusher');
-      console.log('[AI Reply] Stop typing - Channel name:', channelName);
-      console.log('[AI Reply] Stop typing - Event:', PUSHER_EVENTS.ASSISTANT_TYPING);
-      console.log('[AI Reply] Stop typing - Data:', { isTyping: false });
-    } catch (pusherError) {
-      console.error('[AI Reply] ERROR: Failed to stop typing indicator via Pusher:', pusherError);
-    }
+    // Stop typing indicator using unified cleanup
+    await cleanup('ai_success');
 
     const cleanedMessage = fullMessage.trim();
 

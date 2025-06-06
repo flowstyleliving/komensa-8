@@ -87,8 +87,10 @@ export const redis = createRedisClient();
 export const setTypingIndicator = async (chatId: string, userId: string, isTyping: boolean) => {
   const key = `chat:${chatId}:typing:${userId}`;
   if (isTyping) {
-    // Set with shorter expiration to match frontend timeout (3 seconds for safety buffer)
-    await redis.setex(key, 3, '1');
+    // Mobile-optimized: Longer TTL for mobile network reliability 
+    // 10 seconds instead of 3 to handle mobile latency
+    const ttl = userId === 'assistant' ? 60 : 10; // AI gets 60s, users get 10s
+    await redis.setex(key, ttl, '1');
   } else {
     await redis.del(key);
   }
