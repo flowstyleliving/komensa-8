@@ -311,7 +311,7 @@ const ParticipantsStep = ({
         <div className="relative">
           <Input
             id="chat-participants"
-            placeholder="Search by name or username (min 3 chars)"
+            placeholder="Search by name or username (min 3 char)"
             className="mt-1 border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white placeholder:text-[#3C4858]/50 pr-16 sm:pr-20 text-base"
             value={participantSearchQuery}
             onChange={(e) => setParticipantSearchQuery(e.target.value)}

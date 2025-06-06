@@ -124,12 +124,11 @@ export function ChatInput({
     }
 
     const isMyTurn = currentTurn.next_user_id === currentUserId;
+    const humanParticipants = participants.filter(p => p.id !== currentUserId && p.id !== 'assistant');
     
     if (isMyTurn) {
       // Check if this might be the first message scenario
-      const otherParticipants = participants.filter(p => p.id !== currentUserId && p.id !== 'assistant');
-      
-      if (otherParticipants.length === 0) {
+      if (humanParticipants.length === 0) {
         // User is alone, encourage them to start
         return (
           <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
@@ -148,19 +147,42 @@ export function ChatInput({
       }
     }
 
-    // Find who's turn it is
+    // Not my turn - determine who should speak next
     let turnUserName = 'Unknown User';
+    let waitingMessage = '';
+    
     if (currentTurn.next_user_id === 'assistant') {
       turnUserName = 'AI Mediator';
+      waitingMessage = `${turnUserName} is thinking...`;
     } else {
       const turnUser = participants.find(p => p.id === currentTurn.next_user_id);
       turnUserName = turnUser?.display_name || 'Unknown User';
+      
+      // For multi-participant chats, be more explicit about the waiting behavior
+      if (humanParticipants.length > 0) {
+        // Check if the person whose turn it is has joined yet
+        const hasJoined = turnUser?.display_name && !turnUser.display_name.startsWith('guest_');
+        if (hasJoined) {
+          waitingMessage = `Waiting for ${turnUserName} to respond...`;
+        } else {
+          waitingMessage = `Waiting for ${turnUserName} to join and respond...`;
+        }
+      } else {
+        waitingMessage = `Waiting for ${turnUserName}...`;
+      }
     }
 
     return (
-      <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
-        <Users className="h-4 w-4 text-[#D8A7B1]" />
-        <span>Waiting for {turnUserName}...</span>
+      <div className="flex flex-col items-center justify-center gap-1 text-[#3C4858]/60 text-sm">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-[#D8A7B1]" />
+          <span>{waitingMessage}</span>
+        </div>
+        {humanParticipants.length > 0 && currentTurn.next_user_id !== 'assistant' && (
+          <div className="text-xs text-[#3C4858]/40 italic">
+            Please wait for your turn - everyone gets to speak
+          </div>
+        )}
       </div>
     );
   };

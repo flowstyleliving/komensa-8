@@ -101,22 +101,51 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
   useEffect(() => {
     const validateInvite = async () => {
       try {
+        console.log('[Invite] Validating invite:', {
+          inviteId,
+          sessionStatus: session.status,
+          userId: session?.data?.user?.id,
+          isGuest: session?.data?.user?.isGuest,
+          sessionChatId: session?.data?.user?.chatId
+        });
+        
         const response = await fetch(`/api/invite/validate?inviteId=${encodeURIComponent(inviteId)}`);
         const data = await response.json();
+        
+        console.log('[Invite] Validation response:', data);
         
         if (response.ok) {
           setValidation(data);
           
           // If user is already authenticated and invite is valid, auto-route to chat
           if (session.status === 'authenticated' && data.valid && data.chatId) {
-            console.log('[Invite] User already authenticated, redirecting to chat:', data.chatId);
-            router.push(`/chat/${data.chatId}`);
-            return;
+            // For guests, only auto-redirect if this is for the same chat they're already in
+            if (session.data?.user?.isGuest) {
+              if (session.data.user.chatId === data.chatId) {
+                console.log('[Invite] Guest already in this chat, redirecting to chat:', data.chatId);
+                router.push(`/chat/${data.chatId}`);
+                return;
+              } else {
+                console.log('[Invite] Guest trying to access different chat:', {
+                  currentChatId: session.data.user.chatId,
+                  inviteChatId: data.chatId
+                });
+                // Allow guest to see the invite form for a different chat
+                return;
+              }
+            } else {
+              // Regular authenticated user - redirect to chat
+              console.log('[Invite] User already authenticated, redirecting to chat:', data.chatId);
+              router.push(`/chat/${data.chatId}`);
+              return;
+            }
           }
         } else {
+          console.error('[Invite] Validation failed:', response.status, data);
           setError('Failed to validate invite');
         }
       } catch (err) {
+        console.error('[Invite] Network error during validation:', err);
         setError('Network error occurred');
       } finally {
         setLoading(false);

@@ -42,12 +42,14 @@ export class MediatedTurnPolicy implements TurnPolicy {
   name = 'mediated';
 
   initializeFirstTurn(participants: Participant[]): TurnState {
-    // Find the first non-assistant participant (usually the chat creator)
-    const firstUser = participants.find(p => p.id !== 'assistant');
+    // Find the chat creator first, fallback to first non-assistant participant
+    const humanParticipants = participants.filter(p => p.id !== 'assistant');
     
-    if (firstUser) {
+    if (humanParticipants.length > 0) {
+      // For now, use the first participant as creator
+      // TODO: In the future, we could pass creator info to this method
       return {
-        next_user_id: firstUser.id,
+        next_user_id: humanParticipants[0].id,
         next_role: 'user'
       };
     }
@@ -78,17 +80,65 @@ export class MediatedTurnPolicy implements TurnPolicy {
     const senderId = lastMessage.data.senderId;
 
     if (senderId === 'assistant') {
-      // AI just responded, turn goes back to the original user who triggered the AI
-      // We need to look at the message before the AI's message
+      // AI just responded, determine next human participant
+      const humanParticipants = participants.filter(p => p.id !== 'assistant');
+      
+      if (humanParticipants.length <= 1) {
+        // Only one human participant, they can continue after AI responds
+        return {
+          next_user_id: humanParticipants[0]?.id || 'assistant',
+          next_role: 'user'
+        };
+      }
+
+      // Multiple participants: STRICT turn rotation - must wait for other participants
+      // Get all user messages (excluding AI) to determine who spoke last
       const userMessages = events
         .filter(e => e.type === 'message' && e.data.senderId !== 'assistant')
         .sort((a, b) => a.created_at.getTime() - b.created_at.getTime());
       
+      if (userMessages.length === 0) {
+        // No user messages yet (shouldn't happen if we're here after AI), start with first participant
+        return {
+          next_user_id: humanParticipants[0].id,
+          next_role: 'user'
+        };
+      }
+
+      // Find the last user who spoke before this AI response
       const lastUserMessage = userMessages.slice(-1)[0];
-      const nextUserId = lastUserMessage?.data.senderId || participants.find(p => p.id !== 'assistant')?.id;
+      const lastUserSenderId = lastUserMessage.data.senderId;
+      
+      // STRICT POLICY: Always move to the NEXT participant in rotation
+      // The previous speaker must wait for everyone else to have a turn
+      const currentUserIndex = humanParticipants.findIndex(p => p.id === lastUserSenderId);
+      
+      if (currentUserIndex === -1) {
+        // Fallback: if we can't find the user, start with first
+        console.warn('[MediatedTurnPolicy] Could not find last speaker in participants, defaulting to first');
+        return {
+          next_user_id: humanParticipants[0].id,
+          next_role: 'user'
+        };
+      }
+      
+      // Move to next participant in rotation (creator must wait for others)
+      const nextUserIndex = (currentUserIndex + 1) % humanParticipants.length;
+      const nextUser = humanParticipants[nextUserIndex];
+      
+      console.log('[MediatedTurnPolicy] STRICT turn rotation - AI finished, next participant must speak:', {
+        lastUserSenderId,
+        lastUserName: humanParticipants[currentUserIndex]?.display_name,
+        currentUserIndex,
+        nextUserIndex,
+        nextUserId: nextUser.id,
+        nextUserName: nextUser.display_name,
+        totalHumanParticipants: humanParticipants.length,
+        strictPolicy: 'creator_must_wait'
+      });
 
       return {
-        next_user_id: nextUserId || 'assistant',
+        next_user_id: nextUser.id,
         next_role: 'user'
       };
     } else {
@@ -123,19 +173,28 @@ export class MediatedTurnPolicy implements TurnPolicy {
     // Special case: If this is the first turn and multiple participants exist
     const humanParticipants = participants.filter(p => p.id !== 'assistant');
     if (humanParticipants.length > 1 && currentTurn.next_role === 'user') {
-      // Check if this might be the initial state where anyone can start
       const user = participants.find(p => p.id === currentTurn.next_user_id);
       if (user) {
-        return `${user.display_name || 'User'} can start the conversation...`;
+        // For multi-participant chats, be explicit about waiting
+        if (humanParticipants.length === 2) {
+          return `Waiting for ${user.display_name || 'User'} to respond...`;
+        } else {
+          return `${user.display_name || 'User'}'s turn to speak...`;
+        }
       } else {
-        return 'Anyone can start the conversation...';
+        return 'Waiting for the next participant...';
       }
     }
 
     const user = participants.find(p => p.id === currentTurn.next_user_id);
     const userName = user?.display_name || 'Unknown User';
     
-    return `Waiting for ${userName}...`;
+    // For multi-participant chats, emphasize the waiting aspect
+    if (humanParticipants.length > 1) {
+      return `Waiting for ${userName} to respond...`;
+    } else {
+      return `Waiting for ${userName}...`;
+    }
   }
 }
 

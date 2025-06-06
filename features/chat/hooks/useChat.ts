@@ -252,11 +252,17 @@ export function useChat(chatId: string) {
       channel.bind(PUSHER_EVENTS.ASSISTANT_TYPING, (typingData: { isTyping: boolean }) => {
         try {
           console.log('[useChat] Assistant typing status:', typingData);
+          console.log('[useChat] Current isAssistantTyping state:', data.isAssistantTyping);
           if (typeof typingData?.isTyping === 'boolean') {
-            setData(prev => ({
-              ...prev,
-              isAssistantTyping: typingData.isTyping
-            }));
+            console.log('[useChat] Setting isAssistantTyping to:', typingData.isTyping);
+            setData(prev => {
+              console.log('[useChat] Previous isAssistantTyping:', prev.isAssistantTyping);
+              console.log('[useChat] New isAssistantTyping:', typingData.isTyping);
+              return {
+                ...prev,
+                isAssistantTyping: typingData.isTyping
+              };
+            });
           } else {
             console.warn('[useChat] Received malformed assistant typing event:', typingData);
           }

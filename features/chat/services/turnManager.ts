@@ -166,19 +166,40 @@ export class TurnManager {
 
       if (this.useEventDriven) {
         console.log('[TurnManager] Using EventDrivenTurnManager.initializeFirstTurn');
+        
+        // Get the actual chat creator from the chat_created event
+        const chatCreator = await this.getActualChatCreator();
+        const actualFirstUserId = chatCreator || firstUserId;
+        
+        console.log('[TurnManager] Chat creator determination:', {
+          requestedFirstUserId: firstUserId,
+          actualChatCreator: chatCreator,
+          finalFirstUserId: actualFirstUserId
+        });
+        
         const turnState = await this.eventDrivenManager.initializeFirstTurn();
         
+        // Override the turn state to use the actual creator
+        await prisma.chatTurnState.upsert({
+          where: { chat_id: this.chatId },
+          update: { next_user_id: actualFirstUserId },
+          create: { 
+            chat_id: this.chatId, 
+            next_user_id: actualFirstUserId 
+          }
+        });
+        
         // Clear stale typing indicators
-        await this.clearStaleTypingIndicators(firstUserId);
+        await this.clearStaleTypingIndicators(actualFirstUserId);
         
         // Emit turn update via Pusher
         const channelName = getChatChannelName(this.chatId);
         await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-          next_user_id: firstUserId 
+          next_user_id: actualFirstUserId 
         });
         
-        console.log('[TurnManager] Turn initialized using EventDrivenTurnManager:', firstUserId);
-        return { next_user_id: turnState.next_user_id };
+        console.log('[TurnManager] Turn initialized with chat creator:', actualFirstUserId);
+        return { next_user_id: actualFirstUserId };
       } else {
         console.log('[TurnManager] Using legacy initializeTurn');
         return this.getLegacyInitializeTurn(firstUserId);
@@ -186,6 +207,34 @@ export class TurnManager {
     } catch (error) {
       console.error('[TurnManager] Error in initializeTurn, falling back to legacy:', error);
       return this.getLegacyInitializeTurn(firstUserId);
+    }
+  }
+
+  // Helper to get the actual chat creator
+  private async getActualChatCreator(): Promise<string | null> {
+    try {
+      const chat = await prisma.chat.findUnique({
+        where: { id: this.chatId },
+        include: {
+          events: {
+            where: { type: 'chat_created' },
+            take: 1
+          }
+        }
+      });
+
+      if (chat?.events[0]) {
+        const chatCreatedEvent = chat.events[0];
+        const creatorId = (chatCreatedEvent.data as any)?.createdBy;
+        console.log('[TurnManager] Found chat creator from event:', creatorId);
+        return creatorId || null;
+      }
+
+      console.log('[TurnManager] No chat_created event found, cannot determine creator');
+      return null;
+    } catch (error) {
+      console.error('[TurnManager] Error getting chat creator:', error);
+      return null;
     }
   }
 

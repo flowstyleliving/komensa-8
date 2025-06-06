@@ -35,10 +35,17 @@ export default function SignInPage() {
   // Clear any problematic guest sessions when visiting signin page
   useEffect(() => {
     const clearGuestSession = () => {
-      // Clear any guest session cookies that might be causing issues
-      document.cookie = 'next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-      document.cookie = '__Secure-next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; secure;';
-      console.log('[SignIn] Cleared potentially problematic session cookies');
+      // Only clear sessions if there's an actual authentication issue
+      // Don't automatically clear guest sessions as they may be valid
+      const urlParams = new URLSearchParams(window.location.search);
+      const authError = urlParams.get('error');
+      
+      if (authError) {
+        // Clear sessions only when there's an explicit auth error
+        document.cookie = 'next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = '__Secure-next-auth.session-token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; secure;';
+        console.log('[SignIn] Cleared session cookies due to auth error:', authError);
+      }
     };
     
     clearGuestSession();

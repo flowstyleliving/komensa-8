@@ -88,6 +88,9 @@ export async function generateAIReply({
       }
       
       console.log('[AI Reply] Attempting to emit typing indicator (Pusher trigger)...');
+      console.log('[AI Reply] Channel name:', channelName);
+      console.log('[AI Reply] Event:', PUSHER_EVENTS.ASSISTANT_TYPING);
+      console.log('[AI Reply] Data:', { isTyping: true });
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: true });
         console.log('[AI Reply] SUCCESSFULLY emitted typing indicator via Pusher.');
@@ -320,6 +323,9 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     try {
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       console.log('[AI Reply] Typing indicator stopped via Pusher');
+      console.log('[AI Reply] Stop typing - Channel name:', channelName);
+      console.log('[AI Reply] Stop typing - Event:', PUSHER_EVENTS.ASSISTANT_TYPING);
+      console.log('[AI Reply] Stop typing - Data:', { isTyping: false });
     } catch (pusherError) {
       console.error('[AI Reply] ERROR: Failed to stop typing indicator via Pusher:', pusherError);
     }
@@ -377,17 +383,53 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     } else {
       console.log('[AI Reply] Production chat - EventDrivenTurnManager handles turns automatically');
       // The EventDrivenTurnManager automatically calculates the next turn based on events
-      // No manual turn management needed - the system calculates from message history
+      // IMPORTANT: Sync the ChatTurnState table with the calculated turn state
       
-      // Optional: Emit a generic turn update event to refresh the frontend
       try {
+        const { TurnManager } = await import('@/features/chat/services/turnManager');
+        const turnManager = new TurnManager(chatId);
+        
+        // Get the calculated next turn from EventDrivenTurnManager
+        const calculatedTurn = await turnManager.getCurrentTurn();
+        
+        if (calculatedTurn && calculatedTurn.next_user_id) {
+          // Update the ChatTurnState table to match the calculated turn
+          await prisma.chatTurnState.upsert({
+            where: { chat_id: chatId },
+            update: { 
+              next_user_id: calculatedTurn.next_user_id,
+              updated_at: new Date()
+            },
+            create: {
+              chat_id: chatId,
+              next_user_id: calculatedTurn.next_user_id
+            }
+          });
+          
+          console.log('[AI Reply] ChatTurnState synced with EventDrivenTurnManager:', {
+            chatId,
+            nextUserId: calculatedTurn.next_user_id
+          });
+          
+          // Emit specific turn update with the calculated next user
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+            next_user_id: calculatedTurn.next_user_id,
+            next_role: calculatedTurn.next_role
+          });
+          console.log('[AI Reply] Turn update event emitted with specific user:', calculatedTurn.next_user_id);
+        } else {
+          console.warn('[AI Reply] Could not calculate next turn, emitting generic refresh');
+          // Fallback: Emit a generic turn update event to refresh the frontend
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+            timestamp: new Date().toISOString() // Just refresh the frontend
+          });
+        }
+      } catch (turnError) {
+        console.error('[AI Reply] ERROR: Failed to sync ChatTurnState with EventDrivenTurnManager:', turnError);
+        // Fallback: Emit a generic turn update event to refresh the frontend
         await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-          timestamp: new Date().toISOString() // Just refresh the frontend
+          timestamp: new Date().toISOString()
         });
-        console.log('[AI Reply] Turn refresh event emitted for frontend');
-      } catch (pusherError) {
-        console.error('[AI Reply] ERROR: Failed to emit turn refresh event:', pusherError);
-        // Non-critical, continue
       }
     }
 

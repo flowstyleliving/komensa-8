@@ -104,20 +104,44 @@ export async function POST(req: NextRequest) {
     
     // Check if user can send message (EventDrivenTurnManager handles this)
     const canSend = await turnManager.canUserSendMessage(session.user.id);
-    console.log('[Messages API] Can user send message:', { 
+    const currentTurn = await turnManager.getCurrentTurn();
+    console.log('[Messages API] Turn validation details:', { 
       userId: session.user.id, 
       isGuest: session.user.isGuest,
-      canSend
+      canSend,
+      currentTurn,
+      nextUserId: currentTurn?.next_user_id,
+      nextRole: currentTurn?.next_role
     });
     
     if (!canSend) {
-      const currentTurn = await turnManager.getCurrentTurn();
-      console.log('[Messages API] Not user turn:', { 
-        expected: currentTurn?.next_user_id, 
-        actual: session.user.id,
-        currentTurn
-      });
-      return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
+      // RECOVERY: If no turn state exists or it's pointing to assistant, try to reset
+      if (!currentTurn || currentTurn.next_user_id === 'assistant') {
+        console.log('[Messages API] Attempting turn recovery - no state or stuck on assistant');
+        try {
+          await turnManager.initializeTurn(session.user.id);
+          const recoveredCanSend = await turnManager.canUserSendMessage(session.user.id);
+          console.log('[Messages API] Recovery attempt result:', { recoveredCanSend });
+          
+          if (recoveredCanSend) {
+            console.log('[Messages API] Recovery successful, allowing message');
+            // Continue with message processing below
+          } else {
+            console.log('[Messages API] Recovery failed, blocking message');
+            return NextResponse.json({ error: 'Not your turn (recovery failed)' }, { status: 403 });
+          }
+        } catch (recoveryError) {
+          console.error('[Messages API] Turn recovery failed:', recoveryError);
+          return NextResponse.json({ error: 'Not your turn (recovery error)' }, { status: 403 });
+        }
+      } else {
+        console.log('[Messages API] Not user turn:', { 
+          expected: currentTurn?.next_user_id, 
+          actual: session.user.id,
+          currentTurn
+        });
+        return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
+      }
     }
 
     // Save the message

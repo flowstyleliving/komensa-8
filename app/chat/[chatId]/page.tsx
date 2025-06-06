@@ -145,7 +145,9 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     participantsTotal: participants.length,
     humanParticipants: humanParticipants.length,
     headerNames,
-    currentUserId: userId
+    currentUserId: userId,
+    isAssistantTyping: isAssistantTyping,
+    shouldShowTypingIndicator: isAssistantTyping && true
   });
   
   // Check if current user is typing to conditionally show vizcue
@@ -273,7 +275,10 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                 />
               );
             })}
-            {isAssistantTyping && <TypingIndicator />}
+            {(() => {
+              console.log('[ChatPage] Typing indicator check:', { isAssistantTyping });
+              return isAssistantTyping && <TypingIndicator />;
+            })()}
             {Array.from(typingUsers)
               .filter(typingUserId => typingUserId !== userId)
               .map(typingUserId => {
