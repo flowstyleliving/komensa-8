@@ -69,13 +69,13 @@ export function ChatBubble({ content, senderId, timestamp, userId, participantMa
 
   if (isSystem || isAssistant) {
     return (
-      <div className="flex justify-center my-6">
+      <div className="flex justify-center my-4 sm:my-6">
         <div className={getBubbleStyle()}>
           <div className="prose prose-sm max-w-none">
-            <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
+            <p className="whitespace-pre-wrap leading-relaxed text-sm sm:text-base">{content}</p>
           </div>
           {isAssistant && (
-            <p className="text-xs mt-3 text-[#7BAFB0]/70 font-medium">
+            <p className="text-xs mt-2 sm:mt-3 text-[#7BAFB0]/70 font-medium">
               {getUserLabel()} • {format(validTimestamp, 'HH:mm')}
             </p>
           )}
@@ -86,9 +86,9 @@ export function ChatBubble({ content, senderId, timestamp, userId, participantMa
 
   return (
     <div className={`flex ${getPosition()}`}>
-      <div className={`max-w-[75%] rounded-xl p-4 ${getBubbleStyle()}`}>
+      <div className={`max-w-[85%] sm:max-w-[75%] rounded-xl p-3 sm:p-4 ${getBubbleStyle()}`}>
         <div className="prose prose-sm max-w-none">
-          <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
+          <p className="whitespace-pre-wrap leading-relaxed text-sm sm:text-base">{content}</p>
         </div>
         <p className="text-xs mt-2 text-[#3C4858]/60 font-medium">
           {getUserLabel()} • {format(validTimestamp, 'HH:mm')}

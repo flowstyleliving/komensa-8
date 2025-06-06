@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { X, Settings, CheckCircle, Clock, Users, FileText, Loader2, RefreshCw, AlertTriangle, RotateCcw } from 'lucide-react';
+import { X, Settings, CheckCircle, Clock, Users, FileText, Loader2, RefreshCw, AlertTriangle, RotateCcw, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CompletionStatus {
@@ -42,6 +42,10 @@ export function ChatSettingsModal({
     allComplete: boolean;
     completedCount: number;
     totalParticipants: number;
+    isCompleted: boolean;
+    completedAt: string | null;
+    isCompleting: boolean;
+    hasSummary: boolean;
   } | null>(null);
   const [isMarking, setIsMarking] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -122,37 +126,21 @@ export function ChatSettingsModal({
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/20 z-40"
-        onClick={onClose}
-      />
-
-      {/* Slide-out modal */}
-      <div className="fixed right-0 top-0 h-full w-full sm:w-96 lg:w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white p-4 sm:p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <Settings className="h-5 w-5" />
-              </div>
-              <h2 className="text-lg font-semibold">Chat Settings</h2>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="text-white hover:bg-white/20"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#3C4858]/10">
+          <h2 className="text-lg sm:text-xl font-semibold text-[#3C4858]">Chat Settings</h2>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="text-[#3C4858]/70 hover:bg-[#F9F7F4] h-8 w-8 sm:h-10 sm:w-10 rounded-full touch-manipulation"
+          >
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
+          </Button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 sm:p-6 h-[calc(100vh-88px)] overflow-y-auto">
+        <div className="p-4 sm:p-6 h-[calc(90vh-88px)] sm:h-[calc(100vh-88px)] overflow-y-auto">
           {/* AI Troubleshooting Section */}
           {onResetAI && (
             <div className="space-y-4 mb-8">
@@ -169,32 +157,25 @@ export function ChatSettingsModal({
               </div>
 
               <div className="bg-amber-50/50 rounded-lg p-4 border border-amber-200/50">
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-[#3C4858]/80">
-                      <p className="font-medium mb-1">When to use Reset AI:</p>
-                      <ul className="text-xs space-y-1 text-[#3C4858]/70">
-                        <li>• AI has been "thinking" for more than 2 minutes</li>
-                        <li>• AI stopped responding mid-conversation</li>
-                        <li>• Messages aren't being processed properly</li>
-                      </ul>
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <p className="text-sm font-medium text-amber-800 mb-1">AI appears stuck or unresponsive?</p>
+                      <p className="text-xs text-amber-700">
+                        This will clear the AI's current state and allow it to respond again.
+                      </p>
                     </div>
-                  </div>
-                  
-                  <Button 
-                    onClick={handleResetAI}
-                    disabled={isResetting}
-                    variant="outline"
-                    className="w-full border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400 transition-all duration-300"
-                  >
-                    {isResetting ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
+                    <Button
+                      onClick={handleResetAI}
+                      variant="outline"
+                      size="sm"
+                      className="border-amber-300 text-amber-700 hover:bg-amber-100 w-full sm:w-auto px-4 py-2 touch-manipulation"
+                    >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    Reset AI Mediator
-                  </Button>
+                      Reset AI State
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -216,124 +197,105 @@ export function ChatSettingsModal({
               </div>
 
               <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
-                <div className="space-y-3">
-                  <div className="flex items-start gap-2">
-                    <RotateCcw className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-[#3C4858]/80">
-                      <p className="font-medium mb-1">When to reset turns:</p>
-                      <ul className="text-xs space-y-1 text-[#3C4858]/70">
-                        <li>• Wrong person's turn is displayed</li>
-                        <li>• Turn state appears stuck or frozen</li>
-                        <li>• Want to restart from the beginning</li>
-                        <li>• After someone joins or leaves</li>
-                      </ul>
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-3 flex-1">
+                    <div>
+                      <p className="text-sm font-medium text-blue-800 mb-1">Turn order mixed up?</p>
+                      <p className="text-xs text-blue-700">
+                        This will recalculate whose turn it is based on the conversation flow.
+                      </p>
                     </div>
-                  </div>
-                  
-                  <Button 
-                    onClick={handleResetTurn}
-                    disabled={isResettingTurn}
-                    variant="outline"
-                    className="w-full border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400 transition-all duration-300"
-                  >
-                    {isResettingTurn ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
+                    <Button
+                      onClick={handleResetTurn}
+                      variant="outline"
+                      size="sm"
+                      className="border-blue-300 text-blue-700 hover:bg-blue-100 w-full sm:w-auto px-4 py-2 touch-manipulation"
+                    >
                       <RotateCcw className="h-4 w-4 mr-2" />
-                    )}
-                    Reset Turn Order
-                  </Button>
+                      Reset Turn Order
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Conversation Completion Section */}
+          {/* Completion Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-              <div className="p-2 bg-gradient-to-r from-[#7BAFB0]/10 to-[#D8A7B1]/10 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-[#7BAFB0]" />
+              <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-[#3C4858]">Conversation Completion</h3>
+                <h3 className="font-semibold text-[#3C4858]">Session Completion</h3>
                 <p className="text-sm text-[#3C4858]/70">
-                  Mark when you're ready to wrap up this conversation
+                  Mark this conversation as complete and generate insights
                 </p>
               </div>
             </div>
 
-            {/* Completion Status */}
-            {completionData && (
+            {completionData?.isCompleted ? (
+              <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
+                <div className="flex items-center gap-2 text-green-700 mb-2">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">Session Completed</span>
+                </div>
+                <p className="text-xs text-green-600">
+                  Completed on {completionData.completedAt ? new Date(completionData.completedAt).toLocaleDateString() : 'Unknown date'}
+                </p>
+              </div>
+            ) : (
               <div className="space-y-3">
-                <div className="bg-[#F9F7F4] rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Users className="h-4 w-4 text-[#7BAFB0]" />
-                    <span className="text-sm font-medium text-[#3C4858]">
-                      Status: {completionData.completedCount} of {completionData.totalParticipants} ready
-                    </span>
+                <p className="text-sm text-[#3C4858]/80">
+                  When you're ready to end this conversation, you can mark it as complete. 
+                  This will generate a summary and insights about your session.
+                </p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Button
+                    onClick={() => handleMarkComplete('natural')}
+                    disabled={completionData?.isCompleting}
+                    variant="outline"
+                    className="border-green-300 text-green-700 hover:bg-green-50 p-3 touch-manipulation"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Natural Ending
+                  </Button>
+                  
+                  <Button
+                    onClick={() => handleMarkComplete('time')}
+                    disabled={completionData?.isCompleting}
+                    variant="outline"
+                    className="border-blue-300 text-blue-700 hover:bg-blue-50 p-3 touch-manipulation"
+                  >
+                    <Clock className="h-4 w-4 mr-2" />
+                    Time's Up
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {completionData?.hasSummary && (
+              <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2 text-blue-700">
+                    <FileText className="h-4 w-4" />
+                    <span className="text-sm font-medium">Summary Available</span>
                   </div>
-
-                  {/* Completion Status List */}
-                  <div className="space-y-2">
-                    {completionData.completionStatuses.map((status) => (
-                      <div key={status.id} className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span className="text-sm text-[#3C4858]">
-                          {status.user?.display_name || status.user?.name || 'User'} marked complete
-                        </span>
-                      </div>
-                    ))}
-
-                    {/* Waiting for others */}
-                    {!completionData.allComplete && currentUserCompleted && (
-                      <div className="flex items-center gap-2 text-[#3C4858]/60">
-                        <Clock className="h-4 w-4" />
-                        <span className="text-sm">Waiting for others...</span>
-                      </div>
-                    )}
-                  </div>
                 </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-3">
-                  {!currentUserCompleted && (
-                    <Button 
-                      onClick={() => handleMarkComplete('natural')}
-                      disabled={isMarking}
-                      className="w-full bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white hover:from-[#6D9E9F] hover:to-[#C99BA4] transition-all duration-300"
-                    >
-                      {isMarking ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                      )}
-                      Mark as Complete
-                    </Button>
-                  )}
-
-                  {completionData.allComplete && (
-                    <Button 
-                      onClick={handleGenerateSummary}
-                      disabled={isGenerating}
-                      className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 text-white hover:from-emerald-700 hover:to-emerald-800 transition-all duration-300"
-                    >
-                      {isGenerating ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <FileText className="h-4 w-4 mr-2" />
-                      )}
-                      Generate Summary
-                    </Button>
-                  )}
-                </div>
-
-                {/* Info Text */}
-                <div className="text-xs text-[#3C4858]/60 bg-[#7BAFB0]/5 rounded-lg p-3">
-                  <p>
-                    When all participants mark the conversation as complete, you'll be able to generate 
-                    an AI summary with key points, decisions, and action items.
-                  </p>
-                </div>
+                <p className="text-xs text-blue-600 mb-3">
+                  A summary of your conversation has been generated and is ready to view.
+                </p>
+                <Button
+                  onClick={handleGenerateSummary}
+                  size="sm"
+                  variant="outline"
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100 w-full sm:w-auto touch-manipulation"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Summary
+                </Button>
               </div>
             )}
           </div>
@@ -346,6 +308,6 @@ export function ChatSettingsModal({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 } 

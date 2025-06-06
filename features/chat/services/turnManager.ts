@@ -1,12 +1,13 @@
 // GPT CONTEXT:
 // Simplified turn management system for Komensa chat application
-// Handles regular chats, primarily user-based turns.
+// Now uses EventDrivenTurnManager for production chats with fallback to legacy systemts with fallback to legacy systemts with fallback to legacy system
 
 import { prisma } from '@/lib/prisma';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { setTypingIndicator, getTypingUsers } from '@/lib/redis';
-
-export interface TurnState {
+import { EventDrivenTurnManager } from './EventDrivenTurnManager';
+import { EventDrivenTurnManager } from './EventDrivenTurnManager';
+import { EventDrivenTurnManager } from './EventDrivenTurnManager';
   next_role?: string; 
   next_user_id?: string; 
   turn_queue?: string[];
@@ -35,95 +36,135 @@ export const FirstTurnSelectors = {
 };
 
 export class TurnManager {
-  constructor(private chatId: string) {}
-
-  // Get current turn state
-  async getCurrentTurn(): Promise<TurnState | null> {
-    const turnState = await prisma.chatTurnState.findUnique({
-      where: { chat_id: this.chatId },
-      select: { next_user_id: true } // Only select what's relevant for non-demo
-    });
-
-    if (!turnState) return null;
-
-    return {
-      next_user_id: turnState.next_user_id || undefined,
-    };
+  private eventDrivenManager: EventDrivenTurnManager;
+  private useEventDriven: boolean = true; // Enable new system by default
+  private eventDrivenManager: EventDrivenTurnManager;
+  constructor(private chatId: string) {
+    this.eventDrivenManager = new EventDrivenTurnManager(chatId);
   }
 
-  // Initialize turn state (e.g., setting initial turn to a user)
-  async initializeTurn(firstUserId: string): Promise<void> {
-    console.log('[TurnManager] Initializing turn for chat', { chatId: this.chatId, firstUserId });
-    
-    await prisma.chatTurnState.upsert({
-      where: { chat_id: this.chatId },
-      update: {
-        next_user_id: firstUserId,
-      },
-      create: {
-        chat_id: this.chatId,
-        next_user_id: firstUserId,
-      }
-    });
-
-    const channelName = getChatChannelName(this.chatId);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-      next_user_id: firstUserId 
-    });
-  }
-
-  // Initialize turn state with extensible selection method
-  async initializeTurnWithSelector(
-    participants: { id: string; role?: string }[], 
-    selector: FirstTurnSelector = FirstTurnSelectors.first,
-    ...selectorArgs: any[]
-  ): Promise<void> {
-    const firstUserId = selector(participants, ...selectorArgs);
-    console.log('[TurnManager] Initializing turn with selector', { 
-      chatId: this.chatId, 
-      firstUserId, 
-      participantCount: participants.length 
-    });
-    
-    await this.initializeTurn(firstUserId);
-  }
-
-  // Set turn to a specific user ID chats
-  async setTurnToUser(userId: string): Promise<TurnState> {
-    console.log('[TurnManager] Setting turn to user:', { chatId: this.chatId, userId });
-    
-    await prisma.chatTurnState.update({
-      where: { chat_id: this.chatId },
-      data: {
-        next_user_id: userId,
-      }
-    });
-
-    await this.clearStaleTypingIndicators(userId);
-    
-    const channelName = getChatChannelName(this.chatId);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-      next_user_id: userId 
-    });
-    console.log('[TurnManager] Turn set to user and event emitted.');
-    return { next_user_id: userId };
-  }
-
-  // Get the next user in strict turn-taking mode
-  async getNextUserAfterAI(): Promise<string | null> {
-    // Get all participants in the chat
+  // Check if this is a demo chat (should use legacy system)
+  private async isDemoChat(): Promise<boolean> {
     const chat = await prisma.chat.findUnique({
       where: { id: this.chatId },
-      include: {
-        participants: {
-          include: {
-            user: true
-          }
-        }
+      select: { origin: true }
+    });
+    return chat?.origin === 'demo';
+  }
+
+  // Get current turn state - now uses event-driven system for productionoolean = true; // Enable new system by default
+  private eventDrivenManager: EventDrivenTurnManager;
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy system for demo chat');
+        return this.getLegacyCurrentTurn();
       }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager');
+        const turnState = await this.eventDrivenManager.getCurrentTurn();
+        return {
+          next_user_id: turnState.next_user_id,
+          next_role: turnState.next_role
+        };
+      } else {
+        console.log('[TurnManager] Using legacy turn management');
+        return this.getLegacyCurrentTurn();
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in getCurrentTurn, falling back to legacy:', error);
+      return this.getLegacyCurrentTurn();
+    }
+  }
+
+  // Legacy turn management for demo chats and fallback
+  private async getLegacyCurrentTurn(): Promise<TurnState | null> {
+  constructor(private chatId: string) {
+    this.eventDrivenManager = new EventDrivenTurnManager(chatId);
+      select: { next_user_id: true }
+
+  // Check if this is a demo chat (should use legacy system)
+  private async isDemoChat(): Promise<boolean> {
+    const chat = await prisma.chat.findUnique({
+      where: { id: this.chatId },
+      select: { origin: true }
+    });
+    return chat?.origin === 'demo';
+  }
+
+  // Get current turn state - now uses event-driven system for productionoolean = true; // Enable new system by default
+    console.log('[TurnManager] Initializing turn for chat', { chatId: this.chatId, firstUserId });
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy system for demo chat');
+        return this.getLegacyCurrentTurn();
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager');
+        const turnState = await this.eventDrivenManager.getCurrentTurn();
+        return {
+          next_user_id: turnState.next_user_id,
+          next_role: turnState.next_role
+        };
+      } else {
+        console.log('[TurnManager] Using legacy turn management');
+        return this.getLegacyCurrentTurn();
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in getCurrentTurn, falling back to legacy:', error);
+      return this.getLegacyCurrentTurn();
+    }
+  }
+
+  // Legacy turn management for demo chats and fallback
+  private async getLegacyCurrentTurn(): Promise<TurnState | null> {
+  constructor(private chatId: string) {
+    this.eventDrivenManager = new EventDrivenTurnManager(chatId);
+      select: { next_user_id: true }
+
+  // Check if this is a demo chat (should use legacy system)
+  private async isDemoChat(): Promise<boolean> {
+    const chat = await prisma.chat.findUnique({
+      where: { id: this.chatId },
+      select: { origin: true }
+    });
+    return chat?.origin === 'demo';
+  }
+
+  // Get current turn state - now uses event-driven system for production
+      data: {
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy system for demo chat');
+        return this.getLegacyCurrentTurn();
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager');
+        const turnState = await this.eventDrivenManager.getCurrentTurn();
+        return {
+          next_user_id: turnState.next_user_id,
+          next_role: turnState.next_role
+        };
+      } else {
+        console.log('[TurnManager] Using legacy turn management');
+        return this.getLegacyCurrentTurn();
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in getCurrentTurn, falling back to legacy:', error);
+      return this.getLegacyCurrentTurn();
+    }
+  }
+
+  // Legacy turn management for demo chats and fallback
+  private async getLegacyCurrentTurn(): Promise<TurnState | null> {
     });
 
-    if (!chat) {
+      select: { next_user_id: true }
       console.error('[TurnManager] Chat not found when getting next user');
       return null;
     }
@@ -169,7 +210,29 @@ export class TurnManager {
 
   // Check if a user can send a message in a chat
   async canUserSendMessage(userId: string): Promise<boolean> {
-    const currentState = await this.getCurrentTurn();
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy canUserSendMessage for demo chat');
+        return this.getLegacyCanUserSendMessage(userId);
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager.canUserSendMessage');
+        return await this.eventDrivenManager.canUserSendMessage(userId);
+      } else {
+        console.log('[TurnManager] Using legacy canUserSendMessage');
+        return this.getLegacyCanUserSendMessage(userId);
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in canUserSendMessage, falling back to legacy:', error);
+      return this.getLegacyCanUserSendMessage(userId);
+    }
+  }
+
+  // Legacy canUserSendMessage for demo chats and fallback
+  private async getLegacyCanUserSendMessage(userId: string): Promise<boolean> {
+    const currentState = await this.getLegacyCurrentTurn();
     
     // If no turn state exists, check if this is the first message
     if (!currentState) {
@@ -196,13 +259,11 @@ export class TurnManager {
 
     // In strict turn-taking, only allow if it's the user's turn
     const canSend = currentState.next_user_id === userId;
-    console.log('[TurnManager] canUserSendMessage:', { 
+    console.log('[TurnManager] getLegacyCanUserSendMessage:', { 
       userId, 
-      nextUserId: currentState.next_user_id, 
-      canSend,
-      reason: canSend ? 'User turn' : 'Not user turn'
+      expectedUser: currentState.next_user_id, 
+      canSend 
     });
-    
     return canSend;
   }
 
@@ -210,6 +271,43 @@ export class TurnManager {
   async resetTurn(): Promise<TurnState> {
     console.log('[TurnManager] Resetting turn state for chat:', this.chatId);
     
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy resetTurn for demo chat');
+        return this.getLegacyResetTurn();
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager.resetTurn');
+        
+        // Get the first participant to reset to
+        const firstUserId = await this.getFirstParticipantId();
+        const turnState = await this.eventDrivenManager.resetTurn(firstUserId);
+        
+        // Clear stale typing indicators
+        await this.clearStaleTypingIndicators(firstUserId);
+        
+        // Emit turn update via Pusher
+        const channelName = getChatChannelName(this.chatId);
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+          next_user_id: firstUserId 
+        });
+        
+        console.log('[TurnManager] Turn reset to user using EventDrivenTurnManager:', firstUserId);
+        return { next_user_id: turnState.next_user_id };
+      } else {
+        console.log('[TurnManager] Using legacy resetTurn');
+        return this.getLegacyResetTurn();
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in resetTurn, falling back to legacy:', error);
+      return this.getLegacyResetTurn();
+    }
+  }
+
+  // Helper to get the first participant ID (chat creator if available)
+  private async getFirstParticipantId(): Promise<string> {
     // Get chat participants to determine who should go first
     const chat = await prisma.chat.findUnique({
       where: { id: this.chatId },
@@ -225,7 +323,7 @@ export class TurnManager {
     });
 
     if (!chat) {
-      throw new Error('Chat not found when resetting turn');
+      throw new Error('Chat not found when getting first participant');
     }
 
     // Try to get the chat creator from the chat_created event
@@ -233,6 +331,45 @@ export class TurnManager {
     const creatorId = (chatCreatedEvent?.data as any)?.createdBy;
     
     // Get human participants (excluding AI)
+    const humanParticipants = chat.participants
+      .filter(p => p.user_id !== 'assistant')
+      .map(p => p.user_id);
+
+    if (humanParticipants.length === 0) {
+      throw new Error('No human participants found when getting first participant');
+    }
+
+    // Determine who should go first: creator if available, otherwise first participant
+    return creatorId && humanParticipants.includes(creatorId) 
+      ? creatorId 
+      : humanParticipants[0];
+  }
+
+  // Legacy resetTurn for demo chats and fallback
+  private async getLegacyResetTurn(): Promise<TurnState> {
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy canUserSendMessage for demo chat');
+        return this.getLegacyCanUserSendMessage(userId);
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager.canUserSendMessage');
+        return await this.eventDrivenManager.canUserSendMessage(userId);
+      } else {
+        console.log('[TurnManager] Using legacy canUserSendMessage');
+        return this.getLegacyCanUserSendMessage(userId);
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in canUserSendMessage, falling back to legacy:', error);
+      return this.getLegacyCanUserSendMessage(userId);
+    }
+  }
+
+  // Legacy canUserSendMessage for demo chats and fallback
+  private async getLegacyCanUserSendMessage(userId: string): Promise<boolean> {
+    const currentState = await this.getLegacyCurrentTurn();
     const humanParticipants = chat.participants
       .filter(p => p.user_id !== 'assistant')
       .map(p => p.user_id);
@@ -259,36 +396,118 @@ export class TurnManager {
     // Clear any stale typing indicators
     await this.clearStaleTypingIndicators(firstUserId);
     
-    // Emit turn update via Pusher
+    console.log('[TurnManager] getLegacyCanUserSendMessage:', { 
     const channelName = getChatChannelName(this.chatId);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-      next_user_id: firstUserId 
+      expectedUser: currentState.next_user_id, 
+      canSend r_id: firstUserId 
     });
     
-    console.log('[TurnManager] Turn reset to user:', firstUserId);
+    console.log('[TurnManager] Legacy turn reset to user:', firstUserId);
     return { next_user_id: firstUserId };
   }
 
   // Clear stale typing indicators - this is a generic utility and can stay
   private async clearStaleTypingIndicators(newActiveUserId?: string): Promise<void> {
     try {
-      const typingUsers = await getTypingUsers(this.chatId);
-      const channelName = getChatChannelName(this.chatId);
-      
-      for (const userId of typingUsers) {
-        if (userId !== newActiveUserId && userId !== 'assistant') { 
-          console.log('[TurnManager] Clearing stale typing for user:', userId);
-          // await setTypingIndicator(this.chatId, userId, false); // BYPASSED
-          console.log('[TurnManager] Stale typing indicator cleared in Redis (BYPASSED)');
-          await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, {
-            userId,
-            isTyping: false
-          });
-        }
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy resetTurn for demo chat');
+        return this.getLegacyResetTurn();
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager.resetTurn');
+        
+        // Get the first participant to reset to
+        const firstUserId = await this.getFirstParticipantId();
+        const turnState = await this.eventDrivenManager.resetTurn(firstUserId);
+        
+        // Clear stale typing indicators
+        await this.clearStaleTypingIndicators(firstUserId);
+        
+        // Emit turn update via Pusher
+        const channelName = getChatChannelName(this.chatId);
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
+          next_user_id: firstUserId 
+        });
+        
+        console.log('[TurnManager] Turn reset to user using EventDrivenTurnManager:', firstUserId);
+        return { next_user_id: turnState.next_user_id };
+      } else {
+        console.log('[TurnManager] Using legacy resetTurn');
+        return this.getLegacyResetTurn();
       }
     } catch (error) {
-      console.error('[TurnManager] Error clearing stale typing indicators:', error);
-      // Non-critical, so don't re-throw
+      console.error('[TurnManager] Error in resetTurn, falling back to legacy:', error);
+      return this.getLegacyResetTurn();
     }
   }
-} 
+
+  // Helper to get the first participant ID (chat creator if available)
+  private async getFirstParticipantId(): Promise<string> {
+    // Get chat participants to determine who should go first
+    const chat = await prisma.chat.findUnique({
+      where: { id: this.chatId },
+      include: {
+        participants: {
+          include: { user: true }
+        },
+        events: {
+          where: { type: 'chat_created' },
+          take: 1
+        }
+      }
+    });
+
+    if (!chat) {
+      throw new Error('Chat not found when getting first participant');
+    }
+
+    // Try to get the chat creator from the chat_created event
+    const chatCreatedEvent = chat.events[0];
+    const creatorId = (chatCreatedEvent?.data as any)?.createdBy;
+    
+    // Get human participants (excluding AI)
+    const humanParticipants = chat.participants
+      .filter(p => p.user_id !== 'assistant')
+      .map(p => p.user_id);
+
+    if (humanParticipants.length === 0) {
+      throw new Error('No human participants found when getting first participant');
+    }
+
+    // Determine who should go first: creator if available, otherwise first participant
+    return creatorId && humanParticipants.includes(creatorId) 
+      ? creatorId 
+      : humanParticipants[0];
+  }
+
+  // Legacy resetTurn for demo chats and fallback
+  private async getLegacyResetTurn(): Promise<TurnState> {
+    try {
+      // Check if this is a demo chat
+      if (await this.isDemoChat()) {
+        console.log('[TurnManager] Using legacy canUserSendMessage for demo chat');
+        return this.getLegacyCanUserSendMessage(userId);
+      }
+
+      if (this.useEventDriven) {
+        console.log('[TurnManager] Using EventDrivenTurnManager.canUserSendMessage');
+        return await this.eventDrivenManager.canUserSendMessage(userId);
+      } else {
+        console.log('[TurnManager] Using legacy canUserSendMessage');
+        return this.getLegacyCanUserSendMessage(userId);
+      }
+    } catch (error) {
+      console.error('[TurnManager] Error in canUserSendMessage, falling back to legacy:', error);
+      return this.getLegacyCanUserSendMessage(userId);
+    }
+  }
+
+  // Legacy canUserSendMessage for demo chats and fallback
+  private async getLegacyCanUserSendMessage(userId: string): Promise<boolean> {
+    const currentState = await this.getLegacyCurrentTurn();    console.log('[TurnManager] canUserSendMessage:', {       nextUserId: currentState.next_user_id, 
+      canSend,
+      reason: canSend ? 'User turn' : 'Not user turn'    
+    console.log('[TurnManager] getLegacyCanUserSendMessage:', {       expectedUser: currentState.next_user_id, 
+      canSend     console.log('[TurnManager] Legacy turn reset to user:', firstUserId);

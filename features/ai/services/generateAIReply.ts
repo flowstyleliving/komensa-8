@@ -43,13 +43,28 @@ export async function generateAIReply({
   const channelName = getChatChannelName(chatId);
   // const turnManager = new TurnManager(chatId); // Not needed for generic reply
 
-  // Add overall timeout to prevent hanging
+  // Add multiple layers of timeout protection
   let timeoutId: NodeJS.Timeout | undefined;
+  let cleanupPerformed = false;
+  
+  const cleanup = async () => {
+    if (cleanupPerformed) return;
+    cleanupPerformed = true;
+    
+    try {
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+      console.log('[AI Reply] Cleanup: Typing indicator reset');
+    } catch (error) {
+      console.error('[AI Reply] Cleanup: Failed to reset typing indicator:', error);
+    }
+  };
+
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => {
-      console.error('[AI Reply] TIMEOUT: AI reply generation timed out after 90 seconds (internal)');
-      reject(new Error('AI reply generation timed out after 90 seconds'));
-    }, 90000); // 90 second timeout
+    timeoutId = setTimeout(async () => {
+      console.error('[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after 60 seconds');
+      await cleanup();
+      reject(new Error('AI reply generation timed out after 60 seconds'));
+    }, 60000); // Reduced to 60 seconds
   });
 
   const replyPromise = (async () => {
@@ -57,8 +72,8 @@ export async function generateAIReply({
       // Set typing indicator in Redis first
       console.log('[AI Reply] Setting typing indicator in Redis...');
       try {
-        // await setTypingIndicator(chatId, 'assistant', true); // BYPASSED
-        console.log('[AI Reply] Redis typing indicator set successfully (BYPASSED)');
+        await setTypingIndicator(chatId, 'assistant', true);
+        console.log('[AI Reply] Redis typing indicator set successfully');
       } catch (redisError) {
         console.error('[AI Reply] REDIS ERROR: Failed to set typing indicator in Redis:', redisError);
         console.error('[AI Reply] Redis error details:', JSON.stringify(redisError, Object.getOwnPropertyNames(redisError)));
@@ -285,7 +300,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Message retrieved:', fullMessage);
     } catch (error) {
       console.error('[AI Reply] Failed to generate AI response:', error);
-      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED Ensure typing indicator is off
+      await setTypingIndicator(chatId, 'assistant', false); // Ensure typing indicator is off
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
       } catch (pusherError) {
@@ -297,8 +312,8 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Stop typing indicator
     console.log('[AI Reply] Stopping typing indicator...');
     try {
-      // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
-      console.log('[AI Reply] Typing indicator stopped in Redis (BYPASSED)');
+      await setTypingIndicator(chatId, 'assistant', false);
+      console.log('[AI Reply] Typing indicator stopped in Redis');
     } catch (redisError) {
        console.error('[AI Reply] REDIS ERROR: Failed to stop typing indicator in Redis:', redisError);
     }
@@ -378,10 +393,12 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
 
     console.log('[AI Reply] Generation complete');
     if (timeoutId) clearTimeout(timeoutId);
+    await cleanup(); // Ensure cleanup happens
     return { content: cleanedMessage };
     
     } catch (mainError) {
       if (timeoutId) clearTimeout(timeoutId);
+      await cleanup(); // Ensure cleanup happens on error
       console.error('[AI Reply] Main AI reply generation failed:', mainError);
       if (mainError instanceof Error) {
         console.error('[AI Reply] Main error message:', mainError.message);
@@ -395,16 +412,17 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       } else {
         console.error('[AI Reply] Main error (not an Error object):', mainError);
       }
-      
-      try {
-        // await setTypingIndicator(chatId, 'assistant', false); // BYPASSED
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
-      } catch (cleanupError) {
-        console.error('[AI Reply] Failed to stop typing indicator on cleanup:', cleanupError);
-      }
       throw mainError;
     }
   })();
 
-  return Promise.race([replyPromise, timeoutPromise]);
+  try {
+    const result = await Promise.race([replyPromise, timeoutPromise]);
+    if (timeoutId) clearTimeout(timeoutId);
+    return result;
+  } catch (error) {
+    if (timeoutId) clearTimeout(timeoutId);
+    await cleanup(); // Final cleanup
+    throw error;
+  }
 }
