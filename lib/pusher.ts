@@ -21,6 +21,11 @@ export const pusherClient = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!
   // Enable automatic reconnection for mobile
   enabledTransports: ['ws', 'wss'],
   disabledTransports: [], // Allow all transports for better mobile compatibility
+  // Add WebSocket-specific configuration for stability
+  wsHost: undefined, // Use default
+  wsPort: undefined, // Use default
+  wssPort: undefined, // Use default
+  enableStats: false, // Disable stats to reduce overhead
 });
 
 // Add connection state monitoring for mobile debugging
@@ -61,6 +66,22 @@ if (typeof window !== 'undefined') {
   
   pusherClient.connection.bind('error', (error: any) => {
     console.error('[Pusher] Connection error:', error);
+    
+    // Handle specific error codes
+    if (error?.data?.code === 1006) {
+      console.log('[Pusher] WebSocket abnormal closure detected, forcing reconnection...');
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++;
+        setTimeout(() => {
+          try {
+            pusherClient.disconnect();
+            setTimeout(() => pusherClient.connect(), 1000);
+          } catch (reconnectError) {
+            console.error('[Pusher] Error during 1006 recovery:', reconnectError);
+          }
+        }, 2000);
+      }
+    }
   });
   
   // Mobile-specific: Check connection state on visibility change and WebSocket suspension recovery
