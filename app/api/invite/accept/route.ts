@@ -267,10 +267,25 @@ export async function POST(request: NextRequest) {
       guestUserId
     });
 
-    // Set session cookie that's compatible with NextAuth
-    response.cookies.set('next-auth.session-token', sessionToken, {
+    // Set session cookie that's compatible with NextAuth in all environments
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isSecure = process.env.NEXTAUTH_URL?.startsWith('https://') || isProduction;
+    
+    // In production with HTTPS, NextAuth expects __Secure- prefix for session cookies
+    const cookieName = isSecure 
+      ? '__Secure-next-auth.session-token'
+      : 'next-auth.session-token';
+
+    console.log('[Invite Accept] Setting session cookie:', {
+      cookieName,
+      isProduction,
+      isSecure,
+      nextAuthUrl: process.env.NEXTAUTH_URL
+    });
+
+    response.cookies.set(cookieName, sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 24 * 60 * 60, // 24 hours
       path: '/'

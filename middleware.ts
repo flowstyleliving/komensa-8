@@ -51,7 +51,40 @@ export async function middleware(req: NextRequest) {
   }
 
   console.log('[Middleware] Blocking request, checking auth:', pathname);
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  
+  // Use the correct cookie name for production
+  const cookieName = process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https://')
+    ? '__Secure-next-auth.session-token'
+    : 'next-auth.session-token';
+    
+  const token = await getToken({ 
+    req, 
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName
+  });
+
+  // Debug logging for production cookie issues
+  if (!token) {
+    const cookies = req.cookies.getAll();
+    const authCookies = cookies.filter(cookie => 
+      cookie.name.includes('next-auth') || cookie.name.includes('session')
+    );
+    
+    console.log('[Middleware] No token found. Available auth cookies:', {
+      allCookiesCount: cookies.length,
+      authCookies: authCookies.map(c => ({ name: c.name, hasValue: !!c.value })),
+      expectedCookieName: cookieName,
+      nodeEnv: process.env.NODE_ENV,
+      nextAuthUrl: process.env.NEXTAUTH_URL
+    });
+  } else {
+    console.log('[Middleware] Token found:', {
+      tokenId: token.id,
+      isGuest: token.isGuest,
+      chatId: token.chatId,
+      cookieUsed: cookieName
+    });
+  }
 
   if (!token) {
     console.log('[Middleware] No token, redirecting to signin:', pathname);
