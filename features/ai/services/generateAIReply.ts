@@ -37,9 +37,13 @@ export async function generateAIReply({
   userMessage: string;
   userAgent?: string;
 }) {
+  const replyId = `ai_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[AI Reply] ${replyId} - Starting AI reply generation`);
+  console.log(`[AI Reply] ${replyId} - Parameters: chatId=${chatId}, userId=${userId}, messageLength=${userMessage.length}`);
+  
   // Mobile-aware processing
   const isMobile = userAgent ? /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) : false;
-  console.log(`[AI Reply] Processing request - Mobile: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
+  console.log(`[AI Reply] ${replyId} - Mobile detection: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
   
   // Reasonable timeouts - give AI time to process but not hang forever
   const globalTimeout = isMobile ? 35000 : 40000; // 35s mobile, 40s desktop
@@ -48,16 +52,15 @@ export async function generateAIReply({
   const maxWaitTime = isMobile ? 30000 : 35000; // 30s vs 35s
   
   // Log mobile-specific optimizations
-  if (isMobile) {
-    console.log(`[AI Reply] Mobile optimizations active:`, {
-      globalTimeout,
-      runCreationTimeout,
-      pollingInterval,
-      maxWaitTime
-    });
-  }
-  console.log('[AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
-  console.log('[AI Reply] Environment check:', {
+  console.log(`[AI Reply] ${replyId} - Timeouts configured:`, {
+    isMobile,
+    globalTimeout,
+    runCreationTimeout,
+    pollingInterval,
+    maxWaitTime
+  });
+  
+  console.log(`[AI Reply] ${replyId} - Environment check:`, {
     OPENAI_ASSISTANT_ID: OPENAI_ASSISTANT_ID ? 'SET' : 'NOT SET',
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'SET' : 'NOT SET'
   });
@@ -73,7 +76,7 @@ export async function generateAIReply({
     if (cleanupPerformed) return;
     cleanupPerformed = true;
     
-    console.log(`[AI Reply] Cleanup initiated from: ${source}`);
+    console.log(`[AI Reply] ${replyId} - Cleanup initiated from: ${source}`);
     const cleanupTimestamp = Date.now();
     
     // Mobile-safe cleanup: Pusher first for immediate UI feedback
@@ -81,25 +84,26 @@ export async function generateAIReply({
       await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { 
         isTyping: false,
         timestamp: cleanupTimestamp,
-        source: `cleanup_${source}`
+        source: `cleanup_${source}`,
+        replyId
       });
-      console.log(`[AI Reply] Pusher cleanup completed (${source})`);
+      console.log(`[AI Reply] ${replyId} - Pusher cleanup completed (${source})`);
     } catch (pusherError) {
-      console.error(`[AI Reply] Pusher cleanup failed (${source}):`, pusherError);
+      console.error(`[AI Reply] ${replyId} - Pusher cleanup failed (${source}):`, pusherError);
     }
     
     // Clear Redis state
     try {
       await setTypingIndicator(chatId, 'assistant', false);
-      console.log(`[AI Reply] Redis cleanup completed (${source})`);
+      console.log(`[AI Reply] ${replyId} - Redis cleanup completed (${source})`);
     } catch (redisError) {
-      console.error(`[AI Reply] Redis cleanup failed (${source}):`, redisError);
+      console.error(`[AI Reply] ${replyId} - Redis cleanup failed (${source}):`, redisError);
     }
   };
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(async () => {
-      console.error(`[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after ${globalTimeout}ms`);
+      console.error(`[AI Reply] ${replyId} - GLOBAL TIMEOUT: AI reply generation timed out after ${globalTimeout}ms`);
       await cleanup('global_timeout');
       reject(new Error(`AI reply generation timed out after ${globalTimeout}ms`));
     }, globalTimeout); // Mobile-optimized timeout
@@ -108,7 +112,7 @@ export async function generateAIReply({
   const replyPromise = (async () => {
     try {
       // Set typing indicator with mobile-safe sequencing
-      console.log('[AI Reply] Setting typing indicator...');
+      console.log(`[AI Reply] ${replyId} - Setting typing indicator...`);
       let typingSetSuccessfully = false;
       
       try {
@@ -116,16 +120,17 @@ export async function generateAIReply({
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { 
           isTyping: true,
           timestamp: Date.now(), // Add timestamp for mobile ordering
-          source: 'ai_start'
+          source: 'ai_start',
+          replyId
         });
-        console.log('[AI Reply] Pusher typing indicator set');
+        console.log(`[AI Reply] ${replyId} - Pusher typing indicator set`);
         
         // Set Redis with longer TTL for mobile reliability
         await setTypingIndicator(chatId, 'assistant', true);
-        console.log('[AI Reply] Redis typing indicator set');
+        console.log(`[AI Reply] ${replyId} - Redis typing indicator set`);
         typingSetSuccessfully = true;
       } catch (error) {
-        console.error('[AI Reply] Failed to set typing indicators:', error);
+        console.error(`[AI Reply] ${replyId} - Failed to set typing indicators:`, error);
         // If we fail to set typing, still proceed but log the issue
         // The timeout mechanism will still clear any stuck state
       }

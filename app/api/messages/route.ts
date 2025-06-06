@@ -58,27 +58,37 @@ export async function GET(req: NextRequest) {
 
 // POST: Send a new message in a production chat
 export async function POST(req: NextRequest) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  console.log(`[Messages API] ${requestId} - Request started`);
+  
   try {
+    console.log(`[Messages API] ${requestId} - Getting session...`);
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
+      console.log(`[Messages API] ${requestId} - Unauthorized: no session`);
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    console.log(`[Messages API] ${requestId} - Session found for user: ${session.user.id}`);
 
+    console.log(`[Messages API] ${requestId} - Parsing request body...`);
     const body = await req.json();
     const { chatId, content } = body;
 
     if (!chatId || !content) {
+      console.log(`[Messages API] ${requestId} - Missing data: chatId=${!!chatId}, content=${!!content}`);
       return NextResponse.json({ error: 'Missing chatId or content' }, { status: 400 });
     }
 
-    console.log('[Messages API] Sending message:', { chatId, senderId: session.user.id, content });
+    console.log(`[Messages API] ${requestId} - Request data: chatId=${chatId}, contentLength=${content.length}, senderId=${session.user.id}`);
 
     // For guest users, verify they have access to this specific chat
     if (session.user.isGuest && session.user.chatId !== chatId) {
+      console.log(`[Messages API] ${requestId} - Guest access denied: user.chatId=${session.user.chatId}, requested=${chatId}`);
       return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
     }
 
+    console.log(`[Messages API] ${requestId} - Verifying chat access...`);
     // Verify user is a participant and get chat info
     const chat = await prisma.chat.findFirst({
       where: {
@@ -93,11 +103,14 @@ export async function POST(req: NextRequest) {
     });
 
     if (!chat) {
+      console.log(`[Messages API] ${requestId} - Chat not found or access denied`);
       return NextResponse.json({ error: 'Chat not found or access denied' }, { status: 404 });
     }
+    console.log(`[Messages API] ${requestId} - Chat access verified, ${chat.participants.length} participants`);
 
     const channelName = getChatChannelName(chatId);
 
+    console.log(`[Messages API] ${requestId} - Setting up turn manager...`);
     // Run typing cleanup and turn validation in parallel
     const turnManager = new TurnManager(chatId);
     
@@ -180,6 +193,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    console.log(`[Messages API] ${requestId} - Triggering AI reply generation...`);
     // Trigger AI reply generation asynchronously with mobile detection
     generateAIReply({ 
       chatId, 
@@ -187,16 +201,18 @@ export async function POST(req: NextRequest) {
       userMessage: content,
       userAgent: req.headers.get('user-agent') || undefined
     }).catch(async (err: Error) => {
-      console.error('[AI Reply] Failed to generate reply:', err);
+      console.error(`[Messages API] ${requestId} - AI reply failed:`, err);
       
       // Reset typing indicator on failure
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, { isTyping: false });
+        console.log(`[Messages API] ${requestId} - Typing indicator cleared after AI failure`);
       } catch (cleanupError) {
-        console.error('[AI Reply] Failed to reset typing indicator:', cleanupError);
+        console.error(`[Messages API] ${requestId} - Failed to reset typing indicator:`, cleanupError);
       }
     });
 
+    console.log(`[Messages API] ${requestId} - Request completed successfully`);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error('[Messages API] Error posting message:', error);
