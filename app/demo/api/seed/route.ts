@@ -105,12 +105,25 @@ export async function GET(req: Request) {
 
     // 4. Add the initial AI welcome message (this will be visible)
     console.log('[Demo Seed] Creating initial AI welcome message...');
+    
+    // Create a smart greeting that detects if this is a solo start or multi-participant
+    const isRealSecondParticipant = false; // In demo mode, Jordan starts as AI-simulated, not a real second user
+    
+    let welcomeContent: string;
+    if (isRealSecondParticipant) {
+      // Multiple real participants 
+      welcomeContent = `Hello Michael and Jordan! I'm here to help facilitate your conversation. I'll help translate messages into constructive language and manage turn-taking between you both. Michael, could you please share a brief description of the current situation and what you're hoping to achieve from this chat?`;
+    } else {
+      // Single participant starting (demo mode)
+      welcomeContent = `Hello Michael! Welcome to Komensa's AI mediation demo. I'm here to help facilitate meaningful conversations by translating messages into constructive language and managing dialogue flow. To get started, could you please share a brief description of a situation you'd like to discuss and what you're hoping to achieve? Jordan will join the conversation after your first message.`;
+    }
+    
     const initialMessages = [
       {
         chat_id: newChat.id,
         type: 'message',
         data: {
-          content: `Hello Michael and Jordan! I'm here to help facilitate your conversation. I'll help translate messages into constructive language and manage turn-taking between you both. Michael, could you please share a brief description of the current situation and what you're hoping to achieve from this chat?`,
+          content: welcomeContent,
           senderId: 'assistant',
         },
       },
