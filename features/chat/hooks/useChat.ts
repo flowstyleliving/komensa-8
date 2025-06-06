@@ -82,9 +82,10 @@ export function useChat(chatId: string) {
     }
   };
 
-  // Aggressive timeout - force clear AI typing after 10 seconds max
+  // Aggressive timeout - force clear AI typing after 45 seconds
   useEffect(() => {
     if (data.isAssistantTyping) {
+      console.log('[useChat] AI typing started, setting 45s timeout');
       // Clear any existing timeout
       if (typingTimeout) {
         clearTimeout(typingTimeout);
@@ -92,7 +93,7 @@ export function useChat(chatId: string) {
       
       // Force clear after 45 seconds - gives AI time to actually respond
       const newTimeout = setTimeout(() => {
-        console.log('[useChat] Force clearing AI typing after 45 seconds');
+        console.warn('[useChat] TIMEOUT: Force clearing AI typing after 45 seconds');
         setData(prev => ({
           ...prev,
           isAssistantTyping: false
@@ -101,6 +102,7 @@ export function useChat(chatId: string) {
       
       setTypingTimeout(newTimeout);
     } else {
+      console.log('[useChat] AI typing stopped, clearing timeout');
       // Clear timeout when typing stops
       if (typingTimeout) {
         clearTimeout(typingTimeout);

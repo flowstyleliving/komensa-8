@@ -1,6 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+// Custom hook for cycling animation
+function useCyclingDots(interval = 600) {
+  const [dots, setDots] = useState('.');
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    const dotsSequence = ['.', '..', '...'];
+
+    const updateDots = () => {
+      setDots(dotsSequence[indexRef.current]);
+      indexRef.current = (indexRef.current + 1) % dotsSequence.length;
+    };
+
+    // Start immediately and then set interval
+    updateDots();
+    intervalRef.current = setInterval(updateDots, interval);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [interval]);
+
+  return dots;
+}
 
 interface TypingIndicatorProps {
   onRecover?: () => void;
@@ -10,6 +39,7 @@ interface TypingIndicatorProps {
 export function TypingIndicator({ onRecover, chatId }: TypingIndicatorProps) {
   const [showRecovery, setShowRecovery] = useState(false);
   const [isRecovering, setIsRecovering] = useState(false);
+  const dots = useCyclingDots(600);
 
   // Show recovery option if AI takes too long
   useEffect(() => {
@@ -51,9 +81,10 @@ export function TypingIndicator({ onRecover, chatId }: TypingIndicatorProps) {
   return (
     <div className="flex justify-center my-4 sm:my-6">
       <div className="bg-[#7BAFB0]/10 text-[#3C4858] text-sm max-w-[90%] sm:max-w-[85%] text-center p-4 sm:p-6 rounded-xl border border-[#7BAFB0]/20 shadow-sm">
-        <div className="flex items-center justify-center gap-3">
-          <div className="w-4 h-4 bg-[#7BAFB0] rounded-full"></div>
-          <span className="text-[#7BAFB0]/80 font-medium text-sm sm:text-base">AI Mediator is thinking...</span>
+        <div className="flex items-center justify-center">
+          <span className="text-[#7BAFB0]/80 font-medium text-sm sm:text-base">
+            AI Mediator is thinking<span className="inline-block w-4 text-left">{dots}</span>
+          </span>
         </div>
         
         {showRecovery && (

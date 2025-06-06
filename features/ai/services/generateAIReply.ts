@@ -421,12 +421,12 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
 
     console.log('[AI Reply] Generation complete');
     if (timeoutId) clearTimeout(timeoutId);
-    await cleanup(); // Ensure cleanup happens
+    await cleanup('ai_complete'); // Ensure cleanup happens
     return { content: cleanedMessage };
     
     } catch (mainError) {
       if (timeoutId) clearTimeout(timeoutId);
-      await cleanup(); // Ensure cleanup happens on error
+      await cleanup('ai_error'); // Ensure cleanup happens on error
       console.error('[AI Reply] Main AI reply generation failed:', mainError);
       if (mainError instanceof Error) {
         console.error('[AI Reply] Main error message:', mainError.message);
@@ -450,7 +450,7 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     return result;
   } catch (error) {
     if (timeoutId) clearTimeout(timeoutId);
-    await cleanup(); // Final cleanup
+    await cleanup('final_error'); // Final cleanup
     throw error;
   }
 }
