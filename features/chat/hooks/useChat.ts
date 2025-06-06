@@ -211,14 +211,35 @@ export function useChat(chatId: string) {
       channel.bind(PUSHER_EVENTS.TURN_UPDATE, (turnState: any) => {
         try {
           console.log('[useChat] Received turn update:', turnState);
-          if (turnState && turnState.next_user_id) {
-            setData(prev => ({
-              ...prev,
-              currentTurn: {
-                next_user_id: turnState.next_user_id,
-                next_role: turnState.next_role
-              }
-            }));
+          
+          // NEW: For EventDrivenTurnManager, we need to refetch the current turn state
+          // instead of relying on the event payload
+          if (turnState && (turnState.next_user_id || turnState.timestamp)) {
+            if (turnState.next_user_id) {
+              // Legacy turn update with specific user ID
+              setData(prev => ({
+                ...prev,
+                currentTurn: {
+                  next_user_id: turnState.next_user_id,
+                  next_role: turnState.next_role
+                }
+              }));
+            } else {
+              // NEW: Generic refresh event - refetch current turn state
+              console.log('[useChat] Generic turn refresh, fetching current turn state...');
+              fetch(`/api/chat/${chatId}/state`)
+                .then(res => res.json())
+                .then(state => {
+                  console.log('[useChat] Refreshed turn state:', state.currentTurn);
+                  setData(prev => ({
+                    ...prev,
+                    currentTurn: state.currentTurn
+                  }));
+                })
+                .catch(err => {
+                  console.error('[useChat] Failed to refresh turn state:', err);
+                });
+            }
           } else {
             console.warn('[useChat] Received malformed turn update event:', turnState);
           }

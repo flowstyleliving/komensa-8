@@ -360,19 +360,18 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Demo chat detected, skipping turn management (handled by DemoTurnManager)');
       // Demo chats handle their own turn management
     } else {
-      console.log('[AI Reply] Production chat, turn will be automatically calculated by EventDrivenTurnManager');
-      // The EventDrivenTurnManager will automatically calculate the next turn based on events
-      // No need to manually update turn state - it's calculated from the message history
+      console.log('[AI Reply] Production chat - EventDrivenTurnManager handles turns automatically');
+      // The EventDrivenTurnManager automatically calculates the next turn based on events
+      // No manual turn management needed - the system calculates from message history
       
-      // Optional: Emit a turn update event to refresh the frontend immediately
-      // The next turn will be calculated when requested
+      // Optional: Emit a generic turn update event to refresh the frontend
       try {
         await pusherServer.trigger(channelName, PUSHER_EVENTS.TURN_UPDATE, { 
-          next_user_id: userId // This will be recalculated by EventDrivenTurnManager
+          timestamp: new Date().toISOString() // Just refresh the frontend
         });
-        console.log('[AI Reply] Turn update event emitted for frontend refresh.');
+        console.log('[AI Reply] Turn refresh event emitted for frontend');
       } catch (pusherError) {
-        console.error('[AI Reply] ERROR: Failed to emit turn update for frontend refresh:', pusherError);
+        console.error('[AI Reply] ERROR: Failed to emit turn refresh event:', pusherError);
         // Non-critical, continue
       }
     }

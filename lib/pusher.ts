@@ -25,8 +25,12 @@ export const pusherClient = new PusherClient(process.env.NEXT_PUBLIC_PUSHER_KEY!
 
 // Add connection state monitoring for mobile debugging
 if (typeof window !== 'undefined') {
+  let reconnectAttempts = 0;
+  const maxReconnectAttempts = 3;
+  
   pusherClient.connection.bind('connected', () => {
     console.log('[Pusher] Connected successfully');
+    reconnectAttempts = 0; // Reset on successful connection
   });
   
   pusherClient.connection.bind('disconnected', () => {
@@ -35,6 +39,20 @@ if (typeof window !== 'undefined') {
   
   pusherClient.connection.bind('failed', () => {
     console.error('[Pusher] Connection failed');
+    
+    // Mobile-specific: Attempt manual reconnection
+    if (reconnectAttempts < maxReconnectAttempts) {
+      reconnectAttempts++;
+      console.log(`[Pusher] Attempting manual reconnection ${reconnectAttempts}/${maxReconnectAttempts}`);
+      
+      setTimeout(() => {
+        try {
+          pusherClient.connect();
+        } catch (error) {
+          console.error('[Pusher] Manual reconnection failed:', error);
+        }
+      }, 3000 + (reconnectAttempts * 2000)); // Exponential backoff
+    }
   });
   
   pusherClient.connection.bind('unavailable', () => {
@@ -44,6 +62,31 @@ if (typeof window !== 'undefined') {
   pusherClient.connection.bind('error', (error: any) => {
     console.error('[Pusher] Connection error:', error);
   });
+  
+  // Mobile-specific: Check connection state on visibility change
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && pusherClient.connection.state === 'disconnected') {
+      console.log('[Pusher] App became visible, checking connection...');
+      setTimeout(() => {
+        if (pusherClient.connection.state === 'disconnected') {
+          console.log('[Pusher] Still disconnected, attempting reconnection...');
+          pusherClient.connect();
+        }
+      }, 1000);
+    }
+  });
+  
+  // Mobile-specific: Periodic connection health check
+  setInterval(() => {
+    const state = pusherClient.connection.state;
+    if (state === 'failed' || state === 'unavailable') {
+      console.log(`[Pusher] Connection health check: ${state}, attempting recovery...`);
+      if (reconnectAttempts < maxReconnectAttempts) {
+        reconnectAttempts++;
+        pusherClient.connect();
+      }
+    }
+  }, 60000); // Check every minute
 }
 
 // Helper function to get channel name for a chat
