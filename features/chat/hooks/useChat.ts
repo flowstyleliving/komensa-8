@@ -82,7 +82,7 @@ export function useChat(chatId: string) {
     }
   };
 
-  // Auto-clear typing indicator if it gets stuck (recovery mechanism)
+  // Aggressive timeout - force clear AI typing after 10 seconds max
   useEffect(() => {
     if (data.isAssistantTyping) {
       // Clear any existing timeout
@@ -90,14 +90,14 @@ export function useChat(chatId: string) {
         clearTimeout(typingTimeout);
       }
       
-      // Set a new timeout to auto-clear if stuck for more than 2 minutes
+      // Force clear after 10 seconds, no exceptions
       const newTimeout = setTimeout(() => {
-        console.log('[useChat] Auto-clearing stuck AI typing indicator after timeout');
+        console.log('[useChat] Force clearing AI typing after 10 seconds');
         setData(prev => ({
           ...prev,
           isAssistantTyping: false
         }));
-      }, 120000); // 2 minutes
+      }, 10000); // 10 seconds max
       
       setTypingTimeout(newTimeout);
     } else {
@@ -108,50 +108,12 @@ export function useChat(chatId: string) {
       }
     }
     
-    // Cleanup on unmount
     return () => {
       if (typingTimeout) {
         clearTimeout(typingTimeout);
       }
     };
   }, [data.isAssistantTyping]);
-
-  // Mobile-specific: Aggressive stuck AI recovery
-  useEffect(() => {
-    if (!data.isAssistantTyping) {
-      setLastActivity(Date.now());
-      return;
-    }
-
-    // More aggressive mobile timeouts
-    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const mobileTimeout = isMobile ? 90000 : 120000; // 1.5 min on mobile, 2 min on desktop
-    const checkInterval = isMobile ? 15000 : 30000; // Check every 15s on mobile, 30s on desktop
-
-    const stuckCheckInterval = setInterval(() => {
-      const timeSinceActivity = Date.now() - lastActivity;
-      const isStuck = timeSinceActivity > mobileTimeout;
-
-      if (isStuck) {
-        console.warn(`[useChat] AI stuck for ${timeSinceActivity}ms (mobile: ${isMobile}), forcing recovery...`);
-        recoverFromStuckAI();
-        clearInterval(stuckCheckInterval);
-      }
-    }, checkInterval);
-
-    // Also set a hard timeout as backup
-    const hardTimeout = setTimeout(() => {
-      if (data.isAssistantTyping) {
-        console.error('[useChat] Hard timeout reached - force clearing AI typing');
-        recoverFromStuckAI();
-      }
-    }, mobileTimeout);
-
-    return () => {
-      clearInterval(stuckCheckInterval);
-      clearTimeout(hardTimeout);
-    };
-  }, [data.isAssistantTyping, chatId]);
 
   useEffect(() => {
     if (!chatId) {

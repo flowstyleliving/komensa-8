@@ -41,11 +41,11 @@ export async function generateAIReply({
   const isMobile = userAgent ? /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) : false;
   console.log(`[AI Reply] Processing request - Mobile: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
   
-  // Mobile-optimized timeouts
-  const globalTimeout = isMobile ? 45000 : 60000; // 45s for mobile vs 60s desktop
-  const runCreationTimeout = isMobile ? 20000 : 30000; // 20s vs 30s
-  const pollingInterval = isMobile ? 2000 : 1000; // 2s vs 1s polling
-  const maxWaitTime = isMobile ? 90000 : 120000; // 1.5min vs 2min
+  // Aggressive mobile timeouts - keep it under 10 seconds total
+  const globalTimeout = isMobile ? 8000 : 15000; // 8s mobile, 15s desktop
+  const runCreationTimeout = isMobile ? 5000 : 10000; // 5s vs 10s
+  const pollingInterval = isMobile ? 1000 : 1000; // 1s polling
+  const maxWaitTime = isMobile ? 7000 : 12000; // 7s vs 12s
   
   // Log mobile-specific optimizations
   if (isMobile) {
@@ -99,9 +99,9 @@ export async function generateAIReply({
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(async () => {
-      console.error('[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after 60 seconds');
+      console.error(`[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after ${globalTimeout}ms`);
       await cleanup('global_timeout');
-      reject(new Error('AI reply generation timed out after 60 seconds'));
+      reject(new Error(`AI reply generation timed out after ${globalTimeout}ms`));
     }, globalTimeout); // Mobile-optimized timeout
   });
 
