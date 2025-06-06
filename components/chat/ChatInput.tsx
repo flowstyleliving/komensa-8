@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect, useRef, useCallback } from 'react';
+import React, { useState, FormEvent, useEffect, useRef, useCallback } from 'react';
 import { Send, Heart, Users } from 'lucide-react';
 
 interface TurnState {
@@ -134,81 +134,101 @@ export function ChatInput({
     }
   };
 
-  // Generate turn status content
+  // Enhanced turn status content with empathy and clarity
   const getTurnStatusContent = () => {
     if (!currentTurn || !currentUserId) {
-      return null;
+      return (
+        <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+          <div className="w-4 h-4 bg-[#7BAFB0]/50 rounded-full"></div>
+          <span>Loading conversation state...</span>
+        </div>
+      );
     }
 
     const isMyTurn = currentTurn.next_user_id === currentUserId;
     const humanParticipants = participants.filter(p => p.id !== currentUserId && p.id !== 'assistant');
+    const totalParticipants = humanParticipants.length + 1; // +1 for current user
     
     if (isMyTurn) {
-      // Check if this might be the first message scenario
+      // Check conversation stage for contextual messaging
       if (humanParticipants.length === 0) {
-        // User is alone, encourage them to start
+        // User is alone - encourage them to start thoughtfully
         return (
-          <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
-            <Users className="h-4 w-4" />
-            <span className="font-medium">Start the conversation! Your partner will be invited to join.</span>
+          <div className="bg-gradient-to-r from-[#7BAFB0]/5 to-[#D8A7B1]/5 rounded-lg p-3 border border-[#7BAFB0]/20">
+            <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm font-medium mb-1">
+              <Users className="h-4 w-4" />
+              <span>Ready to begin your mediation session</span>
+            </div>
+            <div className="text-center text-xs text-[#3C4858]/60">
+              Share what's on your mind - your partner will join the conversation
+            </div>
           </div>
         );
       } else {
-        // Normal turn messaging
+        // Multi-participant conversation
         return (
-          <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
-            <Users className="h-4 w-4" />
-            <span className="font-medium">It's your turn...</span>
+          <div className="bg-gradient-to-r from-[#7BAFB0]/5 to-[#D8A7B1]/5 rounded-lg p-3 border border-[#7BAFB0]/20">
+            <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm font-medium mb-1">
+              <Users className="h-4 w-4" />
+              <span>Your turn to share</span>
+            </div>
+            <div className="text-center text-xs text-[#3C4858]/60">
+              Take your time - {totalParticipants} participants are listening
+            </div>
           </div>
         );
       }
     }
 
-    // Not my turn - determine who should speak next
+    // Not my turn - show empathetic waiting state
     let turnUserName = 'Unknown User';
-    let waitingMessage = '';
+    let primaryMessage = '';
+    let secondaryMessage = '';
+    let icon = Users;
+    let iconColor = 'text-[#D8A7B1]';
     
     if (currentTurn.next_user_id === 'assistant') {
       turnUserName = 'AI Mediator';
-      waitingMessage = `${turnUserName} is thinking...`;
+      primaryMessage = `${turnUserName} is processing and preparing a thoughtful response`;
+      secondaryMessage = 'The AI considers multiple perspectives before responding';
+      icon = Heart;
+      iconColor = 'text-[#D8A7B1]';
     } else {
       const turnUser = participants.find(p => p.id === currentTurn.next_user_id);
       turnUserName = turnUser?.display_name || 'Unknown User';
       
-      // For multi-participant chats, be more explicit about the waiting behavior
-      if (humanParticipants.length > 0) {
-        // Check if the person whose turn it is has joined yet
-        const hasJoined = turnUser?.display_name && !turnUser.display_name.startsWith('guest_');
-        if (hasJoined) {
-          waitingMessage = `Waiting for ${turnUserName} to respond...`;
-        } else {
-          waitingMessage = `Waiting for ${turnUserName} to join and respond...`;
-        }
+      // Check if the person has joined and customize message accordingly
+      const hasJoined = turnUser?.display_name && !turnUser.display_name.startsWith('guest_');
+      
+      if (hasJoined) {
+        primaryMessage = `Waiting for ${turnUserName} to respond`;
+        secondaryMessage = totalParticipants > 2 
+          ? `Everyone gets equal time to express themselves (${totalParticipants} total participants)`
+          : 'Each person deserves space to share their perspective';
       } else {
-        waitingMessage = `Waiting for ${turnUserName}...`;
+        primaryMessage = `Waiting for ${turnUserName} to join the conversation`;
+        secondaryMessage = 'They\'ll receive an invitation to participate when ready';
       }
     }
 
     return (
-      <div className="flex flex-col items-center justify-center gap-1 text-[#3C4858]/60 text-sm">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-[#D8A7B1]" />
-          <span>{waitingMessage}</span>
+      <div className="bg-gradient-to-r from-[#F9F7F4] to-[#EAE8E5] rounded-lg p-3 border border-[#3C4858]/10">
+        <div className="flex items-center justify-center gap-2 text-[#3C4858]/70 text-sm font-medium mb-1">
+          {React.createElement(icon, { className: `h-4 w-4 ${iconColor}` })}
+          <span>{primaryMessage}</span>
         </div>
-        {humanParticipants.length > 0 && currentTurn.next_user_id !== 'assistant' && (
-          <div className="text-xs text-[#3C4858]/40 italic">
-            Please wait for your turn - everyone gets to speak
-          </div>
-        )}
+        <div className="text-center text-xs text-[#3C4858]/50 italic">
+          {secondaryMessage}
+        </div>
       </div>
     );
   };
 
-  // Determine what to show at the top
+  // Determine what to show at the top - priority: extensions > turn status > fallback
   const topContentToShow = topContent || getTurnStatusContent() || (disabled && (
-    <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
+    <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm p-3">
       <Heart className="h-4 w-4 text-[#D8A7B1]" />
-      <span>The AI is preparing a thoughtful response...</span>
+      <span>Preparing a thoughtful response...</span>
     </div>
   ));
 
