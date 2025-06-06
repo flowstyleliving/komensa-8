@@ -180,11 +180,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Trigger AI reply generation asynchronously
+    // Trigger AI reply generation asynchronously with mobile detection
     generateAIReply({ 
       chatId, 
       userId: session.user.id, 
-      userMessage: content
+      userMessage: content,
+      userAgent: req.headers.get('user-agent') || undefined
     }).catch(async (err: Error) => {
       console.error('[AI Reply] Failed to generate reply:', err);
       

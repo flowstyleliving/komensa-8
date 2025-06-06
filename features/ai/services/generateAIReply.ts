@@ -7,6 +7,7 @@ import { openai, runWithRetries } from '@/lib/openai';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { prisma } from '@/lib/prisma';
 import { setTypingIndicator } from '@/lib/redis';
+import { retryOpenAIOperation, checkNetworkQuality } from '../utils/retries';
 // import { formatStateForPrompt } from './formatStateForPrompt'; // THIS LINE TO BE DELETED
 // import { generateJordanReply } from './generateJordanReply'; // No longer needed here
 // import { TurnManager, DEMO_ROLES } from '@/features/chat/services/turnManager'; // No longer needed here
@@ -28,12 +29,33 @@ function assertAssistantId(id: string | undefined): asserts id is string {
 export async function generateAIReply({
   chatId,
   userId,
-  userMessage
+  userMessage,
+  userAgent
 }: {
   chatId: string;
   userId: string;
   userMessage: string;
+  userAgent?: string;
 }) {
+  // Mobile-aware processing
+  const isMobile = userAgent ? /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) : false;
+  console.log(`[AI Reply] Processing request - Mobile: ${isMobile}, UserAgent: ${userAgent?.substring(0, 100)}`);
+  
+  // Mobile-optimized timeouts
+  const globalTimeout = isMobile ? 45000 : 60000; // 45s for mobile vs 60s desktop
+  const runCreationTimeout = isMobile ? 20000 : 30000; // 20s vs 30s
+  const pollingInterval = isMobile ? 2000 : 1000; // 2s vs 1s polling
+  const maxWaitTime = isMobile ? 90000 : 120000; // 1.5min vs 2min
+  
+  // Log mobile-specific optimizations
+  if (isMobile) {
+    console.log(`[AI Reply] Mobile optimizations active:`, {
+      globalTimeout,
+      runCreationTimeout,
+      pollingInterval,
+      maxWaitTime
+    });
+  }
   console.log('[AI Reply] Starting AI reply generation...', { chatId, userId, userMessage });
   console.log('[AI Reply] Environment check:', {
     OPENAI_ASSISTANT_ID: OPENAI_ASSISTANT_ID ? 'SET' : 'NOT SET',
@@ -64,7 +86,7 @@ export async function generateAIReply({
       console.error('[AI Reply] GLOBAL TIMEOUT: AI reply generation timed out after 60 seconds');
       await cleanup();
       reject(new Error('AI reply generation timed out after 60 seconds'));
-    }, 60000); // 60 seconds - mobile-optimized timeout
+    }, globalTimeout); // Mobile-optimized timeout
   });
 
   const replyPromise = (async () => {
@@ -128,8 +150,10 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Using existing thread:', threadId);
     } else {
       console.log('[AI Reply] Creating new thread...');
-      const thread = await runWithRetries(() => 
-        openai.beta.threads.create()
+      const thread = await retryOpenAIOperation(
+        () => openai.beta.threads.create(),
+        'thread creation',
+        isMobile
       );
       threadId = thread.id;
       console.log('[AI Reply] Created new thread:', threadId);
@@ -157,11 +181,13 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
     // Add message to thread
     console.log('[AI Reply] Adding message to thread...');
     try {
-      await runWithRetries(() =>
-        openai.beta.threads.messages.create(threadId, {
+      await retryOpenAIOperation(
+        () => openai.beta.threads.messages.create(threadId, {
           role: 'user',
           content: fullPrompt
-        })
+        }),
+        'message creation',
+        isMobile
       );
       console.log('[AI Reply] SUCCESSFULLY added message to thread.');
     } catch (openaiMessageError) {
@@ -190,17 +216,19 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
       console.log('[AI Reply] Attempting to create run with assistant ID:', OPENAI_ASSISTANT_ID);
       let run: Run;
       try {
-        const runCreationPromise = runWithRetries(() =>
-          openai.beta.threads.runs.create(threadId, {
+        const runCreationPromise = retryOpenAIOperation(
+          () => openai.beta.threads.runs.create(threadId, {
             assistant_id: OPENAI_ASSISTANT_ID
-          })
+          }),
+          'run creation',
+          isMobile
         ) as Promise<Run>;
         
         const runCreationTimeoutPromise = new Promise<never>((_, reject) => {
           setTimeout(() => {
-            console.error('[AI Reply] TIMEOUT: OpenAI run creation timed out after 30 seconds');
-            reject(new Error('OpenAI run creation timed out after 30 seconds'));
-          }, 30000);
+            console.error(`[AI Reply] TIMEOUT: OpenAI run creation timed out after ${runCreationTimeout}ms (mobile: ${isMobile})`);
+            reject(new Error(`OpenAI run creation timed out after ${runCreationTimeout}ms`));
+          }, runCreationTimeout);
         });
         
         run = await Promise.race([runCreationPromise, runCreationTimeoutPromise]);
@@ -228,23 +256,26 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         throw runCreateError;
       }
       
-      let completedRun = await runWithRetries(() =>
-        openai.beta.threads.runs.retrieve(threadId, run.id)
+      let completedRun = await retryOpenAIOperation(
+        () => openai.beta.threads.runs.retrieve(threadId, run.id),
+        'run retrieval',
+        isMobile
       );
       console.log('[AI Reply] Initial run status:', completedRun.status);
       
-      const maxWaitTime = 120000;
       const startTime = Date.now();
       
       while (completedRun.status === 'in_progress' || completedRun.status === 'queued') {
         if (Date.now() - startTime > maxWaitTime) {
-          console.error('[AI Reply] Run timed out after 2 minutes');
-          throw new Error('AI run timed out after 2 minutes');
+          console.error(`[AI Reply] Run timed out after ${maxWaitTime}ms (mobile: ${isMobile})`);
+          throw new Error(`AI run timed out after ${maxWaitTime}ms`);
         }
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, pollingInterval));
         try {
-          completedRun = await runWithRetries(() =>
-            openai.beta.threads.runs.retrieve(threadId, run.id)
+          completedRun = await retryOpenAIOperation(
+            () => openai.beta.threads.runs.retrieve(threadId, run.id),
+            'run polling',
+            isMobile
           );
           console.log('[AI Reply] Run status:', completedRun.status);
         } catch (error) {
@@ -258,8 +289,10 @@ Respond thoughtfully as a mediator, drawing from the current emotional and conve
         throw new Error(`AI run failed: ${completedRun.last_error?.message}`);
       }
       
-      const messages = await runWithRetries(() =>
-        openai.beta.threads.messages.list(threadId)
+      const messages = await retryOpenAIOperation(
+        () => openai.beta.threads.messages.list(threadId),
+        'message retrieval',
+        isMobile
       );
       const assistantMessage = messages.data[0];
       if (!assistantMessage || !assistantMessage.content) {
