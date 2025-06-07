@@ -62,7 +62,7 @@ async function createTurnStyleSystemMessage(
 // GET: Fetch chat settings
 export async function GET(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  context: { params: { chatId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -70,7 +70,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const chatId = params.chatId;
+    const chatId = context.params.chatId;
 
     // Verify user has access to this chat
     const chat = await prisma.chat.findFirst({
@@ -106,7 +106,7 @@ export async function GET(
 // PATCH: Update chat settings
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { chatId: string } }
+  context: { params: { chatId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -114,7 +114,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const chatId = params.chatId;
+    const chatId = context.params.chatId;
     const body = await req.json();
 
     // Verify user has access to this chat
