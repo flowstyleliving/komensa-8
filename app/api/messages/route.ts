@@ -111,13 +111,11 @@ export async function POST(req: NextRequest) {
 
     const channelName = getChatChannelName(chatId);
 
-    console.log(`[Messages API] ${requestId} - Setting up turn manager...`);
+    console.log(`[Messages API] ${requestId} - Setting up simplified turn manager...`);
     // Run typing cleanup and turn validation in parallel
     const turnManager = new TurnManager(chatId);
-    // Initialize turn policy based on chat settings
-    await turnManager.initializeTurnPolicy();
     
-    const [, canSend, currentTurn] = await Promise.all([
+    const [, canSend] = await Promise.all([
       // Clear stale typing indicators in parallel (non-blocking)
       (async () => {
         try {
@@ -141,14 +139,13 @@ export async function POST(req: NextRequest) {
         }
       })(),
       // Check turn permissions in parallel
-      turnManager.canUserSendMessage(session.user.id),
-      turnManager.getCurrentTurn()
+      turnManager.canUserSendMessage(session.user.id)
     ]);
     
-    console.log(`[Messages API] ${requestId} - Turn check: canSend=${canSend}, currentTurn=`, currentTurn);
+    console.log(`[Messages API] ${requestId} - Turn check: canSend=${canSend}`);
     
     if (!canSend) {
-      console.log(`[Messages API] ${requestId} - Turn denied: next_user_id=${currentTurn?.next_user_id}, current_user=${session.user.id}`);
+      console.log(`[Messages API] ${requestId} - Turn denied for user: ${session.user.id}`);
       return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
     }
 

@@ -14,9 +14,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   console.log('[Chat State] Session debug:', {
     hasSession: !!session,
     userId: session?.user?.id,
+    userName: session?.user?.name,
     isGuest: session?.user?.isGuest,
     sessionChatId: session?.user?.chatId,
-    requestChatId: chatId
+    requestChatId: chatId,
+    sessionEmail: session?.user?.email
   });
   
   if (!session?.user?.id) {
@@ -73,30 +75,34 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     } as any,
   });
 
-  // Initialize turn state if it doesn't exist (fallback)
+  // For simplified turn management, always provide a turn state
   if (!turnState) {
-    console.log('[Chat State] Initializing turn management (fallback)');
+    console.log('[Chat State] Creating simplified turn state');
     const turnManager = new TurnManager(chatId);
     
-    // Try to get the chat creator from the chat_created event
-    const chatCreatedEvent = chat.events[0];
-    const creatorId = (chatCreatedEvent?.data as any)?.createdBy;
+    // Get turn style to determine state
+    const style = await turnManager.getTurnStyle();
     
-    // Initialize with creator going first, or fallback to current user
-    const firstUserId = creatorId || userId;
-    await turnManager.initializeTurn(firstUserId);
-    console.log('[Chat State] Turn management initialized with first user:', firstUserId);
+    if (style === 'flexible') {
+      // For flexible, create a dummy state that allows anyone
+      turnState = {
+        next_user_id: 'anyone',
+        next_role: 'user',
+        turn_queue: [] as any,
+        current_turn_index: 0
+      } as any;
+    } else {
+      // For strict/moderated, get actual turn state from simplified manager
+      const currentTurn = await turnManager.getCurrentTurn();
+      turnState = {
+        next_user_id: currentTurn?.next_user_id || userId,
+        next_role: currentTurn?.next_role || 'user',
+        turn_queue: [] as any,
+        current_turn_index: 0
+      } as any;
+    }
     
-    // Update turn state after creation
-    turnState = await prisma.chatTurnState.findUnique({
-      where: { chat_id: chatId },
-      select: { 
-        next_user_id: true,
-        next_role: true,
-        turn_queue: true,
-        current_turn_index: true
-      } as any,
-    });
+    console.log('[Chat State] Simplified turn state created:', turnState);
   }
 
   // Get typing users from Redis

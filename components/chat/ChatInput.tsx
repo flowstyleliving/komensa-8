@@ -136,11 +136,22 @@ export function ChatInput({
 
   // Enhanced turn status content with empathy and clarity
   const getTurnStatusContent = () => {
-    if (!currentTurn || !currentUserId) {
+    // Simplified: just check if user is signed in
+    if (!currentUserId) {
       return (
         <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
-          <div className="w-4 h-4 bg-[#7BAFB0]/50 rounded-full"></div>
-          <span>Loading conversation state...</span>
+          <div className="w-4 h-4 bg-red-400 rounded-full"></div>
+          <span>Please sign in to participate</span>
+        </div>
+      );
+    }
+
+    // For flexible turn taking (default), anyone can speak
+    if (!currentTurn || currentTurn.next_user_id === 'anyone' || currentTurn.next_user_id === currentUserId) {
+      return (
+        <div className="flex items-center justify-center gap-2 text-green-600 text-sm">
+          <div className="w-4 h-4 bg-green-400 rounded-full"></div>
+          <span>You can speak anytime 💬</span>
         </div>
       );
     }

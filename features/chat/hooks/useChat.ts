@@ -13,6 +13,8 @@ interface SessionUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  isGuest?: boolean;
+  chatId?: string;
 }
 
 interface ChatMessage {
@@ -38,6 +40,13 @@ export function useChat(chatId: string) {
   // Get user ID from session
   const getUserId = () => {
     const user = session?.user as SessionUser | undefined;
+    console.log('[useChat] getUserId debug:', {
+      hasSession: !!session,
+      hasUser: !!user,
+      userId: user?.id,
+      isGuest: user?.isGuest,
+      chatId: user?.chatId
+    });
     if (user?.id) return user.id;
     
     return null;
