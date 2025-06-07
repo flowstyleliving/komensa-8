@@ -143,23 +143,12 @@ export async function POST(req: NextRequest) {
       turnManager.getCurrentTurn()
     ]);
     
+    console.log(`[Messages API] ${requestId} - Turn check: canSend=${canSend}, currentTurn=`, currentTurn);
+    
+    // Temporary: Allow all messages for debugging turn management issues
     if (!canSend) {
-      // Recovery: Try to initialize turn if no state exists
-      if (!currentTurn || currentTurn.next_user_id === 'assistant') {
-        try {
-          await turnManager.initializeTurn(session.user.id);
-          const recoveredCanSend = await turnManager.canUserSendMessage(session.user.id);
-          
-          if (!recoveredCanSend) {
-            return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
-          }
-        } catch (recoveryError) {
-          console.error('[Messages API] Turn recovery failed:', recoveryError);
-          return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
-        }
-      } else {
-        return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
-      }
+      console.log(`[Messages API] ${requestId} - TEMPORARILY BYPASSING TURN MANAGEMENT FOR DEBUGGING`);
+      console.log(`[Messages API] ${requestId} - Would normally deny: next_user_id=${currentTurn?.next_user_id}, current_user=${session.user.id}`);
     }
 
     // Generate optimistic message ID and timestamp for immediate broadcast
