@@ -125,6 +125,7 @@ model Chat {
   turn_taking    String                 @default("strict")
   status         String                 @default("active")
   created_at     DateTime               @default(now())
+  settings       Json?                  @default("{}")
   extensions     ChatExtension[]
   participants   ChatParticipant[]
   turn_state     ChatTurnState?         @relation("ChatTurnState")

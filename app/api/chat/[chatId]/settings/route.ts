@@ -62,15 +62,14 @@ async function createTurnStyleSystemMessage(
 // GET: Fetch chat settings
 export async function GET(
   req: NextRequest,
-  context: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
+    const { chatId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const chatId = context.params.chatId;
 
     // Verify user has access to this chat
     const chat = await prisma.chat.findFirst({
@@ -94,7 +93,7 @@ export async function GET(
       turnStyle: 'flexible'
     };
 
-    const settings = { ...defaultSettings, ...chat.settings };
+    const settings = { ...defaultSettings, ...((chat.settings as any) || {}) };
 
     return NextResponse.json(settings);
   } catch (error) {
@@ -106,15 +105,14 @@ export async function GET(
 // PATCH: Update chat settings
 export async function PATCH(
   req: NextRequest,
-  context: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
+    const { chatId } = await params;
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    const chatId = context.params.chatId;
     const body = await req.json();
 
     // Verify user has access to this chat
@@ -139,7 +137,7 @@ export async function PATCH(
     }
 
     // Update settings
-    const currentSettings = chat.settings || {};
+    const currentSettings = (chat.settings as any) || {};
     const newSettings = { ...currentSettings, ...body };
     const previousTurnStyle = currentSettings.turnStyle || 'flexible';
 
