@@ -1,0 +1,33 @@
+{
+  "id": "turn-taking",
+  "name": "Turn-Taking Styles",
+  "version": "1.0.0",
+  "description": "Flexible turn-taking policies for chat conversations",
+  "type": "turn-policy",
+  "author": "Komensa",
+  "settings": {
+    "turnStyle": {
+      "type": "select",
+      "label": "Turn-Taking Style",
+      "description": "How turns are managed in this conversation",
+      "default": "flexible",
+      "options": [
+        {
+          "value": "strict",
+          "label": "Strict Turns",
+          "description": "Traditional turn-based - one person speaks at a time"
+        },
+        {
+          "value": "flexible",
+          "label": "Flexible Turns",
+          "description": "Anyone can speak anytime - more natural conversation"
+        },
+        {
+          "value": "moderated",
+          "label": "Moderated",
+          "description": "AI moderates who speaks when based on context"
+        }
+      ]
+    }
+  }
+}

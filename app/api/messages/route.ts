@@ -114,6 +114,8 @@ export async function POST(req: NextRequest) {
     console.log(`[Messages API] ${requestId} - Setting up turn manager...`);
     // Run typing cleanup and turn validation in parallel
     const turnManager = new TurnManager(chatId);
+    // Initialize turn policy based on chat settings
+    await turnManager.initializeTurnPolicy();
     
     const [, canSend, currentTurn] = await Promise.all([
       // Clear stale typing indicators in parallel (non-blocking)
@@ -145,10 +147,9 @@ export async function POST(req: NextRequest) {
     
     console.log(`[Messages API] ${requestId} - Turn check: canSend=${canSend}, currentTurn=`, currentTurn);
     
-    // Temporary: Allow all messages for debugging turn management issues
     if (!canSend) {
-      console.log(`[Messages API] ${requestId} - TEMPORARILY BYPASSING TURN MANAGEMENT FOR DEBUGGING`);
-      console.log(`[Messages API] ${requestId} - Would normally deny: next_user_id=${currentTurn?.next_user_id}, current_user=${session.user.id}`);
+      console.log(`[Messages API] ${requestId} - Turn denied: next_user_id=${currentTurn?.next_user_id}, current_user=${session.user.id}`);
+      return NextResponse.json({ error: 'Not your turn' }, { status: 403 });
     }
 
     // Generate optimistic message ID and timestamp for immediate broadcast

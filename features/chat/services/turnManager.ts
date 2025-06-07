@@ -1,10 +1,11 @@
 // Streamlined turn management system for Komensa chat application
-// Uses EventDrivenTurnManager for all chats
+// Uses EventDrivenTurnManager for all chats with configurable turn-taking policies
 
 import { prisma } from '@/lib/prisma';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { setTypingIndicator, getTypingUsers } from '@/lib/redis';
 import { EventDrivenTurnManager } from './EventDrivenTurnManager';
+import { getTurnPolicy, TurnPolicy } from '@/extensions/turn-taking/policies';
 
 export interface TurnState {
   next_role?: string; 
@@ -13,9 +14,39 @@ export interface TurnState {
 
 export class TurnManager {
   private eventDrivenManager: EventDrivenTurnManager;
+  private turnPolicy: TurnPolicy;
 
   constructor(protected chatId: string, chatType: string = 'mediated') {
     this.eventDrivenManager = new EventDrivenTurnManager(chatId, chatType);
+    // Default to flexible policy for better UX
+    this.turnPolicy = getTurnPolicy('flexible');
+  }
+
+  // Set turn-taking policy
+  async setTurnPolicy(style: string): Promise<void> {
+    this.turnPolicy = getTurnPolicy(style);
+    console.log(`[TurnManager] Set turn policy to: ${style}`);
+  }
+
+  // Get chat settings including turn style
+  private async getChatSettings(): Promise<any> {
+    try {
+      const chat = await prisma.chat.findUnique({
+        where: { id: this.chatId },
+        select: { settings: true }
+      });
+      return chat?.settings || {};
+    } catch (error) {
+      console.error('[TurnManager] Error getting chat settings:', error);
+      return {};
+    }
+  }
+
+  // Initialize turn policy based on chat settings
+  async initializeTurnPolicy(): Promise<void> {
+    const settings = await this.getChatSettings();
+    const turnStyle = settings.turnStyle || 'flexible';
+    await this.setTurnPolicy(turnStyle);
   }
 
   // Get current turn state
@@ -35,10 +66,50 @@ export class TurnManager {
   // Check if a user can send a message
   async canUserSendMessage(userId: string): Promise<boolean> {
     try {
-      return await this.eventDrivenManager.canUserSendMessage(userId);
+      // Initialize turn policy if needed
+      await this.initializeTurnPolicy();
+      
+      // Get current chat state for policy decision
+      const chatState = await this.getChatStateForPolicy();
+      
+      // Use the configured turn policy
+      return await this.turnPolicy.canUserSendMessage(userId, chatState);
     } catch (error) {
       console.error('[TurnManager] Error checking user permission:', error);
-      return false;
+      // Default to allowing messages if there's an error
+      return true;
+    }
+  }
+
+  // Get chat state needed for policy decisions
+  private async getChatStateForPolicy(): Promise<any> {
+    try {
+      const [turnState, messages, participants] = await Promise.all([
+        this.eventDrivenManager.getCurrentTurn(),
+        prisma.event.findMany({
+          where: { chat_id: this.chatId },
+          orderBy: { created_at: 'desc' },
+          take: 20,
+          select: { data: true, created_at: true }
+        }),
+        prisma.chatParticipant.findMany({
+          where: { chat_id: this.chatId },
+          include: { user: { select: { id: true, display_name: true } } }
+        })
+      ]);
+
+      return {
+        next_user_id: turnState.next_user_id,
+        next_role: turnState.next_role,
+        messages: messages,
+        participants: participants.map(p => ({
+          id: p.user.id,
+          display_name: p.user.display_name
+        }))
+      };
+    } catch (error) {
+      console.error('[TurnManager] Error getting chat state:', error);
+      return {};
     }
   }
 

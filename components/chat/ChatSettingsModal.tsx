@@ -25,6 +25,7 @@ interface ChatSettingsModalProps {
   onGenerateSummary: () => Promise<void>;
   onResetAI?: () => Promise<void>;
   onResetTurn?: () => Promise<void>;
+  onUpdateTurnStyle?: (style: string) => Promise<void>;
   participants?: Array<{
     id: string;
     display_name: string;
@@ -41,6 +42,7 @@ export function ChatSettingsModal({
   onGenerateSummary,
   onResetAI,
   onResetTurn,
+  onUpdateTurnStyle,
   participants = []
 }: ChatSettingsModalProps) {
   const [completionData, setCompletionData] = useState<{
@@ -60,6 +62,8 @@ export function ChatSettingsModal({
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [isGeneratingInvite, setIsGeneratingInvite] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [turnStyle, setTurnStyle] = useState('flexible');
+  const [isUpdatingTurnStyle, setIsUpdatingTurnStyle] = useState(false);
 
   // Fetch completion status
   const fetchCompletionStatus = async () => {
@@ -74,9 +78,23 @@ export function ChatSettingsModal({
     }
   };
 
+  // Fetch current turn style
+  const fetchTurnStyle = async () => {
+    try {
+      const res = await fetch(`/api/chat/${chatId}/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        setTurnStyle(data.turnStyle || 'flexible');
+      }
+    } catch (error) {
+      console.error('Failed to fetch turn style:', error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchCompletionStatus();
+      fetchTurnStyle();
     }
   }, [isOpen, chatId]);
 
@@ -162,6 +180,30 @@ export function ChatSettingsModal({
     }
   };
 
+  const handleTurnStyleChange = async (newStyle: string) => {
+    setIsUpdatingTurnStyle(true);
+    try {
+      const res = await fetch(`/api/chat/${chatId}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ turnStyle: newStyle }),
+      });
+      
+      if (res.ok) {
+        setTurnStyle(newStyle);
+        if (onUpdateTurnStyle) {
+          await onUpdateTurnStyle(newStyle);
+        }
+      } else {
+        console.error('Failed to update turn style');
+      }
+    } catch (error) {
+      console.error('Error updating turn style:', error);
+    } finally {
+      setIsUpdatingTurnStyle(false);
+    }
+  };
+
   const currentUserCompleted = completionData?.completionStatuses.some(
     status => status.user_id === currentUserId
   );
@@ -229,6 +271,80 @@ export function ChatSettingsModal({
                   <p className="text-sm">No participants found</p>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* Turn-Taking Settings Section */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
+              <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
+                <Users className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[#3C4858]">Turn-Taking Style</h3>
+                <p className="text-sm text-[#3C4858]/70">
+                  Choose how conversation turns are managed
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                {
+                  value: 'flexible',
+                  label: 'Flexible Turns',
+                  description: 'Anyone can speak anytime - more natural conversation',
+                  icon: '🗣️'
+                },
+                {
+                  value: 'strict',
+                  label: 'Strict Turns',
+                  description: 'Traditional turn-based - one person speaks at a time',
+                  icon: '⏰'
+                },
+                {
+                  value: 'moderated',
+                  label: 'AI Moderated',
+                  description: 'AI manages who speaks when based on context',
+                  icon: '🤖'
+                }
+              ].map((option) => (
+                <div
+                  key={option.value}
+                  className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all ${
+                    turnStyle === option.value
+                      ? 'border-purple-500 bg-purple-50'
+                      : 'border-gray-200 bg-white hover:border-purple-300'
+                  }`}
+                  onClick={() => handleTurnStyleChange(option.value)}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{option.icon}</span>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className={`font-medium ${
+                          turnStyle === option.value ? 'text-purple-900' : 'text-[#3C4858]'
+                        }`}>
+                          {option.label}
+                        </h4>
+                        {turnStyle === option.value && (
+                          <CheckCircle className="h-5 w-5 text-purple-600" />
+                        )}
+                      </div>
+                      <p className={`text-sm mt-1 ${
+                        turnStyle === option.value ? 'text-purple-700' : 'text-[#3C4858]/70'
+                      }`}>
+                        {option.description}
+                      </p>
+                    </div>
+                  </div>
+                  {isUpdatingTurnStyle && turnStyle !== option.value && (
+                    <div className="absolute inset-0 bg-white/50 rounded-lg flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 

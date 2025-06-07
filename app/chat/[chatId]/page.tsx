@@ -283,6 +283,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
                   userId={userId}
                   participantMap={participantMap}
                   participants={participants}
+                  messageData={data}
                 />
               );
             })}
