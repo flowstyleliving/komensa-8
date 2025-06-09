@@ -40,16 +40,7 @@ export function useChat(chatId: string) {
   // Get user ID from session
   const getUserId = () => {
     const user = session?.user as SessionUser | undefined;
-    console.log('[useChat] getUserId debug:', {
-      hasSession: !!session,
-      hasUser: !!user,
-      userId: user?.id,
-      isGuest: user?.isGuest,
-      chatId: user?.chatId
-    });
-    if (user?.id) return user.id;
-    
-    return null;
+    return user?.id || null;
   };
 
   // Recovery function for stuck AI
@@ -368,32 +359,37 @@ export function useChat(chatId: string) {
   }, [chatId]);
 
   const canSendMessage = () => {
+    // Handle flexible mode ('anyone' can send) first - works for both authenticated and guest users
+    if (!data.currentTurn || data.currentTurn.next_user_id === 'anyone') {
+      return true;
+    }
+    
     const userId = getUserId();
     if (!userId) {
-      console.log('[useChat] No user ID found');
+      console.log('[useChat] No user ID found in session and not in flexible mode');
       return false;
     }
     
-    // Check both user ID and role-based permissions
-    const canSend = data.currentTurn?.next_user_id === userId;
-    console.log('[useChat] Can send message:', canSend, {
-      userId,
-      nextUserId: data.currentTurn?.next_user_id,
-      nextRole: data.currentTurn?.next_role,
-      currentTurn: data.currentTurn
-    });
+    // Handle specific user turns
+    const canSend = data.currentTurn.next_user_id === userId;
     return canSend;
   };
 
   const sendMessage = async (content: string) => {
     const userId = getUserId();
     if (!userId) {
-      console.error('[useChat] Cannot send message: no user ID');
-      return;
+      // GUEST USER FIX: For flexible mode, attempt to send anyway
+      // The server will handle authentication and user identification
+      if (data.currentTurn?.next_user_id === 'anyone') {
+        console.log('[useChat] No userId but flexible mode - attempting send (guest user scenario)');
+      } else {
+        console.error('[useChat] Cannot send message: no user ID');
+        return;
+      }
     }
 
     try {
-      console.log('[useChat] Sending message:', { content, userId, chatId });
+      console.log('[useChat] Sending message:', { content, userId: userId || 'guest-session', chatId });
       const res = await fetch(`/api/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

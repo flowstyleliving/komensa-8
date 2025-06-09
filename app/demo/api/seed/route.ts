@@ -32,38 +32,23 @@ export async function GET(req: Request) {
     console.log('[Demo Seed] Starting demo chat creation...');
     console.log('[Demo Seed] Database URL configured:', !!process.env.DATABASE_URL);
 
-    // 1. Create two real users for the demo chat
-    console.log('[Demo Seed] Creating demo users...');
-    let user1, user2;
+    // 1. Use static demo user IDs (no database creation)
+    console.log('[Demo Seed] Using static demo user IDs...');
+    const user1 = {
+      id: 'demo-michael-' + uuidv4().slice(0, 8), // Short unique ID for this session
+      display_name: 'Michael',
+    };
     
-    try {
-      user1 = await prisma.user.create({
-        data: {
-          id: uuidv4(),
-          display_name: 'Michael',
-        },
-      });
-      console.log('[Demo Seed] Created user1 (Michael):', user1.id, user1.display_name);
-    } catch (error) {
-      console.error('[Demo Seed] Failed to create user1:', error);
-      throw error;
-    }
+    const user2 = {
+      id: 'demo-jordan-' + uuidv4().slice(0, 8), // Short unique ID for this session  
+      display_name: 'Jordan',
+    };
+    
+    console.log('[Demo Seed] Demo user1 (Michael):', user1.id, user1.display_name);
+    console.log('[Demo Seed] Demo user2 (Jordan):', user2.id, user2.display_name);
 
-    try {
-      user2 = await prisma.user.create({
-        data: {
-          id: uuidv4(),
-          display_name: 'Jordan',
-        },
-      });
-      console.log('[Demo Seed] Created user2 (Jordan):', user2.id, user2.display_name);
-    } catch (error) {
-      console.error('[Demo Seed] Failed to create user2:', error);
-      throw error;
-    }
-
-    // 2. Create a new chat and connect both users as participants
-    console.log('[Demo Seed] Creating chat with participants...');
+    // 2. Create a demo chat without database participants (participants are virtual)
+    console.log('[Demo Seed] Creating demo chat...');
     let newChat;
     
     try {
@@ -73,15 +58,10 @@ export async function GET(req: Request) {
           mediator_style: 'default',
           turn_taking: 'strict',
           status: 'active',
-          participants: {
-            create: [
-              { user_id: user1.id, role: 'user' },
-              { user_id: user2.id, role: 'user' },
-            ],
-          },
+          // No participants needed - demo users are virtual
           turn_state: {
             create: {
-              next_user_id: user1.id, // Start with Michael (the demo viewer)
+              next_user_id: user1.id, // Start with Michael (virtual demo user)
               next_role: 'user_a',
               turn_queue: ['user_a', 'mediator', 'jordan', 'mediator'],
               current_turn_index: 0
@@ -89,7 +69,7 @@ export async function GET(req: Request) {
           }
         },
       });
-      console.log('[Demo Seed] Created chat:', newChat.id);
+      console.log('[Demo Seed] Created demo chat:', newChat.id);
     } catch (error) {
       console.error('[Demo Seed] Failed to create chat:', error);
       throw error;

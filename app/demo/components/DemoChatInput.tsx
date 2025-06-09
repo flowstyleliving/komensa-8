@@ -65,18 +65,12 @@ export function DemoChatInput({
       if (otherParticipants.length === 0) {
         // User is alone, encourage them to start
         return (
-          <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
-            <Users className="h-4 w-4" />
-            <span className="font-medium">Start the conversation! (Demo mode)</span>
-          </div>
+          <span className="text-[#7BAFB0] text-sm font-medium">Start the conversation! (Demo mode)</span>
         );
       } else {
         // Normal turn messaging
         return (
-          <div className="flex items-center justify-center gap-2 text-[#7BAFB0] text-sm">
-            <Users className="h-4 w-4" />
-            <span className="font-medium">It's your turn...</span>
-          </div>
+          <span className="text-[#7BAFB0] text-sm font-medium">It's your turn...</span>
         );
       }
     }
@@ -91,19 +85,13 @@ export function DemoChatInput({
     }
 
     return (
-      <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
-        <Users className="h-4 w-4 text-[#D8A7B1]" />
-        <span>Waiting for {turnUserName}...</span>
-      </div>
+      <span className="text-[#3C4858]/60 text-sm">Waiting for {turnUserName}...</span>
     );
   };
 
   // Determine what to show at the top
   const topContentToShow = topContent || getTurnStatusContent() || (disabled && (
-    <div className="flex items-center justify-center gap-2 text-[#3C4858]/60 text-sm">
-      <Heart className="h-4 w-4 text-[#D8A7B1]" />
-      <span>The AI is preparing a thoughtful response...</span>
-    </div>
+    <span className="text-[#3C4858]/60 text-sm">The AI is preparing a thoughtful response...</span>
   ));
 
   return (

@@ -1,6 +1,6 @@
-import { Extension, VizCueExtension, ExtensionContext } from './types';
+import { Extension, VizCueExtension, SendButtonExtension, ExtensionContext } from './types';
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Send, Heart, MessageCircle } from 'lucide-react';
 
 class ExtensionRegistry {
   private extensions: Map<string, Extension> = new Map();
@@ -29,7 +29,43 @@ class ExtensionRegistry {
       }
     };
 
+    // Gentle Send Button extension
+    const gentleSend: SendButtonExtension = {
+      id: 'gentle-send',
+      name: 'Gentle Send',
+      description: 'A softer, more mindful send button with heart icon',
+      version: '1.0.0',
+      type: 'send-button',
+      enabled: false, // Disabled by default
+      config: {
+        icon: Heart,
+        style: 'gentle',
+        behavior: 'delay',
+        delayMs: 500,
+        customStyles: 'bg-gradient-to-r from-[#D8A7B1] to-[#D9C589] hover:from-[#C99BA4] hover:to-[#E6C869]'
+      }
+    };
+
+    // Mindful Send Button extension  
+    const mindfulSend: SendButtonExtension = {
+      id: 'mindful-send',
+      name: 'Mindful Send',
+      description: 'Asks for confirmation before sending to encourage thoughtful communication',
+      version: '1.0.0',
+      type: 'send-button',
+      enabled: false,
+      config: {
+        icon: MessageCircle,
+        style: 'custom',
+        behavior: 'confirm',
+        confirmationText: 'Are you sure this message reflects your best intentions?',
+        customStyles: 'bg-gradient-to-r from-[#7BAFB0] to-[#D9C589] hover:from-[#6D9E9F] hover:to-[#E6C869]'
+      }
+    };
+
     this.extensions.set(thinkGoodThoughts.id, thinkGoodThoughts);
+    this.extensions.set(gentleSend.id, gentleSend);
+    this.extensions.set(mindfulSend.id, mindfulSend);
   }
 
   getExtension(id: string): Extension | undefined {
@@ -133,6 +169,89 @@ class ExtensionRegistry {
     const extension = this.extensions.get(id);
     if (extension) {
       extension.enabled = false;
+    }
+  }
+
+  getSendButtonExtension(context: ExtensionContext): SendButtonExtension | null {
+    const sendButtonExtensions = this.getEnabledExtensions()
+      .filter(ext => ext.type === 'send-button') as SendButtonExtension[];
+
+    // Return the first enabled send button extension, or null for default
+    return sendButtonExtensions.length > 0 ? sendButtonExtensions[0] : null;
+  }
+
+  renderSendButton(
+    extension: SendButtonExtension | null, 
+    context: ExtensionContext,
+    onSend: (message: string) => void,
+    disabled: boolean
+  ): React.ReactNode {
+    // Default send button if no extension
+    if (!extension) {
+      return React.createElement('button', {
+        type: 'submit',
+        disabled: disabled || !context.messageContent?.trim(),
+        className: 'w-12 h-12 sm:w-14 sm:h-12 bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white rounded-xl hover:from-[#6D9E9F] hover:to-[#C99BA4] focus:outline-none focus:ring-2 focus:ring-[#7BAFB0]/30 focus:ring-offset-2 focus:ring-offset-white disabled:from-[#7BAFB0]/40 disabled:to-[#D8A7B1]/40 disabled:cursor-not-allowed flex items-center justify-center font-medium shadow-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md active:scale-[0.98] active:shadow-sm flex-shrink-0 touch-manipulation',
+        style: { WebkitTapHighlightColor: 'transparent' }
+      }, React.createElement(Send, { className: 'h-4 w-4 sm:h-5 sm:w-5' }));
+    }
+
+    // Custom send button from extension
+    const IconComponent = extension.config.icon || Send;
+    const styles = extension.config.customStyles || 'w-12 h-12 sm:w-14 sm:h-12 bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] text-white rounded-xl hover:from-[#6D9E9F] hover:to-[#C99BA4] focus:outline-none focus:ring-2 focus:ring-[#7BAFB0]/30 focus:ring-offset-2 focus:ring-offset-white disabled:from-[#7BAFB0]/40 disabled:to-[#D8A7B1]/40 disabled:cursor-not-allowed flex items-center justify-center font-medium shadow-sm transition-all duration-300 transform hover:scale-[1.02] hover:shadow-md active:scale-[0.98] active:shadow-sm flex-shrink-0 touch-manipulation';
+
+    const handleClick = (e: React.MouseEvent) => {
+      e.preventDefault();
+      this.handleSendButtonAction(extension, context, onSend);
+    };
+
+    return React.createElement('button', {
+      type: 'button',
+      disabled: disabled || !context.messageContent?.trim(),
+      className: styles,
+      onClick: handleClick,
+      style: { WebkitTapHighlightColor: 'transparent' },
+      title: extension.config.label || 'Send message'
+    }, React.createElement(IconComponent, { className: 'h-4 w-4 sm:h-5 sm:w-5' }));
+  }
+
+  private async handleSendButtonAction(
+    extension: SendButtonExtension,
+    context: ExtensionContext,
+    onSend: (message: string) => void
+  ) {
+    if (!context.messageContent?.trim()) return;
+
+    let messageToSend = context.messageContent;
+    const behavior = extension.config.behavior || 'default';
+
+    try {
+      switch (behavior) {
+        case 'confirm':
+          const confirmed = confirm(extension.config.confirmationText || 'Send this message?');
+          if (!confirmed) return;
+          break;
+
+        case 'transform':
+          if (extension.config.transformMessage) {
+            messageToSend = extension.config.transformMessage(messageToSend);
+          }
+          break;
+
+        case 'delay':
+          await new Promise(resolve => setTimeout(resolve, extension.config.delayMs || 300));
+          break;
+
+        default:
+          // 'default' behavior - send immediately
+          break;
+      }
+
+      onSend(messageToSend);
+    } catch (error) {
+      console.error('Send button extension error:', error);
+      // Fallback to original message
+      onSend(context.messageContent);
     }
   }
 }

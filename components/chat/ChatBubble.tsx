@@ -42,7 +42,7 @@ export function ChatBubble({ content, senderId, timestamp, userId, participantMa
     if (isSystem) {
       // Special styling for turn-taking changes
       if (messageData?.messageType === 'turn_style_change') {
-        return 'bg-gradient-to-r from-purple-50 to-pink-50 text-[#3C4858] text-sm max-w-[90%] text-center p-4 rounded-lg border border-purple-200 shadow-sm';
+        return 'bg-gradient-to-r from-[#D9C589]/20 to-[#D9C589]/10 text-[#3C4858] text-sm max-w-[90%] text-center p-4 rounded-lg border border-[#D9C589]/30 shadow-sm';
       }
       return 'bg-[#D9C589]/10 text-[#3C4858]/80 italic text-sm max-w-[90%] text-center p-4 rounded-lg border border-[#D9C589]/20';
     }
@@ -79,7 +79,7 @@ export function ChatBubble({ content, senderId, timestamp, userId, participantMa
           {isSystem && messageData?.messageType === 'turn_style_change' && (
             <div className="flex items-center justify-center gap-2 mb-2">
               <span className="text-lg">⚙️</span>
-              <span className="text-xs font-medium text-purple-600 uppercase tracking-wide">
+              <span className="text-xs font-medium text-[#D9C589] uppercase tracking-wide">
                 Turn Style Changed
               </span>
             </div>

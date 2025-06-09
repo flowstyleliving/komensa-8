@@ -33,8 +33,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Access denied - guest can only access their invited chat' }, { status: 403 });
   }
 
-  // Verify user is a participant in this chat
-  const chat = await prisma.chat.findFirst({
+  // Verify user is a participant in this chat (with retry for guest users)
+  let chat = await prisma.chat.findFirst({
     where: {
       id: chatId,
       participants: {
@@ -54,7 +54,41 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
   });
 
+  // GUEST USER RACE CONDITION FIX: Retry for guest users who might have just been added
+  if (!chat && session.user.isGuest) {
+    console.log('[Chat State] Chat not found for guest user, retrying in case of race condition...');
+    
+    // Brief delay to allow database consistency
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Retry the query
+    chat = await prisma.chat.findFirst({
+      where: {
+        id: chatId,
+        participants: {
+          some: {
+            user_id: userId
+          }
+        }
+      },
+      include: { 
+        participants: {
+          include: { user: true }
+        },
+        events: {
+          where: { type: 'chat_created' },
+          take: 1
+        }
+      }
+    });
+    
+    if (chat) {
+      console.log('[Chat State] Guest access granted on retry - race condition resolved');
+    }
+  }
+
   if (!chat) {
+    console.log('[Chat State] Access denied after all attempts:', { userId, chatId, isGuest: session.user.isGuest });
     return NextResponse.json({ error: 'Chat not found or access denied' }, { status: 404 });
   }
 
@@ -80,10 +114,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.log('[Chat State] Creating simplified turn state');
     const turnManager = new TurnManager(chatId);
     
-    // Get turn style to determine state
-    const style = await turnManager.getTurnStyle();
+    // Get turn mode to determine state
+    const mode = await turnManager.getTurnMode();
     
-    if (style === 'flexible') {
+    if (mode === 'flexible') {
       // For flexible, create a dummy state that allows anyone
       turnState = {
         next_user_id: 'anyone',
@@ -91,8 +125,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         turn_queue: [] as any,
         current_turn_index: 0
       } as any;
-    } else {
-      // For strict/moderated, get actual turn state from simplified manager
+          } else {
+        // For strict/moderated, get actual turn state from simplified manager
       const currentTurn = await turnManager.getCurrentTurn();
       turnState = {
         next_user_id: currentTurn?.next_user_id || userId,

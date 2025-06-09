@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateAIReply } from '@/features/ai/services/generateAIReply';
+import { AIResponseService } from '@/features/ai/services/AIResponseService';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,12 +13,14 @@ export async function POST(req: NextRequest) {
 
     console.log('[Debug] Manually triggering mediator response...', { chatId, userId, userMessage });
     
-    // Trigger the mediator response
-    const result = await generateAIReply({
+    // Use new AIResponseService for testing
+    const aiService = new AIResponseService({
       chatId,
       userId,
       userMessage
     });
+    
+    const result = await aiService.generate();
 
     return NextResponse.json({
       success: true,

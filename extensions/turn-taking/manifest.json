@@ -1,31 +1,36 @@
 {
   "id": "turn-taking",
-  "name": "Turn-Taking Styles",
+  "name": "Turn-Taking Modes",
   "version": "1.0.0",
-  "description": "Flexible turn-taking policies for chat conversations",
+  "description": "Configure how conversation turns are managed",
   "type": "turn-policy",
   "author": "Komensa",
   "settings": {
-    "turnStyle": {
+    "turn_taking": {
       "type": "select",
-      "label": "Turn-Taking Style",
+      "label": "Turn Taking Mode",
       "description": "How turns are managed in this conversation",
       "default": "flexible",
       "options": [
         {
-          "value": "strict",
-          "label": "Strict Turns",
-          "description": "Traditional turn-based - one person speaks at a time"
+          "value": "flexible",
+          "label": "Flexible",
+          "description": "Anyone can speak anytime - natural conversation flow"
         },
         {
-          "value": "flexible",
-          "label": "Flexible Turns",
-          "description": "Anyone can speak anytime - more natural conversation"
+          "value": "strict",
+          "label": "Strict",
+          "description": "Round-robin turns with AI facilitating each exchange"
         },
         {
           "value": "moderated",
           "label": "Moderated",
-          "description": "AI moderates who speaks when based on context"
+          "description": "AI manages conversation flow and prevents spam"
+        },
+        {
+          "value": "rounds",
+          "label": "Rounds",
+          "description": "Round-robin turns with AI responding only after complete rounds"
         }
       ]
     }

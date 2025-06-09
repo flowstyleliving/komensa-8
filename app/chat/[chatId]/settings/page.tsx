@@ -8,11 +8,11 @@ import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 
 type MediatorStyle = 'default' | 'nvc' | 'goals';
-type TurnTaking = 'strict' | 'flexible';
+type TurnMode = 'flexible' | 'strict' | 'moderated' | 'rounds';
 
 interface ChatSettings {
   mediator_style: MediatorStyle;
-  turn_taking: TurnTaking;
+  turn_taking: TurnMode;
   extensions: {
     id: string;
     name: string;
@@ -22,7 +22,7 @@ interface ChatSettings {
 
 const DEFAULT_SETTINGS: ChatSettings = {
   mediator_style: 'default',
-  turn_taking: 'strict',
+  turn_taking: 'flexible',
   extensions: []
 };
 
@@ -104,19 +104,73 @@ export default function ChatSettings() {
           />
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="space-y-3">
           <div>
-            <Label htmlFor="turn-taking">Strict Turn Taking</Label>
-            <p className="text-sm text-gray-500">Enforce structured back-and-forth conversation</p>
+            <Label htmlFor="turn-taking">Turn Taking Mode</Label>
+            <p className="text-sm text-gray-500">How conversation turns are managed</p>
           </div>
-          <Switch
-            id="turn-taking"
-            checked={settings.turn_taking === 'strict'}
-            onCheckedChange={(checked: boolean) => 
-              updateSetting('turn_taking', checked ? 'strict' : 'flexible')
-            }
-            disabled={isLoading}
-          />
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="flexible"
+                name="turn_taking"
+                value="flexible"
+                checked={settings.turn_taking === 'flexible'}
+                onChange={() => updateSetting('turn_taking', 'flexible')}
+                disabled={isLoading}
+                className="h-4 w-4 text-blue-600"
+              />
+              <Label htmlFor="flexible" className="text-sm font-normal">
+                <span className="font-medium">Flexible</span> - Anyone can speak anytime
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="strict"
+                name="turn_taking"
+                value="strict"
+                checked={settings.turn_taking === 'strict'}
+                onChange={() => updateSetting('turn_taking', 'strict')}
+                disabled={isLoading}
+                className="h-4 w-4 text-blue-600"
+              />
+              <Label htmlFor="strict" className="text-sm font-normal">
+                <span className="font-medium">Strict</span> - Turn-based with AI facilitating each exchange
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="moderated"
+                name="turn_taking"
+                value="moderated"
+                checked={settings.turn_taking === 'moderated'}
+                onChange={() => updateSetting('turn_taking', 'moderated')}
+                disabled={isLoading}
+                className="h-4 w-4 text-blue-600"
+              />
+              <Label htmlFor="moderated" className="text-sm font-normal">
+                <span className="font-medium">Moderated</span> - AI manages conversation flow
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="radio"
+                id="rounds"
+                name="turn_taking"
+                value="rounds"
+                checked={settings.turn_taking === 'rounds'}
+                onChange={() => updateSetting('turn_taking', 'rounds')}
+                disabled={isLoading}
+                className="h-4 w-4 text-blue-600"
+              />
+              <Label htmlFor="rounds" className="text-sm font-normal">
+                <span className="font-medium">Rounds</span> - Turn-based with AI responding after complete rounds
+              </Label>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4">

@@ -144,7 +144,7 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
 const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<React.SetStateAction<'preparation' | 'participants' | 'creating' | 'invite-success'>> }) => (
   <div className="space-y-4 sm:space-y-6">
     <div className="text-center">
-      <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+      <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-[#D8A7B1]/20 rounded-2xl flex items-center justify-center mb-3 sm:mb-4">
         <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-[#D8A7B1]" />
       </div>
       <h3 className="text-base sm:text-lg font-semibold text-[#3C4858] mb-2">Preparing for Intimate Chat</h3>
@@ -154,7 +154,7 @@ const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<Re
     </div>
 
     <div className="space-y-3 sm:space-y-4">
-      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
+      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-xl">
         <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
         <div>
           <h4 className="font-medium text-[#3C4858] text-sm">Create Psychological Safety</h4>
@@ -164,7 +164,7 @@ const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<Re
         </div>
       </div>
 
-      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
+      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-xl">
         <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
         <div>
           <h4 className="font-medium text-[#3C4858] text-sm">Practice Active Listening</h4>
@@ -174,7 +174,7 @@ const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<Re
         </div>
       </div>
 
-      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-lg">
+      <div className="flex items-start space-x-3 p-3 bg-[#D8A7B1]/10 rounded-xl">
         <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#D8A7B1] mt-0.5 flex-shrink-0" />
         <div>
           <h4 className="font-medium text-[#3C4858] text-sm">Embrace Vulnerability</h4>
@@ -185,7 +185,7 @@ const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<Re
       </div>
     </div>
 
-    <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-3 sm:p-4">
+    <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-xl p-3 sm:p-4">
       <h4 className="font-medium text-[#3C4858] text-sm mb-2">💡 Pro Tip</h4>
       <p className="text-xs text-[#3C4858]/70 leading-relaxed">
         The AI mediator will help facilitate the Chat, suggest reflection questions, and ensure balanced participation. Trust the process and be present.
@@ -193,7 +193,7 @@ const PreparationStep = ({ setCurrentStep }: { setCurrentStep: React.Dispatch<Re
     </div>
 
     <Button
-      className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 text-base sm:text-sm font-medium"
+      className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 text-base sm:text-sm font-medium rounded-xl"
       onClick={() => setCurrentStep('participants')}
     >
       I'm Ready to Begin
@@ -261,7 +261,7 @@ const ParticipantsStep = ({
         
         <div className="space-y-2">
           <div
-            className={`p-3 border rounded-lg cursor-pointer transition-colors touch-manipulation ${
+            className={`p-3 border rounded-xl cursor-pointer transition-colors touch-manipulation ${
               !withInvite
                 ? 'border-[#D8A7B1] bg-[#D8A7B1]/10'
                 : 'border-[#3C4858]/20 hover:border-[#D8A7B1]/50'
@@ -282,7 +282,7 @@ const ParticipantsStep = ({
           </div>
 
           <div
-            className={`p-3 border rounded-lg cursor-pointer transition-colors touch-manipulation ${
+            className={`p-3 border rounded-xl cursor-pointer transition-colors touch-manipulation ${
               withInvite
                 ? 'border-[#D8A7B1] bg-[#D8A7B1]/10'
                 : 'border-[#3C4858]/20 hover:border-[#D8A7B1]/50'
@@ -334,7 +334,7 @@ const ParticipantsStep = ({
           </div>
         </div>
         {displayedUsers.length > 0 && (
-          <div className="mt-2 border border-[#3C4858]/20 rounded-md max-h-36 sm:max-h-40 overflow-y-auto bg-white shadow-sm">
+          <div className="mt-2 border border-[#3C4858]/20 rounded-xl max-h-36 sm:max-h-40 overflow-y-auto bg-white shadow-sm">
             {displayedUsers.map(user => (
               <div
                 key={user.id}
@@ -350,7 +350,7 @@ const ParticipantsStep = ({
           </div>
         )}
         {displayedUsers.length === 0 && participantSearchQuery.length >= 3 && !isSearching && (
-          <div className="mt-2 text-sm text-center text-[#3C4858]/70 p-3 border border-dashed border-[#3C4858]/20 rounded-md bg-[#F9F7F4]">
+          <div className="mt-2 text-sm text-center text-[#3C4858]/70 p-3 border border-dashed border-[#3C4858]/20 rounded-xl bg-[#F9F7F4]">
             No users found matching "{participantSearchQuery}".
           </div>
         )}
@@ -358,7 +358,7 @@ const ParticipantsStep = ({
       )}
 
       {withInvite && (
-        <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-3 sm:p-4">
+        <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-xl p-3 sm:p-4">
           <div className="flex items-center space-x-2 mb-2">
             <Link2 className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
             <h4 className="font-medium text-[#3C4858] text-sm">Guest Invite</h4>
@@ -397,13 +397,13 @@ const ParticipantsStep = ({
       )}
 
       {chatCreationError && (
-        <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-md">
+        <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl">
           <strong>Error:</strong> {chatCreationError}
         </div>
       )}
 
       <Button
-        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 transition-all text-base sm:text-sm font-medium touch-manipulation"
+        className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 sm:py-2.5 transition-all text-base sm:text-sm font-medium touch-manipulation rounded-xl"
         onClick={handleStartChat}
         disabled={(!withInvite && selectedParticipants.length === 0) || isSearching || isCreatingChat}
       >
@@ -422,7 +422,7 @@ const ParticipantsStep = ({
 
 const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
   <div className="space-y-4 sm:space-y-6 text-center">
-    <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center">
+    <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-[#D8A7B1]/20 rounded-2xl flex items-center justify-center">
       <LoadingSpinner size="lg" color="primary" />
     </div>
 
@@ -637,8 +637,8 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
   };
 
   return isOpen ? (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2 sm:p-4 transition-opacity duration-300 ease-in-out">
-      <Card className="bg-[#FFFBF5] p-4 sm:p-6 rounded-lg shadow-xl w-full max-w-sm sm:max-w-md max-h-[90vh] sm:max-h-none overflow-y-auto transform transition-all duration-300 ease-in-out scale-100 opacity-100">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4 transition-opacity duration-300 ease-in-out">
+      <Card className="bg-[#F9F7F4] p-4 sm:p-6 rounded-3xl shadow-xl w-full max-w-sm sm:max-w-md max-h-[90vh] sm:max-h-none overflow-y-auto transform transition-all duration-300 ease-in-out scale-100 opacity-100">
         <div className="flex justify-between items-start mb-4 sm:mb-6">
           <div className="flex-1 mr-3">
             <h2 className="text-lg sm:text-xl font-semibold text-[#3C4858] leading-tight">
@@ -653,7 +653,7 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
               variant="ghost" 
               size="icon" 
               onClick={onClose} 
-              className="text-[#3C4858]/70 hover:bg-[#F9F7F4] h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0"
+              className="text-[#3C4858]/70 hover:bg-[#F9F7F4] h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 rounded-full"
             >
               <span className="sr-only">Close modal</span>
               <X className="h-4 w-4 sm:h-5 sm:w-5" />

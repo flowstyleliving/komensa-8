@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/prisma';
-import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
+import { RealtimeEventService } from '@/features/chat/services/RealtimeEventService';
 
 // Helper function to create system message for turn style changes
 async function createTurnStyleSystemMessage(
@@ -23,8 +23,9 @@ async function createTurnStyleSystemMessage(
     // Turn style descriptions
     const styleDescriptions = {
       flexible: 'Flexible Turns - Anyone can speak anytime',
-      strict: 'Strict Turns - One person speaks at a time', 
-      moderated: 'AI Moderated - AI manages conversation flow'
+      strict: 'Strict Turns - Round-robin with AI facilitating each exchange', 
+      moderated: 'AI Moderated - AI manages conversation flow',
+      rounds: 'Round System - Turn-based with AI responding after complete rounds'
     };
 
     const systemMessage = `${userName} changed the conversation style from "${styleDescriptions[previousStyle as keyof typeof styleDescriptions] || previousStyle}" to "${styleDescriptions[newStyle as keyof typeof styleDescriptions] || newStyle}".`;
@@ -45,9 +46,9 @@ async function createTurnStyleSystemMessage(
       }
     });
 
-    // Broadcast via Pusher
-    const channelName = getChatChannelName(chatId);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
+    // Broadcast via centralized service
+    const realtimeService = new RealtimeEventService(chatId);
+    await realtimeService.broadcastMessage({
       id: newMessage.id,
       created_at: newMessage.created_at.toISOString(),
       data: newMessage.data
@@ -132,7 +133,7 @@ export async function PATCH(
     }
 
     // Validate turn style if provided
-    if (body.turnStyle && !['flexible', 'strict', 'moderated'].includes(body.turnStyle)) {
+    if (body.turnStyle && !['flexible', 'strict', 'moderated', 'rounds'].includes(body.turnStyle)) {
       return NextResponse.json({ error: 'Invalid turn style' }, { status: 400 });
     }
 

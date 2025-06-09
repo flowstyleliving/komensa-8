@@ -13,10 +13,10 @@ interface CalendlyModalProps {
 
 export const CalendlyModal = memo(function CalendlyModal({ onClose, aiResponseCount }: CalendlyModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-6xl h-[90vh] max-h-[800px] shadow-2xl border border-[#3C4858]/10 overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#F9F7F4] rounded-3xl w-full max-w-6xl h-[90vh] max-h-[800px] shadow-2xl border border-[#3C4858]/10 overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] p-4 sm:p-6 text-white relative">
+        <div className="bg-gradient-to-r from-[#7BAFB0] to-[#D8A7B1] p-4 sm:p-6 text-white relative rounded-t-3xl">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-full transition-colors"
@@ -25,7 +25,7 @@ export const CalendlyModal = memo(function CalendlyModal({ onClose, aiResponseCo
           </button>
           
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0">
               <Calendar className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
             <div>

@@ -1,12 +1,12 @@
-# Komensa Chat Turn Flow System Documentation
+# Komensa Simplified Turn Management System
 
 ## Overview
 
-Komensa implements a sophisticated event-driven turn management system that orchestrates mediated conversations between multiple participants and an AI assistant. The system ensures structured dialogue with proper turn-taking, real-time synchronization, and mobile-optimized performance.
+Komensa implements a **dead-simple** turn management system that orchestrates conversations between participants and an AI assistant. The system prioritizes simplicity, reliability, and ease of extension over complex state management.
 
-## Architecture Overview
+## Architecture Philosophy
 
-### Core Components
+**Core Principle**: Use participant arrays and basic rules instead of complex state machines.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -16,463 +16,361 @@ Komensa implements a sophisticated event-driven turn management system that orch
 └─────────────────────────────────────────────────────────────┘
                                ↓
 ┌─────────────────────────────────────────────────────────────┐
-│                 Turn Management Core                        │
+│                 Simplified Turn Logic                      │
 ├─────────────────────────────────────────────────────────────┤
-│ EventDrivenTurnManager.ts ← TurnPolicies.ts               │
+│ Participant Array + Switch Statement (3 modes)            │
 └─────────────────────────────────────────────────────────────┘
                                ↓
 ┌─────────────────────────────────────────────────────────────┐
-│              Real-time & Persistence                       │
+│              Minimal Persistence                           │
 ├─────────────────────────────────────────────────────────────┤
-│ Pusher (real-time) + Prisma (database) + Redis (state)    │
+│ Pusher (real-time) + ChatParticipant table + Events       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Complete Turn Flow
+## Turn Management Modes
 
-### 1. User Message Submission
+### 1. Flexible (Default)
+```typescript
+// Anyone can speak anytime
+async canUserSendMessage(userId: string): Promise<boolean> {
+  return true;
+}
+```
+- **Use Case**: Casual conversations, brainstorming, open discussion
+- **AI Response**: After any human message
+- **Database State**: None needed
+
+### 2. Strict 
+```typescript
+// Round-robin through participant array
+async canUserSendMessage(userId: string): Promise<boolean> {
+  const participants = await this.getParticipants(); // [user1, user2, user3]
+  const lastSender = await this.getLastMessageSender();
+  const lastIndex = participants.indexOf(lastSender);
+  const nextIndex = (lastIndex + 1) % participants.length;
+  return participants[nextIndex] === userId;
+}
+```
+- **Use Case**: Structured discussions with active AI facilitation
+- **AI Response**: After each person speaks (facilitates exchanges)
+- **Database State**: Optional ChatTurnState record
+
+### 3. Moderated
+```typescript
+// Rate limiting to prevent spam
+async canUserSendMessage(userId: string): Promise<boolean> {
+  const recentMessages = await getRecentUserMessages(userId, 60000); // 1 minute
+  return recentMessages.length < 2; // Max 2 messages per minute
+}
+```
+- **Use Case**: Large groups, heated discussions, therapy sessions
+- **AI Response**: To moderate and guide conversation
+- **Database State**: None needed (checks recent message history)
+
+### 4. Rounds
+```typescript
+// Round-robin through participant array (same as strict)
+async canUserSendMessage(userId: string): Promise<boolean> {
+  const participants = await this.getParticipants(); // [user1, user2, user3]
+  const lastSender = await this.getLastMessageSender();
+  const lastIndex = participants.indexOf(lastSender);
+  const nextIndex = (lastIndex + 1) % participants.length;
+  return participants[nextIndex] === userId;
+}
+```
+- **Use Case**: Structured discussions with minimal AI involvement
+- **AI Response**: Only after complete rounds (when last person speaks)
+- **Database State**: Optional ChatTurnState record
+
+## Core Implementation
+
+### TurnManager.ts (Simplified)
 
 ```typescript
-// User interaction flow
-1. User types in ChatInput.tsx
-2. canSendMessage() validates permission via useChat.ts
-3. sendMessage() calls /api/messages endpoint
-4. TurnManager.canUserSendMessage() validates turn permission
-5. EventDrivenTurnManager analyzes chat history
-6. TurnPolicy determines if user can speak now
+export class TurnManager {
+  private chatId: string;
+
+  // Get ordered participant array
+  async getParticipants(): Promise<string[]> {
+    const participants = await prisma.chatParticipant.findMany({
+      where: { chat_id: this.chatId },
+      orderBy: { user_id: 'asc' }, // Consistent ordering
+      include: { user: { select: { id: true } } }
+    });
+    return participants.map(p => p.user.id);
+  }
+
+  // Dead simple permission check
+  async canUserSendMessage(userId: string): Promise<boolean> {
+    const mode = await this.getTurnMode();
+    
+    switch (mode) {
+      case 'flexible': return true;
+      case 'strict': return this.checkStrictTurn(userId);
+      case 'rounds': return this.checkStrictTurn(userId); // Same as strict
+      case 'moderated': return this.checkModeratedTurn(userId);
+      default: return true;
+    }
+  }
+
+  // Extensible AI trigger logic
+  async shouldTriggerAIResponse(): Promise<boolean> {
+    const mode = await this.getTurnMode();
+    
+    switch (mode) {
+      case 'flexible': return true;
+      case 'strict': return true; // AI facilitates each exchange
+      case 'rounds': return this.isEndOfRound(); // AI only at round end
+      case 'moderated': return true;
+      default: return true;
+    }
+  }
+}
 ```
 
-### 2. Message Processing & Storage
+## Adding New Participants
+
+**The Key Insight**: When new users join, they're just added to the participant array.
 
 ```typescript
-// Backend processing
-1. Message validated and stored in Event table
-2. NEW_MESSAGE event broadcast via Pusher
-3. AI reply generation triggered asynchronously
-4. Turn state recalculated and synchronized
-5. TURN_UPDATE event broadcast to all participants
+// When guest accepts invite
+await prisma.chatParticipant.create({
+  data: {
+    chat_id: chatId,
+    user_id: guestUserId,
+    role: 'guest'
+  }
+});
+
+// That's it! TurnManager.getParticipants() will now include them
+// No complex state initialization needed
 ```
 
-### 3. AI Response Generation
+## Frontend State Management
+
+### Simplified ChatInput Status
 
 ```typescript
-// AI processing flow
-1. generateAIReply.ts sets typing indicators
-2. OpenAI Assistant API called with conversation context
-3. Response processed and stored as Event
-4. NEW_MESSAGE broadcast with AI response
-5. Turn state updated to next participant
-6. Typing indicators cleared
+const getTurnStatusContent = () => {
+  if (!currentUserId) {
+    return <SignInPrompt />;
+  }
+
+  // For flexible (default), show green "ready to chat"
+  if (!currentTurn || currentTurn.next_user_id === 'anyone' || currentTurn.next_user_id === currentUserId) {
+    return <ReadyToChat />;
+  }
+
+  // For strict, show whose turn it is
+  const nextUserName = getParticipantName(currentTurn.next_user_id);
+  return <WaitingForUser name={nextUserName} />;
+};
 ```
 
-## Turn Management Components
+### Elegant TopContent Display
 
-### EventDrivenTurnManager
-
-**Location**: `features/chat/services/EventDrivenTurnManager.ts`
-
-**Responsibilities**:
-- Analyzes chat events to determine current turn state
-- Implements policy-based turn calculation
-- Manages participant access control
-- Provides turn display text for UI
-
-**Key Methods**:
 ```typescript
-calculateCurrentTurn(events: Event[], participants: ChatParticipant[]): ChatTurnState
-canUserSendMessage(userId: string, currentTurn: ChatTurnState): boolean
-getDisplayText(currentTurn: ChatTurnState, participants: ChatParticipant[]): string
+// Simple status indicator with emoji and clear messaging
+const StatusIndicator = ({ canSend, status }) => (
+  <div className={`flex items-center justify-center gap-2 text-sm p-3 rounded-lg border ${
+    canSend ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'
+  }`}>
+    <div className={`w-4 h-4 rounded-full ${
+      canSend ? 'bg-green-400' : 'bg-amber-400'
+    }`} />
+    <span className={canSend ? 'text-green-700' : 'text-amber-700'}>
+      {canSend ? '💬 You can speak anytime' : `⏳ ${status}`}
+    </span>
+  </div>
+);
 ```
 
-### Turn Policies
+## Database Schema (Minimal)
 
-**Location**: `features/chat/services/turnPolicies.ts`
-
-**Available Policies**:
-
-1. **Mediated Policy** (Default)
-   - Strict alternation between users and AI mediator
-   - Multi-participant: Round-robin rotation
-   - First message: Any human participant can start
-
-2. **Free-form Policy**
-   - Anyone can speak at any time
-   - Minimal AI intervention
-   - Casual group conversations
-
-3. **Round-robin Policy**
-   - Strict sequential order between all participants
-   - Rigid participant rotation
-   - Structured group discussions
-
-### TurnManager Facade
-
-**Location**: `features/chat/services/turnManager.ts`
-
-**Purpose**: High-level coordinator that:
-- Delegates to EventDrivenTurnManager
-- Handles typing indicator cleanup
-- Manages database synchronization
-- Provides backward compatibility
-
-## Database Schema
-
-### Core Tables
+### Required Tables
 
 ```sql
--- Current turn state for each chat
+-- Participants array (the core of the system)
+ChatParticipant {
+  chat_id: String
+  user_id: String  
+  role: String     -- 'user', 'guest', 'creator'
+  -- ORDER BY user_id ASC gives consistent participant array
+}
+
+-- Message history (for turn calculation)
+Event {
+  chat_id: String
+  type: String     -- 'message' 
+  data: Json       -- { content, senderId }
+  created_at: DateTime
+}
+
+-- Optional: Only for strict mode
 ChatTurnState {
   chat_id: String @unique
   next_user_id: String?
-  thread_id: String?        // OpenAI thread reference
-  current_turn_index: Int
-  turn_queue: Json
-  next_role: String?
-  updated_at: DateTime
+  -- Minimal fields, most logic uses participant array
 }
 
--- All chat events (messages, state changes)
-Event {
-  id: String @id
-  chat_id: String
-  type: String              // message, chat_created, state_update
-  data: Json               // content, senderId, state updates
-  created_at: DateTime
-  seq: Int                 // Event sequence number
-}
-
--- Chat participants and roles
-ChatParticipant {
-  chat_id: String
-  user_id: String
-  role: String             // user, assistant, creator
-  added_at: DateTime
-}
-
--- Individual participant state tracking
-ParticipantState {
-  chat_id: String
-  user_id: String
-  feelings: String?
-  needs: String?
-  viewpoint: String?
-  updated_at: DateTime
+-- Settings
+Chat {
+  turn_taking: String   -- 'flexible' | 'strict' | 'moderated'
 }
 ```
 
-## Real-time Synchronization
+## Extension Points
 
-### Pusher Events
+### Adding New Turn Styles
 
 ```typescript
-// Core real-time events
-NEW_MESSAGE: {
-  chatId: string
-  event: Event
-  sender: User
-}
+// In TurnManager.canUserSendMessage()
+case 'therapy':
+  // Therapist speaks after every 2 client messages
+  const therapistId = await this.getTherapistId();
+  const recentMessages = await this.getRecentMessages(2);
+  const clientMessageCount = recentMessages.filter(m => m.senderId !== therapistId).length;
+  return clientMessageCount >= 2 ? userId === therapistId : userId !== therapistId;
 
-TURN_UPDATE: {
-  chatId: string
-  nextUserId: string
-  nextRole: string
-  displayText: string
-}
-
-ASSISTANT_TYPING: {
-  chatId: string
-  isTyping: boolean
-}
-
-USER_TYPING: {
-  chatId: string
-  userId: string
-  isTyping: boolean
-}
-
-STATE_UPDATE: {
-  chatId: string
-  participantState: ParticipantState
-}
+case 'debate':
+  // Alternating sides with 2-minute time limits
+  const side = await this.getUserSide(userId);
+  const currentSide = await this.getCurrentSpeakingSide();
+  const timeElapsed = await this.getTimeElapsedInTurn();
+  return side === currentSide && timeElapsed < 120000;
 ```
 
-### Mobile-Optimized Connection
+### AI Response Triggers
 
 ```typescript
-// Pusher configuration for mobile reliability
-const pusher = new Pusher(key, {
-  cluster: 'us2',
-  activityTimeout: 120000,    // 2 minutes for mobile networks
-  pongTimeout: 30000,         // 30 seconds for mobile responses
-  enableStats: false,         // Reduce mobile data usage
-  forceTLS: true
-});
+// In TurnManager.shouldTriggerAIResponse()
+case 'therapy':
+  // AI responds when client asks direct question or seems stuck
+  const lastMessage = await this.getLastMessage();
+  return lastMessage.content.includes('?') || this.detectStuckPattern(lastMessage);
 
-// Connection health monitoring
-pusher.connection.bind('state_change', handleConnectionStateChange);
-pusher.connection.bind('error', handleConnectionError);
+case 'debate':
+  // AI responds at end of each side's time or to moderate
+  return this.isTimeExpired() || this.detectPersonalAttack();
 ```
 
-## State Management
+## Performance Benefits
 
-### Frontend State (useChat.ts)
+1. **O(1) Permission Checks**: No complex state traversal
+2. **Minimal Database Queries**: Just participant array + last message
+3. **No State Synchronization**: Participant array is source of truth
+4. **Cache Friendly**: Settings and participants rarely change
+
+## Error Recovery
 
 ```typescript
-interface ChatState {
-  messages: Event[]
-  currentTurn: {
-    next_user_id: string | null
-    next_role: string | null
-    display_text: string
+// Simple fallbacks
+async canUserSendMessage(userId: string): Promise<boolean> {
+  try {
+    // Normal logic here
+  } catch (error) {
+    console.error('[TurnManager] Error:', error);
+    return true; // Default to allowing messages
   }
-  isAssistantTyping: boolean
-  typingUsers: Set<string>
-  participants: ChatParticipant[]
-  connectionStatus: 'connected' | 'disconnected' | 'reconnecting'
 }
-```
 
-### Redis State (Fast Access)
-
-```typescript
-// Typing indicators (expire automatically)
-`typing:${chatId}:${userId}` → boolean (30s TTL)
-
-// Connection presence
-`presence:${chatId}:${userId}` → timestamp (60s TTL)
-
-// Turn state cache
-`turn:${chatId}` → ChatTurnState (10min TTL)
+// Auto-recovery for strict mode
+if (strictModeParticipantNotFound) {
+  return true; // Let anyone speak to unstick conversation
+}
 ```
 
 ## Mobile Considerations
 
-### Connection Reliability
-
-```typescript
-// Handle mobile browser lifecycle
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    // Refresh connection and sync state
-    pusher.connection.connect();
-    refreshChatState();
-  }
-});
-
-// Network change detection
-window.addEventListener('online', () => {
-  // Reconnect and sync when network returns
-  pusher.connection.connect();
-  sendQueuedMessages();
-});
-```
-
-### Performance Optimizations
-
-- **Message Pagination**: Load recent messages first
-- **Optimistic UI**: Show messages immediately, sync later
-- **Debounced Typing**: Reduce typing indicator frequency
-- **Memory Management**: Clean up event listeners and timers
-
-### Background Processing
-
-```typescript
-// Handle AI processing during app backgrounding
-const AI_PROCESSING_TIMEOUT = 120000; // 2 minutes
-
-// Detect stuck AI and provide recovery
-if (Date.now() - lastAIActivity > AI_PROCESSING_TIMEOUT) {
-  await recoverFromStuckAI(chatId);
-}
-```
-
-## Error Handling
-
-### Turn Management Errors
-
-```typescript
-// Invalid turn attempts
-if (!canUserSendMessage(userId, currentTurn)) {
-  return Response.json(
-    { error: 'Not your turn to speak' },
-    { status: 403 }
-  );
-}
-
-// Orphaned turn states
-if (!currentTurn) {
-  await initializeChatTurnState(chatId, participants);
-}
-```
-
-### Real-time Communication Errors
-
-```typescript
-// Pusher connection failures
-pusher.connection.bind('error', async (error) => {
-  console.error('Pusher connection error:', error);
-  
-  // Implement exponential backoff retry
-  setTimeout(() => {
-    pusher.connection.connect();
-  }, Math.min(1000 * Math.pow(2, retryCount), 30000));
-});
-
-// Message delivery confirmation
-const sendMessageWithRetry = async (message, maxRetries = 3) => {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      await apiClient.post('/api/messages', message);
-      break;
-    } catch (error) {
-      if (i === maxRetries - 1) throw error;
-      await sleep(1000 * Math.pow(2, i));
-    }
-  }
-};
-```
-
-### AI Processing Errors
-
-```typescript
-// OpenAI API timeouts and retries
-const generateAIReplyWithRetry = async (chatId: string) => {
-  const maxRetries = 3;
-  const timeouts = [30000, 60000, 90000]; // Increasing timeouts
-  
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await openai.beta.threads.messages.create(
-        threadId,
-        { role: 'user', content: prompt },
-        { timeout: timeouts[i] }
-      );
-    } catch (error) {
-      if (i === maxRetries - 1) {
-        // Fallback: Reset turn to user
-        await resetTurnToUser(chatId);
-        throw new Error('AI processing failed after retries');
-      }
-    }
-  }
-};
-```
-
-## Current Issues & Limitations
-
-### Identified Problems
-
-1. **Empty State Management File**: `features/chat/utils/state-management.ts` exists but is empty
-2. **Legacy Architecture**: Dual manager system artifacts still present
-3. **Mobile Typing Indicators**: Race conditions in typing cleanup during network switches
-4. **Limited Offline Support**: No offline message queueing or background sync
-
-### Extensibility Limitations
-
-1. **Fixed Policies**: Only three predefined turn policies
-2. **Participant Scaling**: No clear strategy for large group conversations
-3. **Cross-Chat State**: Participants can't easily move between chats
-4. **Custom Turn Logic**: No plugin system for domain-specific turn rules
-
-### Mobile-Specific Issues
-
-1. **Background AI Processing**: May timeout when app is backgrounded
-2. **Network Switching**: Turn state may desync during WiFi/cellular transitions
-3. **Memory Usage**: Long conversations may impact mobile performance
-4. **Push Notifications**: Limited integration for turn change notifications
-
-## Recommended Improvements
-
-### 1. Architecture Consolidation
-- Remove remaining dual manager artifacts
-- Complete the empty state-management.ts file
-- Standardize error handling patterns across components
-
-### 2. Enhanced Mobile Support
-```typescript
-// Offline message queueing
-interface QueuedMessage {
-  id: string
-  content: string
-  timestamp: number
-  retryCount: number
-}
-
-// Background sync when connection returns
-const syncQueuedMessages = async () => {
-  const queued = getQueuedMessages();
-  for (const message of queued) {
-    try {
-      await sendMessage(message);
-      removeFromQueue(message.id);
-    } catch (error) {
-      incrementRetryCount(message.id);
-    }
-  }
-};
-```
-
-### 3. Monitoring & Observability
-```typescript
-// Turn state monitoring
-const monitorTurnHealth = async (chatId: string) => {
-  const lastActivity = await getLastChatActivity(chatId);
-  const timeSinceLastActivity = Date.now() - lastActivity.timestamp;
-  
-  if (timeSinceLastActivity > STUCK_THRESHOLD) {
-    await triggerTurnRecovery(chatId);
-    logTurnHealthAlert(chatId, 'stuck_turn_detected');
-  }
-};
-```
-
-### 4. Plugin System for Policies
-```typescript
-interface TurnPolicy {
-  name: string
-  calculateNextTurn: (events: Event[], participants: ChatParticipant[]) => string | null
-  canUserSend: (userId: string, currentTurn: ChatTurnState) => boolean
-  getDisplayText: (currentTurn: ChatTurnState, participants: ChatParticipant[]) => string
-}
-
-// Registration system
-TurnPolicyRegistry.register('custom-therapy', new TherapyTurnPolicy());
-TurnPolicyRegistry.register('debate-style', new DebateTurnPolicy());
-```
-
-### 5. Performance Optimizations
-```typescript
-// Message pagination
-const loadMessages = async (chatId: string, before?: string, limit = 50) => {
-  return await prisma.event.findMany({
-    where: { chat_id: chatId, created_at: before ? { lt: before } : undefined },
-    orderBy: { created_at: 'desc' },
-    take: limit
-  });
-};
-
-// State compression for long conversations
-const compressOldEvents = async (chatId: string) => {
-  // Archive events older than 24 hours to separate table
-  // Keep only essential events for turn calculation
-};
-```
+- **Network Resilient**: Simple participant array syncs quickly
+- **Offline Friendly**: Can cache participant list and work offline
+- **Fast Rendering**: Minimal UI state calculations
+- **Battery Efficient**: Fewer database queries and real-time events
 
 ## Testing Strategy
 
 ### Unit Tests
-- Turn policy logic validation
-- Event-driven turn calculation
-- Permission checking edge cases
+```typescript
+describe('TurnManager', () => {
+  it('allows anyone in flexible mode', async () => {
+    await setChatSettings({ turnStyle: 'flexible' });
+    expect(await turnManager.canUserSendMessage('user1')).toBe(true);
+    expect(await turnManager.canUserSendMessage('user2')).toBe(true);
+  });
+
+  it('enforces round-robin in strict mode', async () => {
+    await setChatSettings({ turnStyle: 'strict' });
+    await setParticipants(['user1', 'user2', 'user3']);
+    await setLastSender('user1');
+    
+    expect(await turnManager.canUserSendMessage('user2')).toBe(true);
+    expect(await turnManager.canUserSendMessage('user1')).toBe(false);
+    expect(await turnManager.canUserSendMessage('user3')).toBe(false);
+  });
+});
+```
 
 ### Integration Tests
-- Complete turn flow end-to-end
-- Real-time synchronization
-- Error recovery scenarios
+- Guest user joins mid-conversation
+- Turn style changes during active chat
+- AI response triggering in different modes
+- Network interruption recovery
 
-### Mobile-Specific Tests
-- Connection loss/recovery
-- Background/foreground transitions
-- Network switching scenarios
+## AI Integration
 
-This system provides a robust foundation for mediated conversations with strong mobile support and real-time capabilities, but benefits from the identified improvements for long-term scalability and reliability.
+The turn management system seamlessly integrates with Komensa's AI reply generation system. See [AI Reply Generation System](./AI_REPLY_GENERATION.md) for detailed architecture.
+
+### AI Response Triggering
+
+```typescript
+// Each turn mode has different AI trigger logic
+async shouldTriggerAIResponse(): Promise<boolean> {
+  const mode = await this.getTurnMode();
+  
+  switch (mode) {
+    case 'flexible': 
+      return true; // AI responds after any human message
+    
+    case 'strict': 
+      return true; // AI responds after each person (facilitates exchanges)
+    
+    case 'moderated': 
+      return true; // AI always available to moderate conversation
+    
+    case 'rounds': 
+      return this.isEndOfRound(); // AI responds only after complete rounds
+    
+    default: 
+      return true;
+  }
+}
+```
+
+### Integration Flow
+
+1. **User sends message** → `useChat.ts` → API route
+2. **Message stored** → Turn state updated
+3. **AI trigger check** → `shouldTriggerAIResponse()`
+4. **AI generates reply** → `generateAIReply()`
+5. **Turn state synced** → Frontend updated
+
+## Future Extensions
+
+The 4-mode system easily supports:
+- **Custom Turn Policies**: Add new cases to switch statement (5th mode, 6th mode, etc.)
+- **Dynamic Participant Ordering**: Modify `getParticipants()` query
+- **Complex AI Triggers**: Extend `shouldTriggerAIResponse()` with new logic
+- **Multi-Chat Workflows**: Participants move between chats seamlessly
+- **Time-Based Rules**: Add timestamp checks to permission logic
+- **Hybrid Modes**: Combine features from existing modes
+
+## Migration from Complex System
+
+1. **Remove Policy Classes**: Consolidated into switch statements
+2. **Eliminate EventDrivenTurnManager**: Logic moved to TurnManager
+3. **Simplify Database**: Only create ChatTurnState for strict mode
+4. **Update Frontend**: Simplified turn status display
+5. **Maintain Compatibility**: Same API surface, simpler implementation
+
+This simplified system maintains all functionality while being orders of magnitude easier to understand, debug, and extend.

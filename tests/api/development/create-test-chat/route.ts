@@ -7,34 +7,25 @@ export async function POST(req: NextRequest) {
   try {
     console.log('[Test Chat] Creating test demo chat...');
 
-    // Create two users
-    const user1 = await prisma.user.create({
-      data: {
-        id: uuidv4(),
-        display_name: 'Michael',
-      },
-    });
+    // Use virtual demo users (no database creation)
+    const user1 = {
+      id: 'demo-michael-' + uuidv4().slice(0, 8),
+      display_name: 'Michael',
+    };
 
-    const user2 = await prisma.user.create({
-      data: {
-        id: uuidv4(),
-        display_name: 'Jordan',
-      },
-    });
+    const user2 = {
+      id: 'demo-jordan-' + uuidv4().slice(0, 8),
+      display_name: 'Jordan',
+    };
 
-    // Create chat
+    // Create chat without database participants (virtual demo users)
     const chat = await prisma.chat.create({
       data: {
         origin: 'demo',
         mediator_style: 'default',
         turn_taking: 'strict',
         status: 'active',
-        participants: {
-          create: [
-            { user_id: user1.id, role: 'user' },
-            { user_id: user2.id, role: 'user' },
-          ],
-        },
+        // No participants needed - demo users are virtual
       },
     });
 

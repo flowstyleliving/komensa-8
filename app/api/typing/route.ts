@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { setTypingIndicator } from '@/lib/redis';
-import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
+import { RealtimeEventService } from '@/features/chat/services/RealtimeEventService';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -20,19 +19,18 @@ export async function POST(req: NextRequest) {
   try {
     const userId = session.user.id;
 
-    // Set typing indicator in Redis
-    await setTypingIndicator(chatId, userId, isTyping);
-    
-    // Emit typing event via Pusher
-    const channelName = getChatChannelName(chatId);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.USER_TYPING, {
+    // Use centralized realtime service for typing indicators (non-blocking)
+    const realtimeService = new RealtimeEventService(chatId);
+    realtimeService.broadcastUserTyping({
       userId,
       isTyping
+    }).catch(error => {
+      console.error('Failed to broadcast typing indicator (non-blocking):', error);
     });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Failed to set typing indicator:', error);
-    return NextResponse.json({ error: 'Failed to set typing indicator' }, { status: 500 });
+    console.error('Failed to process typing indicator:', error);
+    return NextResponse.json({ error: 'Failed to process typing indicator' }, { status: 500 });
   }
 } 

@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         id: chatId,
         origin: 'web',
         mediator_style: 'default',
-        turn_taking: 'strict',
+        turn_taking: 'flexible',
         status: 'active',
         participants: {
           create: [

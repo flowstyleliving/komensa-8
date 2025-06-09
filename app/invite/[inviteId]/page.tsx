@@ -185,8 +185,18 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
       const data = await response.json();
 
       if (response.ok) {
-        // Redirect to the chat
-        router.push(`/chat/${data.chatId}`);
+        console.log('[Invite] Guest session created, forcing session refresh before redirect');
+        
+        // Force session refresh to load the new guest session data
+        // This is critical to prevent the "guest user can't type" issue
+        await session.update();
+        
+        console.log('[Invite] Session refreshed, redirecting to chat');
+        
+        // Small delay to ensure session update propagates
+        setTimeout(() => {
+          router.push(`/chat/${data.chatId}`);
+        }, 100);
       } else {
         setError(data.error || 'Failed to join chat');
       }
@@ -232,7 +242,7 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
       
       if (validation?.used) {
         return {
-          icon: <Users className="w-8 h-8 text-blue-500" />,
+          icon: <Users className="w-8 h-8 text-[#7BAFB0]" />,
           title: 'Invite Already Used',
           message: 'This invite has already been used. Each invite can only be used once.',
           action: 'Sign up to join more conversations'

@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/demoAuth';
+import { auth } from '@/app/demo/utils/demoAuth';
 import { generateDemoAIReply } from '@/app/demo/features/generateDemoAIReply';
 import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
 import { DemoTurnManager, DEMO_ROLES } from '@/app/demo/features/demoTurnManager';

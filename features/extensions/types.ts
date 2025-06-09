@@ -5,7 +5,7 @@ export interface Extension {
   name: string;
   description: string;
   version: string;
-  type: 'viz-cue' | 'mediator-style' | 'turn-taking' | 'analytics';
+  type: 'viz-cue' | 'mediator-style' | 'turn-taking' | 'analytics' | 'send-button';
   enabled: boolean;
   config?: Record<string, any>;
 }
@@ -18,6 +18,20 @@ export interface VizCueExtension extends Extension {
   };
 }
 
+export interface SendButtonExtension extends Extension {
+  type: 'send-button';
+  config: {
+    icon?: React.ComponentType<any>;
+    label?: string;
+    style?: 'default' | 'gentle' | 'urgent' | 'custom';
+    customStyles?: string;
+    behavior?: 'default' | 'confirm' | 'transform' | 'delay';
+    transformMessage?: (message: string) => string;
+    confirmationText?: string;
+    delayMs?: number;
+  };
+}
+
 export interface ExtensionContext {
   chatId: string;
   userId: string;
@@ -25,6 +39,8 @@ export interface ExtensionContext {
   isAiTyping: boolean;
   currentTurn: 'user' | 'ai' | null;
   messageCount: number;
+  messageContent?: string;
+  canSend?: boolean;
 }
 
 

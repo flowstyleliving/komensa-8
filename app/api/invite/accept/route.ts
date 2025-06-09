@@ -154,6 +154,16 @@ export async function POST(request: NextRequest) {
     } else {
       console.log('[Invite Accept] Guest already participant in this chat:', { guestUserId, chatId: invite.chat_id });
     }
+
+    // CRITICAL: Ensure participant record is fully committed before proceeding
+    // This prevents race conditions when guest immediately tries to access chat
+    await prisma.chatParticipant.findFirst({
+      where: {
+        chat_id: invite.chat_id,
+        user_id: guestUserId
+      }
+    });
+    console.log('[Invite Accept] Participant record verified as committed');
     
     // Initialize or update turn management to include the new guest participant
     console.log('[Invite Accept] Updating turn management for guest user...');
@@ -161,25 +171,52 @@ export async function POST(request: NextRequest) {
       const { TurnManager } = await import('@/features/chat/services/turnManager');
       const turnManager = new TurnManager(invite.chat_id);
       
+      // Get the chat to check turn mode
+      const chatDetails = await prisma.chat.findUnique({
+        where: { id: invite.chat_id },
+        select: { turn_taking: true }
+      });
+      
       // Check if turn state exists
       const currentTurn = await turnManager.getCurrentTurn();
       if (!currentTurn) {
-        // Get the chat creator from the participants
+        // No turn state exists - initialize
         const creator = chat.participants.find(p => p.role === 'user' || p.role === 'creator');
         const creatorId = creator?.user_id;
         
         if (creatorId) {
-          // Initialize turn management with the creator as the first speaker
           await turnManager.initializeTurn(creatorId);
           console.log('[Invite Accept] Turn management initialized with creator as first speaker');
         } else {
-          // Fallback to the guest if no creator found
           await turnManager.initializeTurn(guestUserId);
           console.log('[Invite Accept] Turn management initialized with guest as first speaker (no creator found)');
         }
+      } else if (chatDetails?.turn_taking === 'strict') {
+        // Turn state exists and we're in strict mode - update the turn queue to include the new guest
+        console.log('[Invite Accept] Updating strict mode turn queue to include new guest');
+        
+        // Get all current participants (including the new guest)
+        const allParticipants = await prisma.chatParticipant.findMany({
+          where: { chat_id: invite.chat_id },
+          select: { user_id: true },
+          orderBy: { user_id: 'asc' }
+        });
+        
+        const participantIds = allParticipants.map(p => p.user_id);
+        
+        // Update the turn state to include all participants
+        await prisma.chatTurnState.update({
+          where: { chat_id: invite.chat_id },
+          data: {
+            turn_queue: participantIds
+            // Keep the current next_user_id and current_turn_index as they are
+          }
+        });
+        
+        console.log('[Invite Accept] Updated turn queue to include all participants:', participantIds);
       } else {
-        // Turn state exists, don't change it - let the current conversation continue
-        console.log('[Invite Accept] Existing turn state preserved, guest can participate when it\'s their turn');
+        // Flexible or moderated mode - no changes needed
+        console.log('[Invite Accept] Flexible/moderated mode - no turn state changes needed');
       }
     } catch (turnError) {
       console.warn('[Invite Accept] Failed to update turn management for guest:', turnError);

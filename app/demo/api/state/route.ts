@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/demoAuth';
+import { auth } from '@/app/demo/utils/demoAuth';
 import { DemoTurnManager } from '@/app/demo/features/demoTurnManager';
 import { getTypingUsers } from '@/lib/redis';
 

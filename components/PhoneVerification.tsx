@@ -133,11 +133,11 @@ export default function PhoneVerification({
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#7BAFB0]/20">
           {step === 'phone' ? (
-            <Phone className="h-6 w-6 text-blue-600" />
+            <Phone className="h-6 w-6 text-[#7BAFB0]" />
           ) : (
-            <Shield className="h-6 w-6 text-blue-600" />
+            <Shield className="h-6 w-6 text-[#7BAFB0]" />
           )}
         </div>
         <CardTitle>

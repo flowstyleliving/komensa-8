@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { extensionRegistry } from '../features/extensions/registry';
-import { ExtensionContext } from '../features/extensions/types';
+import { ExtensionContext, SendButtonExtension } from '../features/extensions/types';
 
 interface UseExtensionsProps {
   chatId: string;
@@ -9,6 +9,8 @@ interface UseExtensionsProps {
   isAiTyping?: boolean;
   currentTurn?: 'user' | 'ai' | null;
   messageCount?: number;
+  messageContent?: string;
+  canSend?: boolean;
 }
 
 export function useExtensions({
@@ -17,7 +19,9 @@ export function useExtensions({
   isUserTyping = false,
   isAiTyping = false,
   currentTurn = null,
-  messageCount = 0
+  messageCount = 0,
+  messageContent = '',
+  canSend = true
 }: UseExtensionsProps) {
   const [context, setContext] = useState<ExtensionContext>({
     chatId,
@@ -25,7 +29,9 @@ export function useExtensions({
     isUserTyping,
     isAiTyping,
     currentTurn,
-    messageCount
+    messageCount,
+    messageContent,
+    canSend
   });
 
   useEffect(() => {
@@ -35,13 +41,24 @@ export function useExtensions({
       isUserTyping,
       isAiTyping,
       currentTurn,
-      messageCount
+      messageCount,
+      messageContent,
+      canSend
     });
-  }, [chatId, userId, isUserTyping, isAiTyping, currentTurn, messageCount]);
+  }, [chatId, userId, isUserTyping, isAiTyping, currentTurn, messageCount, messageContent, canSend]);
 
   const getVizCueContent = () => {
     const vizCueComponents = extensionRegistry.getVizCueExtensions(context);
     return vizCueComponents.length > 0 ? vizCueComponents[0] : null;
+  };
+
+  const getSendButtonExtension = (): SendButtonExtension | null => {
+    return extensionRegistry.getSendButtonExtension(context);
+  };
+
+  const renderSendButton = (onSend: (message: string) => void, disabled: boolean) => {
+    const extension = getSendButtonExtension();
+    return extensionRegistry.renderSendButton(extension, context, onSend, disabled);
   };
 
   const enableExtension = (id: string) => {
@@ -59,6 +76,8 @@ export function useExtensions({
   return {
     context,
     getVizCueContent,
+    getSendButtonExtension,
+    renderSendButton,
     enableExtension,
     disableExtension,
     getEnabledExtensions

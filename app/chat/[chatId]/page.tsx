@@ -52,7 +52,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     userId: session?.user?.id || '',
     isUserTyping: typingUsers.size > 0,
     isAiTyping: isAssistantTyping,
-    currentTurn: isAssistantTyping ? 'ai' : 'user',
+    currentTurn: currentTurn?.next_user_id === 'anyone' ? 'user' : (isAssistantTyping ? 'ai' : 'user'),
     messageCount: messages.length
   });
   const { playReceiveNotification, playSendNotification } = useNotificationSound();
@@ -319,7 +319,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           </div>
         </div>
         
-        <div className="border-t border-[#3C4858]/5 bg-white/90 backdrop-blur-sm p-3 sm:p-6 shadow-lg">
+        <div className="border-t border-[#3C4858]/5 bg-white/90 backdrop-blur-sm p-2 shadow-lg">
           <div className="max-w-4xl mx-auto">
             <ChatInput
               onSend={handleSendMessage}

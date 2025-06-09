@@ -211,9 +211,9 @@ export function ChatSettingsModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#3C4858]/10">
+    <div className="fixed inset-0 bg-[#3C4858]/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#F9F7F4] rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-[#3C4858]/10 rounded-t-3xl">
           <h2 className="text-lg sm:text-xl font-semibold text-[#3C4858]">Chat Settings</h2>
           <Button
             variant="ghost"
@@ -229,8 +229,8 @@ export function ChatSettingsModal({
           {/* Participants Section */}
           <div className="space-y-4 mb-8">
             <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-              <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
-                <Users className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-gradient-to-r from-[#D8A7B1]/20 to-[#D8A7B1]/10 rounded-lg">
+                <Users className="h-5 w-5 text-[#D8A7B1]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[#3C4858]">Participants</h3>
@@ -277,8 +277,8 @@ export function ChatSettingsModal({
           {/* Turn-Taking Settings Section */}
           <div className="space-y-4 mb-8">
             <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-              <div className="p-2 bg-gradient-to-r from-purple-100 to-pink-100 rounded-lg">
-                <Users className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-gradient-to-r from-[#7BAFB0]/20 to-[#7BAFB0]/10 rounded-lg">
+                <Users className="h-5 w-5 text-[#7BAFB0]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[#3C4858]">Turn-Taking Style</h3>
@@ -299,7 +299,7 @@ export function ChatSettingsModal({
                 {
                   value: 'strict',
                   label: 'Strict Turns',
-                  description: 'Traditional turn-based - one person speaks at a time',
+                  description: 'Round-robin turns with AI facilitating each exchange',
                   icon: '⏰'
                 },
                 {
@@ -307,14 +307,20 @@ export function ChatSettingsModal({
                   label: 'AI Moderated',
                   description: 'AI manages who speaks when based on context',
                   icon: '🤖'
+                },
+                {
+                  value: 'rounds',
+                  label: 'Round System',
+                  description: 'Turn-based with AI responding only after complete rounds',
+                  icon: '🔄'
                 }
               ].map((option) => (
                 <div
                   key={option.value}
                   className={`relative rounded-lg border-2 p-4 cursor-pointer transition-all ${
                     turnStyle === option.value
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-200 bg-white hover:border-purple-300'
+                      ? 'border-[#7BAFB0] bg-[#7BAFB0]/10'
+                      : 'border-[#3C4858]/10 bg-white hover:border-[#7BAFB0]/30'
                   }`}
                   onClick={() => handleTurnStyleChange(option.value)}
                 >
@@ -323,16 +329,16 @@ export function ChatSettingsModal({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <h4 className={`font-medium ${
-                          turnStyle === option.value ? 'text-purple-900' : 'text-[#3C4858]'
+                          turnStyle === option.value ? 'text-[#7BAFB0]' : 'text-[#3C4858]'
                         }`}>
                           {option.label}
                         </h4>
                         {turnStyle === option.value && (
-                          <CheckCircle className="h-5 w-5 text-purple-600" />
+                          <CheckCircle className="h-5 w-5 text-[#7BAFB0]" />
                         )}
                       </div>
                       <p className={`text-sm mt-1 ${
-                        turnStyle === option.value ? 'text-purple-700' : 'text-[#3C4858]/70'
+                        turnStyle === option.value ? 'text-[#7BAFB0]/80' : 'text-[#3C4858]/70'
                       }`}>
                         {option.description}
                       </p>
@@ -340,7 +346,7 @@ export function ChatSettingsModal({
                   </div>
                   {isUpdatingTurnStyle && turnStyle !== option.value && (
                     <div className="absolute inset-0 bg-white/50 rounded-lg flex items-center justify-center">
-                      <Loader2 className="h-5 w-5 animate-spin text-purple-600" />
+                      <Loader2 className="h-5 w-5 animate-spin text-[#7BAFB0]" />
                     </div>
                   )}
                 </div>
@@ -351,8 +357,8 @@ export function ChatSettingsModal({
           {/* Invite Link Section */}
           <div className="space-y-4 mb-8">
             <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-              <div className="p-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-lg">
-                <Link2 className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-gradient-to-r from-[#7BAFB0]/20 to-[#7BAFB0]/10 rounded-lg">
+                <Link2 className="h-5 w-5 text-[#7BAFB0]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[#3C4858]">Invite More People</h3>
@@ -362,15 +368,15 @@ export function ChatSettingsModal({
               </div>
             </div>
 
-            <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+            <div className="bg-[#7BAFB0]/10 rounded-xl p-4 border border-[#7BAFB0]/30">
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <Users className="h-5 w-5 text-[#7BAFB0] mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-blue-800 mb-1">
+                    <p className="text-sm font-medium text-[#3C4858] mb-1">
                       Need to invite someone who missed the original link?
                     </p>
-                    <p className="text-xs text-blue-700 mb-3">
+                    <p className="text-xs text-[#3C4858]/70 mb-3">
                       Generate a new invite link that others can use to join this conversation. 
                       New participants will join the rotation after the AI mediator.
                     </p>
@@ -379,7 +385,7 @@ export function ChatSettingsModal({
                       <Button
                         onClick={handleGenerateInvite}
                         disabled={isGeneratingInvite}
-                        className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-2 touch-manipulation"
+                        className="bg-gradient-to-r from-[#7BAFB0] to-[#7BAFB0]/80 hover:from-[#6D9E9F] hover:to-[#6D9E9F]/80 text-white px-4 py-2 touch-manipulation rounded-xl"
                       >
                         {isGeneratingInvite ? (
                           <>
@@ -395,20 +401,20 @@ export function ChatSettingsModal({
                       </Button>
                     ) : (
                       <div className="space-y-3">
-                        <div className="bg-white rounded-lg p-3 border border-blue-200">
-                          <p className="text-xs font-medium text-blue-800 mb-2">Share this link:</p>
+                        <div className="bg-white rounded-xl p-3 border border-[#7BAFB0]/30">
+                          <p className="text-xs font-medium text-[#3C4858] mb-2">Share this link:</p>
                           <div className="flex gap-2">
                             <input
                               type="text"
                               value={inviteLink}
                               readOnly
-                              className="flex-1 text-xs bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-900 font-mono"
+                              className="flex-1 text-xs bg-[#7BAFB0]/10 border border-[#7BAFB0]/30 rounded-lg px-2 py-1 text-[#3C4858] font-mono"
                             />
                             <Button
                               onClick={handleCopyInvite}
                               size="sm"
                               variant="outline"
-                              className="border-blue-300 text-blue-700 hover:bg-blue-100 px-3 touch-manipulation"
+                              className="border-[#7BAFB0]/50 text-[#7BAFB0] hover:bg-[#7BAFB0]/10 px-3 touch-manipulation rounded-lg"
                             >
                               {isCopied ? (
                                 <>
@@ -424,7 +430,7 @@ export function ChatSettingsModal({
                             </Button>
                           </div>
                         </div>
-                        <div className="text-xs text-blue-600">
+                        <div className="text-xs text-[#3C4858]/70">
                           <p>💡 <strong>Turn Order:</strong> New participants will be added to the rotation in the order they join.</p>
                           <p className="mt-1">⏰ <strong>Expires:</strong> This link is valid for 24 hours.</p>
                         </div>
@@ -439,8 +445,8 @@ export function ChatSettingsModal({
           {/* Session Completion Section */}
           <div className="space-y-4 mb-8">
             <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-              <div className="p-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+              <div className="p-2 bg-gradient-to-r from-[#D8A7B1]/20 to-[#D8A7B1]/10 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-[#D8A7B1]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[#3C4858]">Session Management</h3>
@@ -451,12 +457,12 @@ export function ChatSettingsModal({
             </div>
 
             {completionData?.isCompleted ? (
-              <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
-                <div className="flex items-center gap-2 text-green-700 mb-2">
+              <div className="bg-[#D8A7B1]/10 rounded-lg p-4 border border-[#D8A7B1]/30">
+                <div className="flex items-center gap-2 text-[#D8A7B1] mb-2">
                   <CheckCircle className="h-4 w-4" />
                   <span className="text-sm font-medium">Session Completed</span>
                 </div>
-                <p className="text-xs text-green-600">
+                <p className="text-xs text-[#D8A7B1]/80">
                   Completed on {completionData.completedAt ? new Date(completionData.completedAt).toLocaleDateString() : 'Unknown date'}
                 </p>
                 {completionData.hasSummary && (
@@ -464,7 +470,7 @@ export function ChatSettingsModal({
                     onClick={handleGenerateSummary}
                     size="sm"
                     variant="outline"
-                    className="border-green-300 text-green-700 hover:bg-green-100 w-full sm:w-auto mt-3 touch-manipulation"
+                    className="border-[#D8A7B1]/50 text-[#D8A7B1] hover:bg-[#D8A7B1]/10 w-full sm:w-auto mt-3 touch-manipulation"
                   >
                     <FileText className="h-4 w-4 mr-2" />
                     View Summary & Feedback
@@ -474,21 +480,21 @@ export function ChatSettingsModal({
             ) : (
               <div className="space-y-4">
                 {/* Individual Completion Status */}
-                <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
-                  <div className="flex items-center gap-2 text-blue-700 mb-3">
+                <div className="bg-[#D8A7B1]/10 rounded-xl p-4 border border-[#D8A7B1]/30">
+                  <div className="flex items-center gap-2 text-[#D8A7B1] mb-3">
                     <Users className="h-4 w-4" />
                     <span className="text-sm font-medium">Completion Progress</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs">
-                      <span className="text-blue-600">Participants completed:</span>
-                      <span className="font-medium text-blue-800">
+                      <span className="text-[#3C4858]/70">Participants completed:</span>
+                      <span className="font-medium text-[#3C4858]">
                         {completionData?.completedCount || 0} of {completionData?.totalParticipants || 0}
                       </span>
                     </div>
-                    <div className="w-full bg-blue-200/50 rounded-full h-2">
+                    <div className="w-full bg-[#D8A7B1]/20 rounded-full h-2">
                       <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        className="bg-[#D8A7B1] h-2 rounded-full transition-all duration-300" 
                         style={{ 
                           width: `${Math.round(((completionData?.completedCount || 0) / Math.max(completionData?.totalParticipants || 1, 1)) * 100)}%` 
                         }}
@@ -497,90 +503,70 @@ export function ChatSettingsModal({
                   </div>
                   
                   {/* Show completion list */}
-                  {completionData?.completionStatuses && completionData.completionStatuses.length > 0 && (
-                    <div className="mt-3 space-y-1">
-                      {completionData.completionStatuses.map(status => (
-                        <div key={status.id} className="flex items-center gap-2 text-xs">
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                          <span className="text-blue-700">
-                            {status.user.display_name || 'Unknown User'} completed
+                  <div className="mt-4 space-y-2">
+                    {completionData?.completionStatuses.map((status) => (
+                      <div key={status.user_id} className="flex items-center gap-2 text-xs">
+                        <div className={`w-2 h-2 rounded-full ${
+                          status.completed ? 'bg-[#D8A7B1]' : 'bg-[#3C4858]/20'
+                        }`} />
+                        <span className="text-[#3C4858]/70">
+                          {status.display_name || 'Unknown User'}
+                          {status.user_id === currentUserId && ' (You)'}
+                        </span>
+                        {status.completed && (
+                          <span className="text-[#D8A7B1] ml-auto">
+                            {new Date(status.completed_at).toLocaleDateString()}
                           </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Individual Mark Complete */}
-                {!currentUserCompleted ? (
-                  <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-green-800 mb-1">Ready to complete this session?</p>
-                        <p className="text-xs text-green-700">
-                          Mark when you feel ready to finish. All participants need to complete before summary generation. You can always pause and return to continue the conversation.
-                        </p>
-                      </div>
-                      <div className="space-y-2">
-                        <Button
-                          onClick={() => handleMarkComplete('complete')}
-                          disabled={isMarking}
-                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white w-full px-4 py-2 touch-manipulation"
-                        >
-                          {isMarking ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Completing...
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle className="h-4 w-4 mr-2" />
-                              Complete Session
-                            </>
-                          )}
-                        </Button>
-                        
-                        <div className="text-center">
-                          <p className="text-xs text-green-700 mb-2">Or take a break and come back later:</p>
-                          <Button
-                            onClick={onClose}
-                            variant="outline"
-                            size="sm"
-                            className="border-green-300 text-green-700 hover:bg-green-50 px-4 py-1 text-xs touch-manipulation"
-                          >
-                            Pause & Return Later
-                          </Button>
-                        </div>
-                      </div>
+                <div className="bg-[#D8A7B1]/10 rounded-lg p-4 border border-[#D8A7B1]/30">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium text-[#3C4858] mb-1">Ready to complete this session?</p>
+                      <p className="text-xs text-[#3C4858]/70">
+                        Mark when you feel ready to finish. All participants need to complete before summary generation. You can always pause and return to continue the conversation.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Button
+                        onClick={() => handleMarkComplete('complete')}
+                        disabled={isMarking}
+                        className="bg-gradient-to-r from-[#D8A7B1] to-[#D8A7B1]/80 hover:from-[#C99BA4] hover:to-[#C99BA4]/80 text-white w-full px-4 py-2 touch-manipulation"
+                      >
+                        {isMarking ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Completing...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                            Complete Session
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
-                ) : (
-                  <div className="bg-green-50/50 rounded-lg p-4 border border-green-200/50">
-                    <div className="flex items-center gap-2 text-green-700 mb-2">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm font-medium">You've marked this session complete</span>
-                    </div>
-                    <p className="text-xs text-green-600">
-                      Waiting for other participants to complete before summary generation becomes available.
-                    </p>
-                  </div>
-                )}
+                </div>
 
-                {/* Generate Summary (only when all complete) */}
                 {completionData?.allComplete && (
-                  <div className="bg-emerald-50/50 rounded-lg p-4 border border-emerald-200/50">
+                  <div className="bg-[#D8A7B1]/10 rounded-lg p-4 border border-[#D8A7B1]/30">
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-emerald-700 mb-2">
+                      <div className="flex items-center gap-2 text-[#D8A7B1] mb-2">
                         <FileText className="h-4 w-4" />
                         <span className="text-sm font-medium">Ready for Summary Generation</span>
                       </div>
-                      <p className="text-xs text-emerald-600 mb-3">
+                      <p className="text-xs text-[#3C4858]/70 mb-3">
                         All participants have completed the session. Either participant can now generate the conversation summary and proceed to feedback.
                       </p>
                       <Button
                         onClick={handleGenerateSummary}
                         disabled={isGenerating}
-                        className="bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white w-full sm:w-auto px-6 py-2 touch-manipulation"
+                        className="bg-gradient-to-r from-[#D8A7B1] to-[#D8A7B1]/80 hover:from-[#C99BA4] hover:to-[#C99BA4]/80 text-white w-full sm:w-auto px-6 py-2 touch-manipulation"
                       >
                         {isGenerating ? (
                           <>
@@ -605,8 +591,8 @@ export function ChatSettingsModal({
           {onResetAI && (
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-                <div className="p-2 bg-gradient-to-r from-amber-100 to-orange-100 rounded-lg">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <div className="p-2 bg-gradient-to-r from-[#D9C589]/20 to-[#D9C589]/10 rounded-lg">
+                  <AlertTriangle className="h-5 w-5 text-[#D9C589]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#3C4858]">AI Troubleshooting</h3>
@@ -616,13 +602,13 @@ export function ChatSettingsModal({
                 </div>
               </div>
 
-              <div className="bg-amber-50/50 rounded-lg p-4 border border-amber-200/50">
+              <div className="bg-[#D9C589]/10 rounded-lg p-4 border border-[#D9C589]/30">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <AlertCircle className="h-5 w-5 text-[#D9C589] mt-0.5 flex-shrink-0" />
                   <div className="space-y-3 flex-1">
                     <div>
-                      <p className="text-sm font-medium text-amber-800 mb-1">AI appears stuck or unresponsive?</p>
-                      <p className="text-xs text-amber-700">
+                      <p className="text-sm font-medium text-[#3C4858] mb-1">AI appears stuck or unresponsive?</p>
+                      <p className="text-xs text-[#3C4858]/70">
                         This will clear the AI's current state and allow it to respond again.
                       </p>
                     </div>
@@ -630,7 +616,7 @@ export function ChatSettingsModal({
                       onClick={handleResetAI}
                       variant="outline"
                       size="sm"
-                      className="border-amber-300 text-amber-700 hover:bg-amber-100 w-full sm:w-auto px-4 py-2 touch-manipulation"
+                      className="border-[#D9C589]/50 text-[#D9C589] hover:bg-[#D9C589]/10 w-full sm:w-auto px-4 py-2 touch-manipulation"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
                       Reset AI State
@@ -645,8 +631,8 @@ export function ChatSettingsModal({
           {onResetTurn && (
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
-                <div className="p-2 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg">
-                  <RotateCcw className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-gradient-to-r from-[#D9C589]/20 to-[#D9C589]/10 rounded-lg">
+                  <RotateCcw className="h-5 w-5 text-[#D9C589]" />
                 </div>
                 <div>
                   <h3 className="font-semibold text-[#3C4858]">Turn Management</h3>
@@ -656,13 +642,13 @@ export function ChatSettingsModal({
                 </div>
               </div>
 
-              <div className="bg-blue-50/50 rounded-lg p-4 border border-blue-200/50">
+              <div className="bg-[#D9C589]/10 rounded-xl p-4 border border-[#D9C589]/30">
                 <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <Users className="h-5 w-5 text-[#D9C589] mt-0.5 flex-shrink-0" />
                   <div className="space-y-3 flex-1">
                     <div>
-                      <p className="text-sm font-medium text-blue-800 mb-1">Turn order mixed up?</p>
-                      <p className="text-xs text-blue-700">
+                      <p className="text-sm font-medium text-[#3C4858] mb-1">Turn order mixed up?</p>
+                      <p className="text-xs text-[#3C4858]/70">
                         This will recalculate whose turn it is based on the conversation flow.
                       </p>
                     </div>
@@ -670,7 +656,7 @@ export function ChatSettingsModal({
                       onClick={handleResetTurn}
                       variant="outline"
                       size="sm"
-                      className="border-blue-300 text-blue-700 hover:bg-blue-100 w-full sm:w-auto px-4 py-2 touch-manipulation"
+                      className="border-[#D9C589]/50 text-[#D9C589] hover:bg-[#D9C589]/10 w-full sm:w-auto px-4 py-2 touch-manipulation rounded-xl"
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
                       Reset Turn Order

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/prisma';
-import { pusherServer, getChatChannelName, PUSHER_EVENTS } from '@/lib/pusher';
+import { RealtimeEventService } from '@/features/chat/services/RealtimeEventService';
 
 // POST: Mark user as complete
 export async function POST(request: NextRequest, { params }: { params: Promise<{ chatId: string }> }) {
@@ -94,9 +94,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const allComplete = completedCount === totalParticipants;
 
-    // Emit completion update via Pusher
-    const channelName = getChatChannelName(chatId);
-    await pusherServer.trigger(channelName, PUSHER_EVENTS.COMPLETION_UPDATE, {
+    // Emit completion update via centralized service
+    const realtimeService = new RealtimeEventService(chatId);
+    await realtimeService.broadcastCompletionUpdate({
       userId,
       userName: session.user.name || 'User',
       completionType,
@@ -120,10 +120,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
       });
 
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.COMPLETION_READY, {
-        allComplete: true,
-        readyForSummary: true
-      });
+      await realtimeService.broadcastCompletionReady();
     }
 
     return NextResponse.json({
