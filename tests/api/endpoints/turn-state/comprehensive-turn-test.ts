@@ -35,9 +35,7 @@ async function setupTestEnvironment(chatId: string, users: string[]) {
   await prisma.chat.create({
     data: {
       id: chatId,
-      title: 'Test Chat',
-      turn_taking: 'flexible', // Start with flexible
-      created_by: users[0]
+      turn_taking: 'flexible' // Start with flexible
     }
   });
   

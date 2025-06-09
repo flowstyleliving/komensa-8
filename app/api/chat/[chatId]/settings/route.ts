@@ -51,7 +51,7 @@ async function createTurnStyleSystemMessage(
     await realtimeService.broadcastMessage({
       id: newMessage.id,
       created_at: newMessage.created_at.toISOString(),
-      data: newMessage.data
+      data: (newMessage.data ?? { content: '', senderId: '' }) as { content: string; senderId: string; }
     });
 
     console.log(`[System Message] Turn style change message sent for chat ${chatId}: ${previousStyle} → ${newStyle}`);

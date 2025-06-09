@@ -20,7 +20,7 @@ export interface ChatExtension {
   cleanup?(): Promise<void>;
   
   // Event handling
-  handleEvent(event: DomainEvent): Promise<ExtensionResult>;
+  handleEvent(event: DomainEvent, context: ExtensionContext): Promise<ExtensionResult>;
   
   // Configuration
   getDefaultConfig?(): any;
@@ -242,7 +242,7 @@ export class ExtensionManager implements EventHandler {
           }
         };
 
-        const result = await extension.handleEvent(event);
+        const result = await extension.handleEvent(event, context);
         
         if (result.additionalEvents) {
           for (const additionalEvent of result.additionalEvents) {
@@ -341,7 +341,7 @@ export abstract class BaseExtension implements ChatExtension {
   }
 
   // Must be implemented by concrete extensions
-  abstract handleEvent(event: DomainEvent): Promise<ExtensionResult>;
+  abstract handleEvent(event: DomainEvent, context: ExtensionContext): Promise<ExtensionResult>;
 
   // Helper methods for extensions
   protected success(data?: any): ExtensionResult {

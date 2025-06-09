@@ -7,7 +7,7 @@ export interface TurnState {
 }
 
 export class TurnManager {
-  private chatId: string;
+  protected chatId: string;
 
   constructor(chatId: string) {
     this.chatId = chatId;

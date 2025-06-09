@@ -112,7 +112,7 @@ export function useChatSessionState(
   // Refs for cleanup and optimization
   const channelRef = useRef<any>(null);
   const lastFetchTime = useRef<number>(0);
-  const retryTimeoutRef = useRef<NodeJS.Timeout>();
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch state from API
   const fetchState = useCallback(async (forceFresh = false) => {

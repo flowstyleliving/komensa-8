@@ -507,15 +507,15 @@ export function ChatSettingsModal({
                     {completionData?.completionStatuses.map((status) => (
                       <div key={status.user_id} className="flex items-center gap-2 text-xs">
                         <div className={`w-2 h-2 rounded-full ${
-                          status.completed ? 'bg-[#D8A7B1]' : 'bg-[#3C4858]/20'
+                          status.marked_complete_at ? 'bg-[#D8A7B1]' : 'bg-[#3C4858]/20'
                         }`} />
                         <span className="text-[#3C4858]/70">
-                          {status.display_name || 'Unknown User'}
+                          {status.user.display_name || status.user.name || 'Unknown User'}
                           {status.user_id === currentUserId && ' (You)'}
                         </span>
-                        {status.completed && (
+                        {status.marked_complete_at && (
                           <span className="text-[#D8A7B1] ml-auto">
-                            {new Date(status.completed_at).toLocaleDateString()}
+                            {new Date(status.marked_complete_at).toLocaleDateString()}
                           </span>
                         )}
                       </div>

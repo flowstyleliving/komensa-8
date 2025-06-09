@@ -75,7 +75,7 @@ export interface StateUpdateOptions {
 }
 
 export class ChatSessionStateManager {
-  private chatId: string;
+  public readonly chatId: string;
   private realtimeService: RealtimeEventService;
   private turnManager: TurnManager;
   private cachedState?: ChatSessionState;
@@ -130,7 +130,7 @@ export class ChatSessionStateManager {
         messages,
         typingUsers: new Set(typingUsers),
         completionStatus,
-        settings: chat.settings || { turn_taking: 'flexible' },
+        settings: (chat.settings as ChatSettings) || { turn_taking: 'flexible' },
         extensions,
         lastUpdated: new Date().toISOString()
       };
@@ -195,7 +195,7 @@ export class ChatSessionStateManager {
       if (broadcast) {
         this.realtimeService.broadcastTurnUpdate({
           next_user_id: turnData.next_user_id || null,
-          next_role: turnData.next_role,
+          next_role: turnData.next_role || undefined,
           timestamp: new Date().toISOString()
         }).catch(error => {
           console.error(`[ChatSessionStateManager] Turn update broadcast failed (non-blocking):`, error);
@@ -425,7 +425,7 @@ export class ChatSessionStateManager {
     try {
       // Get current settings
       const currentSettings = this.cachedState?.settings || await this.fetchChatData().then(c => c.settings);
-      const mergedSettings = { ...currentSettings, ...newSettings };
+      const mergedSettings = { ...(currentSettings as ChatSettings || {}), ...newSettings };
 
       // Update database
       await prisma.chat.update({
@@ -576,9 +576,9 @@ export class ChatSessionStateManager {
       next_user_id: turnState?.next_user_id || null,
       next_role: turnState?.next_role || null,
       mode: mode as any,
-      turn_queue: turnState?.turn_queue || [],
-      current_turn_index: turnState?.current_turn_index || 0,
-      thread_id: turnState?.thread_id
+      turn_queue: (turnState as any)?.turn_queue || [],
+      current_turn_index: (turnState as any)?.current_turn_index || 0,
+      thread_id: (turnState as any)?.thread_id
     };
   }
 
@@ -598,9 +598,9 @@ export class ChatSessionStateManager {
       });
 
       return extensions.map(ext => ({
-        extension_id: ext.extension_id,
-        config: ext.config || {},
-        enabled: ext.enabled
+        extension_id: (ext as any).extension_id || ext.ext_id,
+        config: (ext as any).config || ext.settings_json || {},
+        enabled: (ext as any).enabled || true
       }));
     } catch (error) {
       console.warn(`[ChatSessionStateManager] Error fetching extensions:`, error);

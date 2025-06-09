@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { testAllTurnModes, testNonParticipantAccess } from '@/tests/api/turn-state/comprehensive-turn-test';
+import { testAllTurnModes, testNonParticipantAccess } from '@/tests/api/endpoints/turn-state/comprehensive-turn-test';
 
 export async function GET(request: NextRequest) {
   console.log('🧪 Starting comprehensive turn mode testing...');

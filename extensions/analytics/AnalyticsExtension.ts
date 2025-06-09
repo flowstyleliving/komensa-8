@@ -1,5 +1,5 @@
 // Analytics extension demonstrating event-driven architecture
-import { BaseExtension, ExtensionResult } from '@/features/extensions/EventDrivenExtensionSystem';
+import { BaseExtension, ExtensionResult, ExtensionContext } from '@/features/extensions/EventDrivenExtensionSystem';
 import { DomainEvent } from '@/features/events/EventBus';
 import { DOMAIN_EVENTS, DomainEventType } from '@/features/events/DomainEvents';
 
@@ -83,8 +83,8 @@ export class AnalyticsExtension extends BaseExtension {
     }
   }
 
-  async handleEvent(event: DomainEvent): Promise<ExtensionResult> {
-    const config = this.extensionConfig as AnalyticsConfig;
+  async handleEvent(event: DomainEvent, context: ExtensionContext): Promise<ExtensionResult> {
+    const config = context.extensionConfig as AnalyticsConfig;
     const metrics = this.metrics.get(event.chatId);
     
     if (!metrics) {
