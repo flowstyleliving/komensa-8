@@ -18,7 +18,7 @@ const CHAT_READY_PREFIX = 'chat_ready:';
  */
 export async function setWaitingRoomStatus(userId: string, status: WaitingRoomStatus): Promise<void> {
   const key = `${WAITING_ROOM_PREFIX}${userId}`;
-  await redis.setex(key, 300, JSON.stringify(status) as any); // 5 minute expiry
+  await redis.setex(key, 300, JSON.stringify(status)); // 5 minute expiry
 }
 
 /**
@@ -27,7 +27,7 @@ export async function setWaitingRoomStatus(userId: string, status: WaitingRoomSt
 export async function getWaitingRoomStatus(userId: string): Promise<WaitingRoomStatus | null> {
   const key = `${WAITING_ROOM_PREFIX}${userId}`;
   const data = await redis.get(key);
-  return data ? JSON.parse(data) : null;
+  return data ? JSON.parse(data as string) : null;
 }
 
 /**
@@ -39,7 +39,7 @@ export async function markParticipantReady(chatId: string, userId: string, userT
     userId, 
     userType, 
     readyAt: new Date().toISOString() 
-  })); // 10 minute expiry
+  }) as string); // 10 minute expiry
 }
 
 /**

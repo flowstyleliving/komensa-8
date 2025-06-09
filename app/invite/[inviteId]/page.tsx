@@ -191,11 +191,11 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
         // This is critical to prevent the "guest user can't type" issue
         await session.update();
         
-        console.log('[Invite] Session refreshed, redirecting to chat');
+        console.log('[Invite] Session refreshed, redirecting to waiting room');
         
         // Small delay to ensure session update propagates
         setTimeout(() => {
-          router.push(`/chat/${data.chatId}`);
+          router.push(`/waiting-room/${data.chatId}`);
         }, 100);
       } else {
         setError(data.error || 'Failed to join chat');

@@ -14,6 +14,7 @@ import { MessageCircle, Users, ArrowLeft, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRef, useEffect, useState, use } from 'react';
 
 interface MessageData {
@@ -30,6 +31,8 @@ interface Participant {
 export default function ChatPage({ params }: { params: Promise<{ chatId: string }> }) {
   const { chatId } = use(params);
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const [checkingInitiation, setCheckingInitiation] = useState(true);
   const chat = useChat(chatId);
   const {
     messages,
@@ -79,8 +82,35 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     }
   }, [messages, playReceiveNotification, session?.user?.id]);
   
+  // Check if chat has been initiated, redirect to waiting room if not
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || status === 'loading') return;
+    
+    const checkChatInitiation = async () => {
+      try {
+        const response = await fetch(`/api/waiting-room/ready?chatId=${chatId}`);
+        if (response.ok) {
+          const data = await response.json();
+          
+          // If chat not initiated, redirect to waiting room
+          if (!data.bothReady) {
+            console.log('[ChatPage] Chat not initiated, redirecting to waiting room');
+            router.push(`/waiting-room/${chatId}`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('[ChatPage] Error checking chat initiation:', error);
+      } finally {
+        setCheckingInitiation(false);
+      }
+    };
+    
+    checkChatInitiation();
+  }, [chatId, status, router]);
+
+  useEffect(() => {
+    if (!chatId || checkingInitiation) return;
     const fetchInitialState = async () => {
       try {
         console.log('[ChatPage] Fetching initial state for chat:', chatId);
@@ -163,6 +193,18 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   
   // Check if current user is typing to conditionally show vizcue
   const isCurrentUserTyping = Array.from(typingUsers).includes(userId);
+
+  // Show loading while checking if chat is initiated
+  if (checkingInitiation) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#F9F7F4]">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-[#D8A7B1] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-[#3C4858]/70">Checking conversation status...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleSendMessage = async (content: string) => {
     // Play send sound when user sends a message
