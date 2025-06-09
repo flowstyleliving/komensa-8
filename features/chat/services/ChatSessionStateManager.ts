@@ -613,6 +613,11 @@ export class ChatSessionStateManager {
     // Add validation logic here
     // e.g., check if next_user_id is a valid participant
     if (turnData.next_user_id) {
+      // Allow special values for flexible mode
+      if (turnData.next_user_id === 'anyone' || turnData.next_user_id === 'none') {
+        return; // These are valid special values
+      }
+      
       const participant = await this.getParticipant(turnData.next_user_id);
       if (!participant) {
         throw new Error(`Invalid next_user_id: ${turnData.next_user_id} is not a participant`);

@@ -165,65 +165,7 @@ export async function POST(request: NextRequest) {
     });
     console.log('[Invite Accept] Participant record verified as committed');
     
-    // Initialize or update turn management to include the new guest participant
-    console.log('[Invite Accept] Updating turn management for guest user...');
-    try {
-      const { TurnManager } = await import('@/features/chat/services/turnManager');
-      const turnManager = new TurnManager(invite.chat_id);
-      
-      // Get the chat to check turn mode
-      const chatDetails = await prisma.chat.findUnique({
-        where: { id: invite.chat_id },
-        select: { turn_taking: true }
-      });
-      
-      // Check if turn state exists
-      const currentTurn = await turnManager.getCurrentTurn();
-      if (!currentTurn) {
-        // No turn state exists - initialize
-        const creator = chat.participants.find(p => p.role === 'user' || p.role === 'creator');
-        const creatorId = creator?.user_id;
-        
-        if (creatorId) {
-          await turnManager.initializeTurn(creatorId);
-          console.log('[Invite Accept] Turn management initialized with creator as first speaker');
-        } else {
-          await turnManager.initializeTurn(guestUserId);
-          console.log('[Invite Accept] Turn management initialized with guest as first speaker (no creator found)');
-        }
-      } else if (chatDetails?.turn_taking === 'strict') {
-        // Turn state exists and we're in strict mode - update the turn queue to include the new guest
-        console.log('[Invite Accept] Updating strict mode turn queue to include new guest');
-        
-        // Get all current participants (including the new guest)
-        const allParticipants = await prisma.chatParticipant.findMany({
-          where: { chat_id: invite.chat_id },
-          select: { user_id: true },
-          orderBy: { user_id: 'asc' }
-        });
-        
-        const participantIds = allParticipants.map(p => p.user_id);
-        
-        // Update the turn state to include all participants
-        await prisma.chatTurnState.update({
-          where: { chat_id: invite.chat_id },
-          data: {
-            turn_queue: participantIds
-            // Keep the current next_user_id and current_turn_index as they are
-          }
-        });
-        
-        console.log('[Invite Accept] Updated turn queue to include all participants:', participantIds);
-      } else {
-        // Flexible or moderated mode - no changes needed
-        console.log('[Invite Accept] Flexible/moderated mode - no turn state changes needed');
-      }
-    } catch (turnError) {
-      console.warn('[Invite Accept] Failed to update turn management for guest:', turnError);
-      // Don't fail the invite acceptance if turn management fails
-    }
-
-    // Create a JWT token for the guest session using NextAuth's encode function
+    // Create session token first - this enables immediate success response
     const sessionToken = await encode({
       token: {
         id: guestUserId,
@@ -232,6 +174,7 @@ export async function POST(request: NextRequest) {
         picture: null,
         isGuest: true,
         chatId: invite.chat_id,
+        waitingRoom: true, // Flag to indicate guest starts in waiting room
         sub: guestUserId, // Required by NextAuth JWT
         iat: Math.floor(Date.now() / 1000), // issued at
         exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // expires in 24 hours
@@ -241,118 +184,47 @@ export async function POST(request: NextRequest) {
       maxAge: 24 * 60 * 60 // 24 hours
     });
 
-    console.log('[Invite Accept] Created session token for guest:', {
+    console.log('[Invite Accept] Created waiting room session token for guest:', {
       guestUserId,
       guestName,
       chatId: invite.chat_id,
       tokenLength: sessionToken.length
     });
 
-    // Create an event to log the guest joining
+    // Store initial waiting room status in Redis
+    console.log('[Invite Accept] Setting waiting room status in Redis...');
     try {
-      await prisma.event.create({
-        data: {
-          chat_id: invite.chat_id,
-          type: 'guest_joined',
-          data: {
+      const { setWaitingRoomStatus } = await import('@/lib/redis-waiting-room');
+      await setWaitingRoomStatus(guestUserId, {
+        chatId: invite.chat_id,
             guestName,
-            guestUserId,
-            joinedAt: now.toISOString()
-          },
-          seq: 0 // We'll let the database handle sequencing
-        }
+        status: 'setup_starting',
+        progress: 0,
+        timestamp: now.toISOString()
       });
-    } catch (error) {
-      console.warn('Failed to create guest joined event:', error);
+    } catch (redisError) {
+      console.warn('[Invite Accept] Failed to set Redis status:', redisError);
     }
 
-    // Notify existing participants about the new guest joining via Pusher
-    try {
-      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
-      const channelName = getChatChannelName(invite.chat_id);
-      
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.PARTICIPANT_JOINED, {
-        participant: {
-          id: guestUserId,
-          display_name: guestName,
-          role: 'guest'
-        },
-        joinedAt: now.toISOString()
-      });
-      console.log('[Invite Accept] Pusher notification sent for new guest participant');
-    } catch (error) {
-      console.warn('Failed to send Pusher notification for guest joining:', error);
-    }
-
-    // Generate AI welcome message for the guest
-    console.log('[Invite Accept] Generating AI welcome message for guest...');
-    try {
-      const existingParticipantNames = chat.participants
-        .filter(p => p.user_id !== guestUserId)
-        .map(p => {
-          const fullName = p.user?.display_name || p.user?.name || 'Participant';
-          return fullName.split(' ')[0]; // Use just first name
+    // Queue background setup (non-blocking) - this includes:
+    // - Turn management setup
+    // - AI welcome message generation  
+    // - Pusher notifications
+    // - Final participant activation
+    setImmediate(() => {
+      setupGuestInChatBackground(invite.chat_id, guestUserId, guestName, chat, now)
+        .catch((error: any) => {
+          console.error('[Invite Accept] Background guest setup failed:', error);
         });
-      
-      const guestFirstName = guestName.split(' ')[0]; // Use just first name for guest too
-      
-      const systemPrompt = `You are an AI mediator. ${guestFirstName} has just joined the conversation with ${existingParticipantNames.join(' and ')}. 
-      Welcome ${guestFirstName} warmly, briefly acknowledge that they've joined the ongoing conversation, and invite them to introduce themselves. 
-      Ask them to share what brought them here and what they hope to get from this conversation.
-      Keep it concise, welcoming, and create psychological safety for everyone.`;
-
-      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            }
-          ],
-          max_tokens: 150,
-          temperature: 0.7,
-        }),
-      });
-
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        const aiMessage = aiData.choices[0]?.message?.content;
-
-        if (aiMessage) {
-          // Save AI welcome message to database
-          await prisma.event.create({
-            data: {
-              chat_id: invite.chat_id,
-              type: 'message',
-              data: {
-                content: aiMessage,
-                senderId: 'assistant'
-              },
-              seq: 0,
-            },
-          });
-          console.log('[Invite Accept] AI welcome message generated and saved for guest');
-        }
-      } else {
-        console.error('[Invite Accept] Failed to generate AI welcome message:', aiResponse.status);
-      }
-    } catch (aiError) {
-      console.error('[Invite Accept] Error generating AI welcome message:', aiError);
-      // Don't fail the invite acceptance if AI message fails
-    }
+    });
 
     // Set the session cookie
     const response = NextResponse.json({
       success: true,
       sessionToken,
       chatId: invite.chat_id,
-      guestUserId
+      guestUserId,
+      waitingRoom: true // Indicate guest will start in waiting room
     });
 
     // Set session cookie that's compatible with NextAuth in all environments
@@ -393,3 +265,146 @@ export async function POST(request: NextRequest) {
     );
   }
 } 
+
+/**
+ * Background setup function for guest joining
+ * This runs after the invite accept response is sent
+ */
+async function setupGuestInChatBackground(
+  chatId: string, 
+  guestUserId: string, 
+  guestName: string, 
+  chat: any, 
+  joinedAt: Date
+): Promise<void> {
+  console.log('[Background Setup] Starting guest setup for:', { chatId, guestUserId, guestName });
+
+  try {
+    // 1. Initialize or update turn management 
+    console.log('[Background Setup] Setting up turn management...');
+    try {
+      const { TurnManager } = await import('@/features/chat/services/turnManager');
+      const turnManager = new TurnManager(chatId);
+      
+      // Get the chat to check turn mode
+      const chatDetails = await prisma.chat.findUnique({
+        where: { id: chatId },
+        select: { turn_taking: true }
+      });
+      
+      // Only manage turn state for strict/rounds modes that require database state
+      if (chatDetails?.turn_taking === 'strict' || chatDetails?.turn_taking === 'rounds') {
+        console.log('[Background Setup] Updating turn state for strict/rounds mode');
+        
+        // Get all current participants (including the new guest)
+        const allParticipants = await prisma.chatParticipant.findMany({
+          where: { chat_id: chatId },
+          select: { user_id: true },
+          orderBy: { user_id: 'asc' }
+        });
+        
+        const participantIds = allParticipants.map(p => p.user_id);
+        
+        // Create or update the turn state to include all participants
+        await prisma.chatTurnState.upsert({
+          where: { chat_id: chatId },
+          update: {
+            turn_queue: participantIds
+          },
+          create: {
+            chat_id: chatId,
+            next_user_id: participantIds[0] || guestUserId,
+            next_role: 'user',
+            turn_queue: participantIds,
+            current_turn_index: 0
+          }
+        });
+        
+        console.log('[Background Setup] Updated turn queue:', participantIds);
+      } else {
+        console.log('[Background Setup] Flexible/moderated mode - no turn state changes needed');
+      }
+    } catch (turnError) {
+      console.warn('[Background Setup] Turn management setup failed:', turnError);
+    }
+
+    // 2. Create guest joined event
+    console.log('[Background Setup] Creating guest joined event...');
+    try {
+      await prisma.event.create({
+        data: {
+          chat_id: chatId,
+          type: 'guest_joined',
+          data: {
+            guestName,
+            guestUserId,
+            joinedAt: joinedAt.toISOString()
+          },
+          seq: 0
+        }
+      });
+    } catch (eventError) {
+      console.warn('[Background Setup] Failed to create guest joined event:', eventError);
+    }
+
+    // 3. Send Pusher notifications
+    console.log('[Background Setup] Sending Pusher notifications...');
+    try {
+      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+      const channelName = getChatChannelName(chatId);
+      
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.PARTICIPANT_JOINED, {
+        participant: {
+          id: guestUserId,
+          display_name: guestName,
+          role: 'guest'
+        },
+        joinedAt: joinedAt.toISOString()
+      });
+      console.log('[Background Setup] Pusher notification sent');
+    } catch (pusherError) {
+      console.warn('[Background Setup] Pusher notification failed:', pusherError);
+    }
+
+    // 4. Note: AI welcome message now handled by waiting room when both participants are ready
+    // No individual guest welcome message needed since both enter together with contextual intro
+    console.log('[Background Setup] Skipping individual AI welcome - waiting room will handle chat initiation');
+
+    // 5. Update participant status to fully joined (remove waiting room flag)
+    console.log('[Background Setup] Finalizing guest status...');
+    try {
+      await prisma.chatParticipant.update({
+        where: {
+          chat_id_user_id: {
+            chat_id: chatId,
+            user_id: guestUserId
+          }
+        },
+        data: {
+          role: 'guest' // Change from 'guest_joining' to 'guest'
+        }
+      });
+
+      // Send final notification that guest is ready (using participant joined event)
+      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+      const channelName = getChatChannelName(chatId);
+      
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.PARTICIPANT_JOINED, {
+        participant: {
+          id: guestUserId,
+          display_name: guestName,
+          role: 'guest'
+        },
+        status: 'ready',
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log('[Background Setup] Guest setup completed successfully');
+    } catch (finalizeError) {
+      console.warn('[Background Setup] Failed to finalize guest status:', finalizeError);
+    }
+
+  } catch (error) {
+    console.error('[Background Setup] Overall setup failed:', error);
+  }
+}
