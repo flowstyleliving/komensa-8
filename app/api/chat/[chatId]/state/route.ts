@@ -109,34 +109,22 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     } as any,
   });
 
-  // For simplified turn management, always provide a turn state
+  // Ensure turn state exists and is properly initialized
   if (!turnState) {
-    console.log('[Chat State] Creating simplified turn state');
+    console.log('[Chat State] No turn state found, ensuring it exists');
     const turnManager = new TurnManager(chatId);
     
-    // Get turn mode to determine state
-    const mode = await turnManager.getTurnMode();
+    // Use the new method to ensure turn state exists
+    const ensuredTurnState = await turnManager.ensureTurnStateExists();
     
-    if (mode === 'flexible') {
-      // For flexible, create a dummy state that allows anyone
-      turnState = {
-        next_user_id: 'anyone',
-        next_role: 'user',
-        turn_queue: [] as any,
-        current_turn_index: 0
-      } as any;
-          } else {
-        // For strict/moderated, get actual turn state from simplified manager
-      const currentTurn = await turnManager.getCurrentTurn();
-      turnState = {
-        next_user_id: currentTurn?.next_user_id || userId,
-        next_role: currentTurn?.next_role || 'user',
-        turn_queue: [] as any,
-        current_turn_index: 0
-      } as any;
-    }
+    turnState = {
+      next_user_id: ensuredTurnState.next_user_id,
+      next_role: ensuredTurnState.next_role || 'user',
+      turn_queue: [] as any,
+      current_turn_index: 0
+    } as any;
     
-    console.log('[Chat State] Simplified turn state created:', turnState);
+    console.log('[Chat State] Turn state ensured:', turnState);
   }
 
   // Get typing users from Redis

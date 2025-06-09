@@ -185,6 +185,114 @@ export class TurnManager {
     return { next_user_id: participants[nextIndex] };
   }
 
+  // Ensure turn state exists and is properly initialized
+  async ensureTurnStateExists(): Promise<TurnState> {
+    console.log(`[TurnManager] Ensuring turn state exists for chat ${this.chatId}`);
+    
+    try {
+      // Check if turn state already exists
+      const existingState = await prisma.chatTurnState.findUnique({
+        where: { chat_id: this.chatId }
+      });
+
+      if (existingState && existingState.next_user_id) {
+        console.log(`[TurnManager] Turn state exists: ${existingState.next_user_id}`);
+        return {
+          next_user_id: existingState.next_user_id,
+          next_role: existingState.next_role || undefined
+        };
+      }
+
+      // Create turn state based on current game rules
+      const currentTurn = await this.getCurrentTurn();
+      const mode = await this.getTurnMode();
+      
+      if (!currentTurn) {
+        throw new Error('Could not determine current turn');
+      }
+
+      console.log(`[TurnManager] Creating turn state for mode ${mode}: ${currentTurn.next_user_id}`);
+
+      // Update or create the database record
+      await prisma.chatTurnState.upsert({
+        where: { chat_id: this.chatId },
+        update: {
+          next_user_id: currentTurn.next_user_id,
+          next_role: currentTurn.next_role || 'user',
+          updated_at: new Date()
+        },
+        create: {
+          chat_id: this.chatId,
+          next_user_id: currentTurn.next_user_id,
+          next_role: currentTurn.next_role || 'user',
+          turn_queue: [],
+          current_turn_index: 0
+        }
+      });
+
+      return currentTurn;
+
+    } catch (error) {
+      console.error('[TurnManager] Error ensuring turn state exists:', error);
+      // Fallback to flexible mode
+      return { next_user_id: 'anyone' };
+    }
+  }
+
+  // Calculate and update turn state after a message is sent
+  async updateTurnAfterMessage(senderId: string): Promise<TurnState> {
+    console.log(`[TurnManager] Updating turn after message from ${senderId}`);
+    
+    const mode = await this.getTurnMode();
+    
+    // For flexible mode, always allow anyone to speak next
+    if (mode === 'flexible') {
+      const turnState = { next_user_id: 'anyone' };
+      
+      await prisma.chatTurnState.upsert({
+        where: { chat_id: this.chatId },
+        update: {
+          next_user_id: turnState.next_user_id,
+          updated_at: new Date()
+        },
+        create: {
+          chat_id: this.chatId,
+          next_user_id: turnState.next_user_id,
+          next_role: 'user',
+          turn_queue: [],
+          current_turn_index: 0
+        }
+      });
+      
+      return turnState;
+    }
+    
+    // For other modes, calculate next turn based on rules
+    const nextTurn = await this.getCurrentTurn();
+    if (!nextTurn) {
+      throw new Error('Could not determine next turn');
+    }
+    
+    await prisma.chatTurnState.upsert({
+      where: { chat_id: this.chatId },
+      update: {
+        next_user_id: nextTurn.next_user_id,
+        next_role: nextTurn.next_role || 'user',
+        updated_at: new Date()
+      },
+      create: {
+        chat_id: this.chatId,
+        next_user_id: nextTurn.next_user_id,
+        next_role: nextTurn.next_role || 'user',
+        turn_queue: [],
+        current_turn_index: 0
+      }
+    });
+    
+    console.log(`[TurnManager] Turn updated for mode ${mode}: next is ${nextTurn.next_user_id}`);
+    return nextTurn;
+  }
+
   // Initialize turn state (only create DB record if needed for strict/rounds modes)
   async initializeTurn(firstUserId: string): Promise<TurnState> {
     const mode = await this.getTurnMode();

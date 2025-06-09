@@ -142,14 +142,14 @@ export class AIResponseService {
         this.isMobile
       );
 
-      // Store thread ID
+      // Store thread ID only - don't touch turn state
       await prisma.chatTurnState.upsert({
         where: { chat_id: this.context.chatId },
         update: { thread_id: thread.id },
         create: { 
           chat_id: this.context.chatId,
-          thread_id: thread.id,
-          next_user_id: 'assistant' 
+          thread_id: thread.id
+          // No next_user_id - let turn manager handle this
         }
       });
 

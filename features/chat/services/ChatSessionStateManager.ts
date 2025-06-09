@@ -569,16 +569,17 @@ export class ChatSessionStateManager {
   }
 
   private async fetchTurnState(): Promise<TurnState> {
-    const turnState = await this.turnManager.getCurrentTurn();
+    // Ensure turn state exists and is properly initialized
+    const turnState = await this.turnManager.ensureTurnStateExists();
     const mode = await this.turnManager.getTurnMode();
 
     return {
       next_user_id: turnState?.next_user_id || null,
       next_role: turnState?.next_role || null,
       mode: mode as any,
-      turn_queue: (turnState as any)?.turn_queue || [],
-      current_turn_index: (turnState as any)?.current_turn_index || 0,
-      thread_id: (turnState as any)?.thread_id
+      turn_queue: [],
+      current_turn_index: 0,
+      thread_id: undefined
     };
   }
 

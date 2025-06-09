@@ -326,15 +326,15 @@ class TurnUpdateHandler implements EventHandler {
     console.log(`[${this.name}] Updating turn state after message`);
 
     const turnManager = this.orchestrator.getTurnManager();
-    const newTurnState = await turnManager.getCurrentTurn();
+    const newTurnState = await turnManager.updateTurnAfterMessage(event.userId!);
     const mode = await turnManager.getTurnMode();
 
-    // Update state via state manager
+    // Update state via state manager (turn manager already updated DB, just sync cache)
     const stateManager = this.orchestrator.getStateManager();
     await stateManager.updateTurnState({
       next_user_id: newTurnState?.next_user_id,
       next_role: newTurnState?.next_role
-    });
+    }, { persist: false }); // Don't persist since turn manager already did
 
     const turnChangedEvent = EventBuilder.turnChanged(
       event.chatId,
@@ -478,14 +478,14 @@ class PostAIHandler implements EventHandler {
 
     // Update turn state after AI response
     const turnManager = this.orchestrator.getTurnManager();
-    const newTurnState = await turnManager.getCurrentTurn();
+    const newTurnState = await turnManager.updateTurnAfterMessage('assistant');
     const mode = await turnManager.getTurnMode();
 
     const stateManager = this.orchestrator.getStateManager();
     await stateManager.updateTurnState({
       next_user_id: newTurnState?.next_user_id,
       next_role: newTurnState?.next_role
-    });
+    }, { persist: false }); // Don't persist since turn manager already did
 
     const turnChangedEvent = EventBuilder.turnChanged(
       event.chatId,
