@@ -198,6 +198,22 @@ CREATE TABLE chat_invites (
   accepted_at TIMESTAMPTZ
 );
 
+-- WAITING ROOM
+CREATE TABLE waiting_room_answers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  what_brought_you_here TEXT NOT NULL,
+  hope_to_accomplish TEXT NOT NULL,
+  current_feeling TEXT NOT NULL,
+  communication_style TEXT NOT NULL,
+  topics_to_avoid TEXT,
+  is_ready BOOLEAN DEFAULT false,
+  submitted_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (chat_id, user_id)
+);
+
 -- INTEGRATIONS
 CREATE TABLE oauth_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Heart, Users, Clock, CheckCircle, Loader2 } from 'lucide-react';
-import { DEFAULT_QUESTIONS, WaitingRoomQuestions } from '@/lib/waiting-room-questions';
+import { WaitingRoomAnswers, DEFAULT_QUESTIONS, WaitingRoomQuestion } from '@/lib/waiting-room';
 import { pusherClient } from '@/lib/pusher';
 
 interface WaitingRoomPageProps {
@@ -22,14 +22,20 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   const [chatId, setChatId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showFormDespiteOtherReady, setShowFormDespiteOtherReady] = useState(false);
   const [readinessStatus, setReadinessStatus] = useState({
     userReady: false,
     bothReady: false,
     waitingForOther: false
   });
+  
+  const [participantStatus, setParticipantStatus] = useState({
+    currentUser: { type: '', isReady: false, hasAnswers: false, name: '' },
+    otherUser: { type: '', isReady: false, hasAnswers: false, name: 'Other participant' }
+  });
 
   // Form state
-  const [answers, setAnswers] = useState<Partial<WaitingRoomQuestions>>({
+  const [answers, setAnswers] = useState<Partial<WaitingRoomAnswers>>({
     name: session?.user?.name || '',
     whatBroughtYouHere: '',
     hopeToAccomplish: '',
@@ -50,7 +56,13 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   useEffect(() => {
     if (!chatId || status === 'loading') return;
     
-    if (!session?.user?.id) {
+    // More robust authentication check that handles guest sessions properly
+    if (status === 'unauthenticated' || (!session?.user?.id && status === 'authenticated')) {
+      console.log('[Waiting Room] No valid session, redirecting to signin:', { 
+        status, 
+        hasSession: !!session, 
+        hasUserId: !!session?.user?.id 
+      });
       router.push('/auth/signin');
       return;
     }
@@ -64,29 +76,89 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
 
     const channel = pusherClient.subscribe(`chat-${chatId}`);
     
-    channel.bind('new-message', (data: any) => {
-      if (data.chatInitiated) {
-        console.log('[Waiting Room] Chat initiated - redirecting...');
-        router.push(`/chat/${chatId}`);
+    // Listen for chat initiation (when both participants are ready)
+    channel.bind('chat-initiated', (data: any) => {
+      console.log('[Waiting Room] Chat initiated via Pusher - redirecting...');
+      router.push(`/chat/${chatId}`);
+    });
+
+    // Listen for other participant readiness updates
+    channel.bind('participant-ready', (data: any) => {
+      console.log('[Waiting Room] Participant ready update:', data);
+      
+      // Update status if it's the other participant
+      if (data.userId !== session?.user?.id) {
+        setParticipantStatus(prev => ({
+          ...prev,
+          otherUser: {
+            ...prev.otherUser,
+            isReady: data.isReady,
+            name: data.userName || 'Other participant'
+          }
+        }));
+        
+        // Refresh status to check if both are ready
+        loadWaitingRoomStatus();
       }
     });
 
     return () => {
       pusherClient.unsubscribe(`chat-${chatId}`);
     };
-  }, [chatId, router]);
+  }, [chatId, router, session?.user?.id]);
+
+  // Polling fallback for chat initiation (in case Pusher fails)
+  useEffect(() => {
+    if (!chatId || !readinessStatus.waitingForOther) return;
+
+    console.log('[Waiting Room] Setting up polling fallback...');
+    const pollInterval = setInterval(async () => {
+      try {
+        console.log('[Waiting Room] Polling for chat initiation...');
+        const response = await fetch(`/api/waiting-room/ready?chatId=${chatId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.bothReady) {
+            console.log('[Waiting Room] Both ready detected via polling - redirecting...');
+            clearInterval(pollInterval);
+            router.push(`/chat/${chatId}`);
+          }
+        }
+      } catch (error) {
+        console.error('[Waiting Room] Polling error:', error);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    return () => {
+      console.log('[Waiting Room] Clearing polling interval');
+      clearInterval(pollInterval);
+    };
+  }, [chatId, readinessStatus.waitingForOther, router]);
 
   const loadWaitingRoomStatus = async () => {
     try {
-      const response = await fetch(`/api/waiting-room/ready?chatId=${chatId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setReadinessStatus(data);
+      // Get basic readiness status
+      const readinessResponse = await fetch(`/api/waiting-room/ready?chatId=${chatId}`);
+      if (readinessResponse.ok) {
+        const readinessData = await readinessResponse.json();
+        setReadinessStatus(readinessData);
         
         // If both ready, redirect to chat
-        if (data.bothReady) {
+        if (readinessData.bothReady) {
+          console.log('[Waiting Room] Both ready detected, redirecting to chat...');
           router.push(`/chat/${chatId}`);
+          return;
         }
+      }
+
+      // Get detailed participant status
+      const statusResponse = await fetch(`/api/waiting-room/status?chatId=${chatId}`);
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        setParticipantStatus({
+          currentUser: statusData.currentUser,
+          otherUser: statusData.otherUser
+        });
       }
     } catch (error) {
       console.error('Failed to load waiting room status:', error);
@@ -95,7 +167,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
     }
   };
 
-  const handleInputChange = (field: keyof WaitingRoomQuestions, value: string) => {
+  const handleInputChange = (field: keyof WaitingRoomAnswers, value: string) => {
     setAnswers(prev => ({ ...prev, [field]: value }));
   };
 
@@ -118,8 +190,13 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
         setReadinessStatus(data);
         
         if (data.bothReady) {
-          // Both ready - will be redirected via Pusher event
-          console.log('[Waiting Room] Both ready - waiting for chat initiation...');
+          console.log('[Waiting Room] Both ready after submit - starting chat initiation...');
+          // Show a processing state to prevent user confusion
+          setReadinessStatus(prev => ({ ...prev, bothReady: true }));
+          // Give a moment for the backend to process, then redirect
+          setTimeout(() => {
+            router.push(`/chat/${chatId}`);
+          }, 2000);
         }
       } else {
         console.error('Failed to submit answers');
@@ -152,7 +229,94 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
     );
   }
 
-  // Waiting for other participant
+  // Both participants ready - initiating chat
+  if (readinessStatus.bothReady) {
+    return (
+      <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
+        <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-green-500" />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold text-[#3C4858] mb-2">Both Participants Ready!</h2>
+              <p className="text-[#3C4858]/70 text-sm">
+                Initiating your conversation...
+              </p>
+            </div>
+
+            <div className="bg-[#FFFBF5] border border-green-500/30 rounded-lg p-4">
+              <div className="flex items-center space-x-3 mb-2">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span className="text-sm text-[#3C4858]">You: Ready</span>
+              </div>
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span className="text-sm text-[#3C4858]">Other participant: Ready</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-center space-x-2">
+              <Loader2 className="w-5 h-5 text-[#7BAFB0] animate-spin" />
+              <span className="text-sm text-[#3C4858]/70">Starting conversation...</span>
+            </div>
+
+            <p className="text-xs text-[#3C4858]/60">
+              Please wait while we prepare your chat environment.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show waiting state when other participant is ready (to prevent confusion)
+  if (participantStatus.otherUser.isReady && !participantStatus.currentUser.isReady && !showFormDespiteOtherReady) {
+    return (
+      <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
+        <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 bg-[#7BAFB0]/20 rounded-full flex items-center justify-center">
+              <Users className="w-8 h-8 text-[#7BAFB0]" />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold text-[#3C4858] mb-2">Other Participant is Ready!</h2>
+              <p className="text-[#3C4858]/70 text-sm">
+                {participantStatus.otherUser.name} has completed their preparation and is waiting for you.
+              </p>
+            </div>
+
+            <div className="bg-[#FFFBF5] border border-[#7BAFB0]/30 rounded-lg p-4">
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <span className="text-sm text-[#3C4858]">{participantStatus.otherUser.name}: Ready</span>
+              </div>
+              <div className="flex items-center space-x-3 mt-2">
+                <Clock className="w-5 h-5 text-[#7BAFB0]" />
+                <span className="text-sm text-[#3C4858]/70">You: Complete your preparation to begin</span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setShowFormDespiteOtherReady(true)}
+              variant="outline"
+              className="border-[#7BAFB0]/30 text-[#7BAFB0] hover:bg-[#7BAFB0]/10"
+            >
+              Continue with My Preparation
+            </Button>
+
+            <p className="text-xs text-[#3C4858]/60">
+              Your conversation will begin automatically when both participants are ready.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Waiting for other participant (user is ready, waiting for other)
   if (readinessStatus.waitingForOther) {
     return (
       <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
@@ -178,6 +342,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
                 <Loader2 className="w-5 h-5 text-[#D8A7B1] animate-spin" />
                 <span className="text-sm text-[#3C4858]/70">Other participant: Preparing...</span>
               </div>
+
             </div>
 
             <p className="text-xs text-[#3C4858]/60">
@@ -223,7 +388,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
             </div>
 
             {/* Dynamic Questions */}
-            {DEFAULT_QUESTIONS.map((question) => (
+            {DEFAULT_QUESTIONS.map((question: WaitingRoomQuestion) => (
               <div key={question.id}>
                 <label className="block text-sm font-medium text-[#3C4858] mb-2">
                   {question.question}
@@ -232,7 +397,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
                 
                 {question.type === 'textarea' && (
                   <Textarea
-                    value={answers[question.id] || ''}
+                    value={(answers[question.id] as string) || ''}
                     onChange={(e) => handleInputChange(question.id, e.target.value)}
                     placeholder={question.placeholder}
                     className="bg-white border-[#D8A7B1]/30 min-h-[100px]"
@@ -241,7 +406,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
                 
                 {question.type === 'text' && (
                   <Input
-                    value={answers[question.id] || ''}
+                    value={(answers[question.id] as string) || ''}
                     onChange={(e) => handleInputChange(question.id, e.target.value)}
                     placeholder={question.placeholder}
                     className="bg-white border-[#D8A7B1]/30"
@@ -250,14 +415,14 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
                 
                 {question.type === 'select' && question.options && (
                   <Select
-                    value={answers[question.id] || ''}
+                    value={(answers[question.id] as string) || ''}
                     onValueChange={(value) => handleInputChange(question.id, value)}
                   >
                     <SelectTrigger className="bg-white border-[#D8A7B1]/30">
                       <SelectValue placeholder="Choose your preferred style..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {question.options.map((option) => (
+                      {question.options.map((option: string) => (
                         <SelectItem key={option} value={option.split(' - ')[0]}>
                           {option}
                         </SelectItem>

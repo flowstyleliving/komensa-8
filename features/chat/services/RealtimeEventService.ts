@@ -180,6 +180,28 @@ export class RealtimeEventService {
     }
   }
 
+
+
+  /**
+   * Broadcast when summary has been generated
+   */
+  async broadcastSummaryGenerated(data: {
+    summary: string;
+    generatedAt: string;
+    summaryId: string;
+  }): Promise<void> {
+    try {
+      await pusherServer.trigger(this.channelName, PUSHER_EVENTS.SUMMARY_GENERATED, {
+        ...data,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`[RealtimeEventService] Summary generated broadcast`);
+    } catch (error) {
+      console.error(`[RealtimeEventService] Failed to broadcast summary generated:`, error);
+      throw error;
+    }
+  }
+
   /**
    * Broadcast new participant joined
    */

@@ -156,6 +156,9 @@ export const PUSHER_EVENTS = {
   STATE_UPDATE: 'state-update',
   COMPLETION_UPDATE: 'completion-update',
   COMPLETION_READY: 'completion-ready',
+  SUMMARY_GENERATED: 'summary-generated',
   PARTICIPANT_JOINED: 'participant-joined',
   USER_PRESENCE: 'user-presence',
+  PARTICIPANT_READY: 'participant-ready',
+  CHAT_INITIATED: 'chat-initiated',
 } as const; 

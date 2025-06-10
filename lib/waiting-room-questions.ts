@@ -112,7 +112,7 @@ Keep it conversational, warm, and under 200 words. Focus on connection over agen
 }
 
 /**
- * Store participant answers in Redis
+ * Store participant answers in database
  */
 export async function storeParticipantAnswers(
   chatId: string, 
@@ -120,31 +120,146 @@ export async function storeParticipantAnswers(
   userType: 'host' | 'guest',
   answers: WaitingRoomQuestions
 ): Promise<void> {
-  const { redis } = await import('@/lib/redis');
-  const key = `waiting_room_answers:${chatId}:${userType}`;
-  await redis.setex(key, 1800, JSON.stringify(answers)); // 30 minute expiry
+  const { prisma } = await import('@/lib/prisma');
+  
+  await prisma.waitingRoomAnswers.upsert({
+    where: {
+      chat_id_user_id: {
+        chat_id: chatId,
+        user_id: userId
+      }
+    },
+    update: {
+      name: answers.name,
+      what_brought_you_here: answers.whatBroughtYouHere,
+      hope_to_accomplish: answers.hopeToAccomplish,
+      current_feeling: answers.currentFeeling,
+      communication_style: answers.communicationStyle,
+      topics_to_avoid: answers.topicsToAvoid || null,
+      is_ready: answers.isReady,
+      submitted_at: new Date()
+    },
+    create: {
+      chat_id: chatId,
+      user_id: userId,
+      name: answers.name,
+      what_brought_you_here: answers.whatBroughtYouHere,
+      hope_to_accomplish: answers.hopeToAccomplish,
+      current_feeling: answers.currentFeeling,
+      communication_style: answers.communicationStyle,
+      topics_to_avoid: answers.topicsToAvoid || null,
+      is_ready: answers.isReady,
+      submitted_at: new Date()
+    }
+  });
 }
 
 /**
- * Get participant answers from Redis
+ * Get participant answers from database
  */
 export async function getParticipantAnswers(
   chatId: string, 
   userType: 'host' | 'guest'
 ): Promise<WaitingRoomQuestions | null> {
-  const { redis } = await import('@/lib/redis');
-  const key = `waiting_room_answers:${chatId}:${userType}`;
-  const data = await redis.get(key);
-  return data ? JSON.parse(data as string) : null;
+  const { prisma } = await import('@/lib/prisma');
+  
+  // Get the participant record to find the user_id for this user type
+  const participant = await prisma.chatParticipant.findFirst({
+    where: {
+      chat_id: chatId,
+      user: {
+        // Determine user type based on whether they're a guest user
+        ...(userType === 'guest' 
+          ? { email: { contains: '@guest' } }  // Guest users have special email format
+          : { email: { not: { contains: '@guest' } } }) // Host users don't
+      }
+    },
+    include: {
+      user: true
+    }
+  });
+
+  if (!participant) {
+    return null;
+  }
+
+  const answers = await prisma.waitingRoomAnswers.findUnique({
+    where: {
+      chat_id_user_id: {
+        chat_id: chatId,
+        user_id: participant.user_id
+      }
+    }
+  });
+
+  if (!answers) {
+    return null;
+  }
+
+  return {
+    name: answers.name,
+    whatBroughtYouHere: answers.what_brought_you_here,
+    hopeToAccomplish: answers.hope_to_accomplish,
+    currentFeeling: answers.current_feeling,
+    communicationStyle: answers.communication_style as 'direct' | 'gentle' | 'curious' | 'supportive',
+    topicsToAvoid: answers.topics_to_avoid || undefined,
+    isReady: answers.is_ready
+  };
+}
+
+/**
+ * Get participant answers by user ID directly
+ */
+export async function getParticipantAnswersByUserId(
+  chatId: string, 
+  userId: string
+): Promise<WaitingRoomQuestions | null> {
+  const { prisma } = await import('@/lib/prisma');
+  
+  const answers = await prisma.waitingRoomAnswers.findUnique({
+    where: {
+      chat_id_user_id: {
+        chat_id: chatId,
+        user_id: userId
+      }
+    }
+  });
+
+  if (!answers) {
+    return null;
+  }
+
+  return {
+    name: answers.name,
+    whatBroughtYouHere: answers.what_brought_you_here,
+    hopeToAccomplish: answers.hope_to_accomplish,
+    currentFeeling: answers.current_feeling,
+    communicationStyle: answers.communication_style as 'direct' | 'gentle' | 'curious' | 'supportive',
+    topicsToAvoid: answers.topics_to_avoid || undefined,
+    isReady: answers.is_ready
+  };
 }
 
 /**
  * Check if both participants have completed their answers and are ready
  */
 export async function checkChatReadiness(chatId: string): Promise<ChatReadinessState> {
+  const { prisma } = await import('@/lib/prisma');
+  
+  // Get all participants for this chat
+  const participants = await prisma.chatParticipant.findMany({
+    where: { chat_id: chatId },
+    include: { user: true }
+  });
+
+  // Identify host and guest based on user properties
+  const hostParticipant = participants.find(p => !p.user.email?.includes('@guest'));
+  const guestParticipant = participants.find(p => p.user.email?.includes('@guest'));
+
+  // Get answers for each participant
   const [hostAnswers, guestAnswers] = await Promise.all([
-    getParticipantAnswers(chatId, 'host'),
-    getParticipantAnswers(chatId, 'guest')
+    hostParticipant ? getParticipantAnswersByUserId(chatId, hostParticipant.user_id) : Promise.resolve(null),
+    guestParticipant ? getParticipantAnswersByUserId(chatId, guestParticipant.user_id) : Promise.resolve(null)
   ]);
   
   const bothReady = !!(
@@ -161,16 +276,45 @@ export async function checkChatReadiness(chatId: string): Promise<ChatReadinessS
 }
 
 /**
- * Mark chat as initiated and clear waiting room data
+ * Mark chat as initiated in the database
  */
 export async function markChatInitiated(chatId: string): Promise<void> {
-  const { redis } = await import('@/lib/redis');
-  const hostKey = `waiting_room_answers:${chatId}:host`;
-  const guestKey = `waiting_room_answers:${chatId}:guest`;
+  const { prisma } = await import('@/lib/prisma');
   
-  // Mark as initiated
-  await redis.setex(`chat_initiated:${chatId}`, 3600, new Date().toISOString());
+  // Update chat status to indicate it's been initiated
+  await prisma.chat.update({
+    where: { id: chatId },
+    data: { 
+      status: 'active'  // or add a specific field for initiated status
+    }
+  });
   
-  // Clear waiting room data (optional - could keep for analytics)
-  // await redis.del(hostKey, guestKey);
+  // Optional: Add an event to track initiation
+  await prisma.event.create({
+    data: {
+      chat_id: chatId,
+      type: 'chat_initiated',
+      data: {
+        initiated_at: new Date().toISOString(),
+        initiated_by: 'waiting_room'
+      }
+    }
+  });
+}
+
+/**
+ * Check if chat has been initiated
+ */
+export async function checkChatInitiated(chatId: string): Promise<boolean> {
+  const { prisma } = await import('@/lib/prisma');
+  
+  // Check for chat initiation event
+  const initiationEvent = await prisma.event.findFirst({
+    where: {
+      chat_id: chatId,
+      type: 'chat_initiated'
+    }
+  });
+  
+  return !!initiationEvent;
 } 

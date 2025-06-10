@@ -81,7 +81,7 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
 
   const handleContinueToChat = () => {
     onClose();
-    router.push(`/chat/${chatId}`);
+    router.push(`/waiting-room/${chatId}`);
   };
 
   return (
@@ -616,10 +616,10 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
         setChatId(data.chatId);
         setCurrentStep('invite-success');
       } else {
-        // Regular chat creation - redirect to chat
+        // Regular chat creation - redirect to waiting room first
       setTimeout(() => {
         onClose();
-        router.push(`/chat/${data.chatId}`);
+        router.push(`/waiting-room/${data.chatId}`);
       }, 500);
       }
     } catch (error) {

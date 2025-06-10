@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
       success: true,
       conversation: chat,
       chatId: chat.id,
-      redirectUrl: `/chat/${chat.id}`,
+      redirectUrl: `/waiting-room/${chat.id}`,
       message: 'Conversation created successfully',
       ...(inviteData && inviteData) // Include invite data if created
     };

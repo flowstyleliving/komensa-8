@@ -407,4 +407,4 @@ async function setupGuestInChatBackground(
   } catch (error) {
     console.error('[Background Setup] Overall setup failed:', error);
   }
-}
+} 

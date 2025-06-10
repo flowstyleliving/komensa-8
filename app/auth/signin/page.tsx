@@ -54,10 +54,77 @@ export default function SignInPage() {
   // Auto-redirect if already authenticated
   useEffect(() => {
     if (status === 'authenticated') {
-      console.log('[SignIn] User already authenticated, redirecting to dashboard');
-      router.push('/dashboard');
+      // For guest users, only redirect if they don't have pre-filled data (indicating intent to register)
+      if (session?.user?.isGuest && session?.user?.chatId) {
+        const emailParam = searchParams.get('email');
+        const nameParam = searchParams.get('name');
+        
+        // If guest has pre-filled data, they want to register - don't redirect them back
+        if (emailParam || nameParam) {
+          console.log('[SignIn] Guest with pre-filled data wants to register, staying on signin page');
+          return;
+        }
+        
+        console.log('[SignIn] Guest user detected, redirecting to waiting room');
+        router.push(`/waiting-room/${session.user.chatId}`);
+      } else {
+        console.log('[SignIn] User already authenticated, redirecting to dashboard');
+        router.push('/dashboard');
+      }
     }
-  }, [status, router]);
+  }, [status, router, session, searchParams]);
+
+  // Pre-fill email from URL parameters and show success message
+  useEffect(() => {
+    const emailParam = searchParams.get('email');
+    const messageParam = searchParams.get('message');
+    
+    if (emailParam) {
+      setEmail(emailParam);
+      // If email is provided, skip to email check to determine if user exists
+      handleEmailCheckWithParam(emailParam);
+    }
+    
+    if (messageParam) {
+      // Show success message briefly
+      setError(''); // Clear any existing errors
+      const successDiv = document.createElement('div');
+      successDiv.className = 'fixed top-4 right-4 bg-green-50 border border-green-200 text-green-800 px-4 py-2 rounded-lg shadow-lg z-50';
+      successDiv.textContent = decodeURIComponent(messageParam);
+      document.body.appendChild(successDiv);
+      
+      // Remove after 5 seconds
+      setTimeout(() => {
+        if (document.body.contains(successDiv)) {
+          document.body.removeChild(successDiv);
+        }
+      }, 5000);
+    }
+  }, [searchParams]);
+
+  // Helper function to check email without form submission
+  const handleEmailCheckWithParam = async (emailToCheck: string) => {
+    try {
+      const response = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToCheck }),
+      });
+
+      const data = await response.json();
+
+      if (data.exists) {
+        setUserExists(true);
+        setStep("signin");
+      } else {
+        setUserExists(false);
+        setStep("signup");
+      }
+    } catch (err) {
+      console.error('Error checking email:', err);
+      // Stay on email-check step if there's an error
+    }
+  };
 
   // Check for OAuth errors in URL parameters
   useEffect(() => {

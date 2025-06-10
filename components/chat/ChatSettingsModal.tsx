@@ -103,6 +103,25 @@ export function ChatSettingsModal({
     try {
       await onMarkComplete(type);
       await fetchCompletionStatus();
+      
+      // Check if this completion makes both users complete
+      const updatedData = await (async () => {
+        const res = await fetch(`/api/chat/${chatId}/complete`);
+        if (res.ok) {
+          return await res.json();
+        }
+        return null;
+      })();
+      
+      // If both users are now complete, automatically generate summary
+      if (updatedData?.allComplete && !updatedData?.isCompleted) {
+        console.log('[ChatSettings] Both users complete, auto-generating summary...');
+        try {
+          await handleGenerateSummary();
+        } catch (error) {
+          console.error('[ChatSettings] Failed to auto-generate summary:', error);
+        }
+      }
     } catch (error) {
       console.error('Failed to mark complete:', error);
     } finally {
@@ -245,11 +264,13 @@ export function ChatSettingsModal({
                 participants.map((participant) => (
                   <div key={participant.id} className="flex items-center gap-3 p-3 bg-[#F9F7F4] rounded-lg">
                     <div className="w-8 h-8 bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] rounded-full flex items-center justify-center text-white text-sm font-medium">
-                      {participant.display_name?.charAt(0)?.toUpperCase() || '?'}
+                      {participant.display_name?.charAt(0)?.toUpperCase() || 
+                       (participant.id.startsWith('guest_') ? 'G' : 'U')}
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-medium text-[#3C4858]">
-                        {participant.display_name || 'Unknown User'}
+                        {participant.display_name || 
+                         (participant.id.startsWith('guest_') ? 'Guest User' : 'User')}
                         {participant.id === currentUserId && (
                           <span className="text-xs text-[#7BAFB0] ml-2">(You)</span>
                         )}
@@ -553,33 +574,16 @@ export function ChatSettingsModal({
                   </div>
                 </div>
 
-                {completionData?.allComplete && (
-                  <div className="bg-[#D8A7B1]/10 rounded-lg p-4 border border-[#D8A7B1]/30">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-[#D8A7B1] mb-2">
-                        <FileText className="h-4 w-4" />
-                        <span className="text-sm font-medium">Ready for Summary Generation</span>
-                      </div>
-                      <p className="text-xs text-[#3C4858]/70 mb-3">
-                        All participants have completed the session. Either participant can now generate the conversation summary and proceed to feedback.
-                      </p>
-                      <Button
-                        onClick={handleGenerateSummary}
-                        disabled={isGenerating}
-                        className="bg-gradient-to-r from-[#D8A7B1] to-[#D8A7B1]/80 hover:from-[#C99BA4] hover:to-[#C99BA4]/80 text-white w-full sm:w-auto px-6 py-2 touch-manipulation"
-                      >
-                        {isGenerating ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Generating Summary...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="h-4 w-4 mr-2" />
-                            Generate Summary
-                          </>
-                        )}
-                      </Button>
+                {/* Show auto-summary generation when both users are complete */}
+                {completionData?.allComplete && !completionData?.isCompleted && (
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                    <div className="flex items-center gap-2 text-green-700 mb-2">
+                      <CheckCircle className="h-4 w-4" />
+                      <span className="text-sm font-medium">Both Participants Complete!</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-green-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className="text-xs">Generating summary automatically...</span>
                     </div>
                   </div>
                 )}

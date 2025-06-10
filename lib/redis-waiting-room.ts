@@ -1,4 +1,5 @@
 import { redis } from '@/lib/redis';
+import { WaitingRoomService } from '@/lib/waiting-room';
 
 export interface WaitingRoomStatus {
   chatId: string;
@@ -43,7 +44,7 @@ export async function markParticipantReady(chatId: string, userId: string, userT
 }
 
 /**
- * Check if both participants are ready for the chat
+ * Check if both participants are ready for the chat - now using database
  */
 export async function areBothParticipantsReady(chatId: string): Promise<{
   ready: boolean;
@@ -51,31 +52,31 @@ export async function areBothParticipantsReady(chatId: string): Promise<{
   guestReady: boolean;
   participants?: string[];
 }> {
-  // Get all ready participants for this chat
-  const pattern = `${CHAT_READY_PREFIX}${chatId}:*`;
-  const keys = await redis.keys(pattern);
-  
-  if (keys.length === 0) {
+  try {
+    // Use the database-backed function to check readiness
+    const readinessState = await WaitingRoomService.getReadinessState(chatId);
+    
+    const hostReady = !!readinessState.hostAnswers?.isReady;
+    const guestReady = !!readinessState.guestAnswers?.isReady;
+    const ready = readinessState.bothReady;
+
+    // Get participant user IDs from the database
+    const { prisma } = await import('@/lib/prisma');
+    const participants = await prisma.chatParticipant.findMany({
+      where: { chat_id: chatId },
+      select: { user_id: true }
+    });
+
+    return {
+      ready,
+      hostReady,
+      guestReady,
+      participants: participants.map(p => p.user_id)
+    };
+  } catch (error) {
+    console.error('Error checking participant readiness:', error);
     return { ready: false, hostReady: false, guestReady: false };
   }
-
-  // Get each participant's data individually 
-  const participantPromises = keys.map(key => redis.get(key));
-  const participants = await Promise.all(participantPromises);
-  const readyParticipants = participants
-    .filter(p => p !== null)
-    .map(p => JSON.parse(p as string));
-
-  const hostReady = readyParticipants.some(p => p.userType === 'host');
-  const guestReady = readyParticipants.some(p => p.userType === 'guest');
-  const ready = hostReady && guestReady;
-
-  return {
-    ready,
-    hostReady,
-    guestReady,
-    participants: readyParticipants.map(p => p.userId)
-  };
 }
 
 /**

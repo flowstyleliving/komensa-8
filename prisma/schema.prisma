@@ -22,6 +22,8 @@ model Extension {
   created_at     DateTime        @default(now())
   chats          ChatExtension[]
   products       Product[]
+  versions       ExtensionVersion[]
+  sharedBoards   SharedBoard[]
 }
 
 model Product {
@@ -30,6 +32,7 @@ model Product {
   label             String
   ext_id            String?
   extension         Extension? @relation(fields: [ext_id], references: [id])
+  subscriptions     Subscription[]
 }
 
 model ChatTurnState {
@@ -42,6 +45,7 @@ model ChatTurnState {
   current_turn_index Int      @default(0)
   next_role          String?
   turn_queue         Json     @default("[]")
+  turn_expires_at    DateTime?
   chat               Chat     @relation("ChatTurnState", fields: [chat_id], references: [id])
 }
 
@@ -53,6 +57,7 @@ model Event {
   created_at DateTime @default(now())
   seq        Int      @default(0)
   chat       Chat     @relation("ChatEvents", fields: [chat_id], references: [id])
+  threads    ThreadEvent[]
 }
 
 model ChatParticipant {
@@ -66,22 +71,36 @@ model ChatParticipant {
 }
 
 model User {
-  id             String                 @id @default(uuid())
-  display_name   String?
-  email          String?                @unique
-  emailVerified  DateTime?
-  image          String?
-  name           String?
-  username       String?                @unique
-  password       String?
-  email_verified Boolean                @default(false)
-  dateCreated    DateTime               @default(now())
-  accounts       Account[]
-  participants   ChatParticipant[]
-  states         ParticipantState[]
-  sessions       Session[]
-  completions    ChatCompletionStatus[]
-  feedback       ConversationFeedback[]
+  id                    String                 @id @default(uuid())
+  display_name          String?
+  email                 String?                @unique
+  emailVerified         DateTime?
+  image                 String?
+  name                  String?
+  username              String?                @unique
+  password              String?
+  email_verified        Boolean                @default(false)
+  dateCreated           DateTime               @default(now())
+  accounts              Account[]
+  participants          ChatParticipant[]
+  states                ParticipantState[]
+  sessions              Session[]
+  completions           ChatCompletionStatus[]
+  feedback              ConversationFeedback[]
+  waitingRoomAnswers    WaitingRoomAnswers[]
+  contextSnapshot       UserContextSnapshot?
+  threads               ContextThread[]
+  billingCustomer       BillingCustomer?
+  subscriptions         Subscription[]
+  redeemedCoupons       RedeemedCoupon[]
+  todos                 Todo[]
+  attachments           Attachment[]
+  liveSessions          LiveSession[]
+  oauthTokens           OAuthToken[]
+  pushSubscriptions     PushSubscription[]
+  calendarEvents        CalendarEvent[]
+  badges                UserBadge[]
+  dailyMetrics          DailyChatMetric[]
 }
 
 model Account {
@@ -119,21 +138,27 @@ model VerificationToken {
 }
 
 model Chat {
-  id             String                 @id @default(uuid())
-  origin         String                 @default("web")
-  mediator_style String                 @default("default")
-  turn_taking    String                 @default("strict")
-  status         String                 @default("active")
-  created_at     DateTime               @default(now())
-  settings       Json?                  @default("{}")
-  extensions     ChatExtension[]
-  participants   ChatParticipant[]
-  turn_state     ChatTurnState?         @relation("ChatTurnState")
-  events         Event[]                @relation("ChatEvents")
-  states         ParticipantState[]
-  completions    ChatCompletionStatus[]
-  invites        ChatInvite[]
-  feedback       ConversationFeedback[]
+  id                    String                 @id @default(uuid())
+  origin                String                 @default("web")
+  mediator_style        String                 @default("default")
+  turn_taking           String                 @default("strict")
+  status                String                 @default("active")
+  created_at            DateTime               @default(now())
+  settings              Json?                  @default("{}")
+  extensions            ChatExtension[]
+  participants          ChatParticipant[]
+  turn_state            ChatTurnState?         @relation("ChatTurnState")
+  events                Event[]                @relation("ChatEvents")
+  states                ParticipantState[]
+  completions           ChatCompletionStatus[]
+  invites               ChatInvite[]
+  feedback              ConversationFeedback[]
+  waitingRoomAnswers    WaitingRoomAnswers[]
+  todos                 Todo[]
+  attachments           Attachment[]
+  liveSessions          LiveSession[]
+  sharedBoards          SharedBoard[]
+  calendarEvents        CalendarEvent[]
 }
 
 model ParticipantState {
@@ -196,4 +221,200 @@ model ConversationFeedback {
   user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("conversation_feedback")
+}
+
+model WaitingRoomAnswers {
+  id                     String   @id @default(uuid())
+  chat_id                String
+  user_id                String
+  name                   String
+  what_brought_you_here  String
+  hope_to_accomplish     String
+  current_feeling        String
+  communication_style    String
+  topics_to_avoid        String?
+  is_ready               Boolean  @default(false)
+  submitted_at           DateTime @default(now())
+  chat                   Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  user                   User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([chat_id, user_id])
+  @@map("waiting_room_answers")
+}
+
+model UserContextSnapshot {
+  user_id        String   @id
+  summary_json   Json
+  updated_at     DateTime @default(now())
+  user           User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model ContextThread {
+  id        String        @id @default(uuid())
+  user_id   String
+  label     String
+  created_at DateTime     @default(now())
+  user      User          @relation(fields: [user_id], references: [id])
+  events    ThreadEvent[]
+}
+
+model ThreadEvent {
+  thread_id String
+  event_id  String
+  thread    ContextThread @relation(fields: [thread_id], references: [id], onDelete: Cascade)
+  event     Event         @relation(fields: [event_id], references: [id])
+
+  @@id([thread_id, event_id])
+}
+
+model ExtensionVersion {
+  ext_id        String
+  version       String
+  manifest_json Json
+  entry_path    String
+  extension     Extension @relation(fields: [ext_id], references: [id], onDelete: Cascade)
+
+  @@id([ext_id, version])
+}
+
+model BillingCustomer {
+  user_id            String @id
+  stripe_customer_id String
+  user               User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model Subscription {
+  id                    String   @id @default(uuid())
+  user_id              String
+  product_id           String
+  stripe_subscription_id String  @unique
+  status               String
+  current_period_end   DateTime
+  user                 User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product              Product  @relation(fields: [product_id], references: [id])
+  payments             Payment[]
+}
+
+model Payment {
+  id                String      @id @default(uuid())
+  subscription_id   String
+  stripe_invoice_id String      @unique
+  amount            Int
+  currency          String
+  paid_at           DateTime
+  subscription      Subscription @relation(fields: [subscription_id], references: [id])
+}
+
+model RedeemedCoupon {
+  id              String   @id @default(uuid())
+  user_id         String
+  code            String
+  stripe_coupon_id String
+  redeemed_at     DateTime @default(now())
+  user            User     @relation(fields: [user_id], references: [id])
+}
+
+model Todo {
+  id         String   @id @default(uuid())
+  chat_id    String
+  label      String
+  is_done    Boolean  @default(false)
+  created_by String
+  created_at DateTime @default(now())
+  chat       Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  creator    User     @relation(fields: [created_by], references: [id])
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  chat_id      String
+  uploader_id  String
+  storage_key  String
+  mime         String
+  size         Int
+  transcript   String?
+  created_at   DateTime @default(now())
+  chat         Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  uploader     User     @relation(fields: [uploader_id], references: [id])
+}
+
+model LiveSession {
+  id         String   @id @default(uuid())
+  chat_id    String
+  type       String
+  started_by String
+  started_at DateTime
+  ended_at   DateTime?
+  chat       Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  starter    User     @relation(fields: [started_by], references: [id])
+}
+
+model SharedBoard {
+  id         String   @id @default(uuid())
+  chat_id    String
+  ext_id     String
+  state_json Json
+  updated_at DateTime @default(now())
+  chat       Chat     @relation(fields: [chat_id], references: [id], onDelete: Cascade)
+  extension  Extension @relation(fields: [ext_id], references: [id])
+}
+
+model OAuthToken {
+  id           String   @id @default(uuid())
+  user_id      String
+  provider     String
+  access_token String
+  refresh_token String?
+  scopes       String
+  expires_at   DateTime
+  user         User     @relation(fields: [user_id], references: [id])
+}
+
+model PushSubscription {
+  id           String   @id @default(uuid())
+  user_id      String
+  device_type  String
+  token        String   @unique
+  created_at   DateTime @default(now())
+  last_seen_at DateTime?
+  user         User     @relation(fields: [user_id], references: [id])
+}
+
+model CalendarEvent {
+  id          String   @id @default(uuid())
+  chat_id     String
+  external_id String
+  provider    String
+  created_by  String
+  summary     String
+  start_at    DateTime
+  end_at      DateTime
+  chat        Chat     @relation(fields: [chat_id], references: [id])
+  creator     User     @relation(fields: [created_by], references: [id])
+}
+
+model UserBadge {
+  id          String   @id @default(uuid())
+  user_id     String
+  badge_type  String
+  earned_at   DateTime @default(now())
+  user        User     @relation(fields: [user_id], references: [id])
+}
+
+model DailyChatMetric {
+  id          String   @id @default(uuid())
+  user_id     String
+  date        DateTime
+  metric_type String
+  value       Int
+  user        User     @relation(fields: [user_id], references: [id])
+}
+
+model WebhookLog {
+  id          String   @id @default(uuid())
+  url         String
+  payload     Json
+  response    Json?
+  status      Int?
+  created_at  DateTime @default(now())
 }

@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/prisma';
-import { 
-  storeParticipantAnswers, 
-  checkChatReadiness, 
-  generateMediatorIntroPrompt,
-  markChatInitiated,
-  WaitingRoomQuestions 
-} from '@/lib/waiting-room-questions';
+import { WaitingRoomService, WaitingRoomAnswers } from '@/lib/waiting-room';
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,110 +13,85 @@ export async function POST(request: NextRequest) {
 
     const { chatId, answers } = await request.json() as {
       chatId: string;
-      answers: WaitingRoomQuestions;
+      answers: WaitingRoomAnswers;
     };
 
     if (!chatId || !answers) {
       return NextResponse.json({ error: 'Missing chatId or answers' }, { status: 400 });
     }
 
-    // Determine if user is host or guest
-    const participant = await prisma.chatParticipant.findFirst({
-      where: {
-        chat_id: chatId,
-        user_id: session.user.id
-      }
-    });
-
-    if (!participant) {
+    // Check if user is authorized
+    const isAuthorized = await WaitingRoomService.isUserAuthorized(chatId, session.user.id);
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Not a participant in this chat' }, { status: 403 });
     }
 
-    const userType = session.user.isGuest ? 'guest' : 'host';
+    // Submit answers
+    await WaitingRoomService.submitAnswers(chatId, session.user.id, answers);
     
-    // Store the participant's answers
-    await storeParticipantAnswers(chatId, session.user.id, userType, answers);
-    
-    // Check if both participants are ready
-    const readinessState = await checkChatReadiness(chatId);
-    
-    if (readinessState.bothReady && readinessState.hostAnswers && readinessState.guestAnswers) {
-      console.log('[Waiting Room] Both participants ready - initiating chat');
+    // Notify other participant that this user is now ready
+    try {
+      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+      const channelName = getChatChannelName(chatId);
+      const userType = session.user.isGuest ? 'guest' : 'host';
       
-      // Generate AI mediator introduction
-      const mediatorPrompt = generateMediatorIntroPrompt(
-        readinessState.hostAnswers, 
-        readinessState.guestAnswers
-      );
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.PARTICIPANT_READY, {
+        userType,
+        userId: session.user.id,
+        userName: answers.name,
+        isReady: answers.isReady
+      });
       
-      // Create AI introduction message
+      console.log(`[Waiting Room] Notified other participants that ${userType} (${answers.name}) is ready`);
+    } catch (pusherError) {
+      console.error('[Waiting Room] Failed to send readiness notification, continuing anyway:', pusherError);
+    }
+    
+    // Check if both participants are ready and initiate chat if so
+    const initiation = await WaitingRoomService.initiateChatIfReady(chatId);
+    
+    if (initiation.initiated && initiation.aiIntroduction) {
+      console.log('[Waiting Room] Both participants ready - chat initiated');
+      
+      // Send AI introduction as first message
       try {
-        const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4',
-            messages: [{ role: 'system', content: mediatorPrompt }],
-            max_tokens: 250,
-            temperature: 0.8,
-          }),
+        await prisma.event.create({
+          data: {
+            chat_id: chatId,
+            type: 'message',
+            data: {
+              text: initiation.aiIntroduction,
+              sender: 'ai_mediator',
+              timestamp: new Date().toISOString(),
+              isSystemMessage: true
+            }
+          }
         });
 
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const introMessage = aiData.choices[0]?.message?.content;
-
-          if (introMessage) {
-            // Save AI introduction message to database
-            await prisma.event.create({
-              data: {
-                chat_id: chatId,
-                type: 'message',
-                data: {
-                  content: introMessage,
-                  senderId: 'assistant'
-                },
-                seq: 0,
-              },
-            });
-
-            // Mark chat as initiated
-            await markChatInitiated(chatId);
-
-            // Notify both participants via Pusher
-            const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
-            const channelName = getChatChannelName(chatId);
-            
-            await pusherServer.trigger(channelName, PUSHER_EVENTS.NEW_MESSAGE, {
-              message: {
-                id: 'chat_intro',
-                content: introMessage,
-                senderId: 'assistant',
-                timestamp: new Date().toISOString()
-              },
-              chatInitiated: true,
-              hostName: readinessState.hostAnswers.name,
-              guestName: readinessState.guestAnswers.name
-            });
-
-            console.log('[Waiting Room] Chat initiated successfully with AI introduction');
-          }
-        } else {
-          console.error('[Waiting Room] Failed to generate AI introduction:', aiResponse.status);
-        }
-      } catch (aiError) {
-        console.error('[Waiting Room] Error generating AI introduction:', aiError);
+        // Notify participants that chat is starting
+        const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+        const channelName = getChatChannelName(chatId);
+        
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.CHAT_INITIATED, {
+          aiIntroduction: initiation.aiIntroduction,
+          initiatedAt: new Date().toISOString()
+        });
+        
+        console.log('[Waiting Room] Chat initiated successfully with AI introduction');
+      } catch (pusherNotificationError) {
+        console.error('[Waiting Room] Failed to send chat initiation notification:', pusherNotificationError);
       }
     }
+
+    // Get current status
+    const status = await WaitingRoomService.getWaitingRoomStatus(chatId, session.user.id);
 
     return NextResponse.json({
       success: true,
       userReady: answers.isReady,
-      bothReady: readinessState.bothReady,
-      waitingForOther: !readinessState.bothReady
+      bothReady: status.bothReady,
+      waitingForOther: !status.bothReady,
+      chatInitiated: status.chatInitiated
     });
 
   } catch (error) {
@@ -149,27 +118,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing chatId' }, { status: 400 });
     }
 
-    // Check if user is participant
-    const participant = await prisma.chatParticipant.findFirst({
-      where: {
-        chat_id: chatId,
-        user_id: session.user.id
-      }
-    });
-
-    if (!participant) {
+    // Check if user is authorized
+    const isAuthorized = await WaitingRoomService.isUserAuthorized(chatId, session.user.id);
+    if (!isAuthorized) {
       return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
     }
 
-    const readinessState = await checkChatReadiness(chatId);
-    const userType = session.user.isGuest ? 'guest' : 'host';
-    const userAnswers = userType === 'host' ? readinessState.hostAnswers : readinessState.guestAnswers;
-
+    const status = await WaitingRoomService.getWaitingRoomStatus(chatId, session.user.id);
+    
     return NextResponse.json({
-      bothReady: readinessState.bothReady,
-      userReady: userAnswers?.isReady || false,
-      hasAnswers: !!userAnswers,
-      waitingForOther: !readinessState.bothReady && userAnswers?.isReady
+      bothReady: status.bothReady || status.chatInitiated,
+      userReady: status.currentUser.isReady,
+      hasAnswers: status.currentUser.hasAnswers,
+      waitingForOther: !status.bothReady && !status.chatInitiated && status.currentUser.isReady,
+      chatInitiated: status.chatInitiated
     });
 
   } catch (error) {

@@ -68,8 +68,9 @@ export default function DashboardPage() {
       try {
         // Check if user is a guest - guests shouldn't be on dashboard
         if (session?.user?.isGuest) {
-          console.log('[Dashboard] Guest user detected, redirecting to chat');
-          window.location.href = `/chat/${session.user.chatId}`;
+          console.log('[Dashboard] Guest user detected, cleaning session and redirecting to signin');
+          const { cleanGuestSessionAndRedirect } = await import('@/lib/guest-session-utils');
+          cleanGuestSessionAndRedirect();
           return;
         }
 
@@ -83,9 +84,10 @@ export default function DashboardPage() {
           
           // Handle specific error cases
           if (response.status === 403) {
-            console.log('[Dashboard] Access denied - redirecting guest to chat');
-            if (session?.user?.isGuest && session?.user?.chatId) {
-              window.location.href = `/chat/${session.user.chatId}`;
+            console.log('[Dashboard] Access denied - cleaning guest session');
+            if (session?.user?.isGuest) {
+              const { cleanGuestSessionAndRedirect } = await import('@/lib/guest-session-utils');
+              cleanGuestSessionAndRedirect();
             }
           }
         }

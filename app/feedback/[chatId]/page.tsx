@@ -62,19 +62,15 @@ export default function FeedbackPage({ params }: FeedbackPageProps) {
   };
 
   const handleGuestRegistration = async () => {
-    try {
-      const response = await fetch('/api/auth/convert-guest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: guestEmail })
-      });
-
-      if (response.ok) {
-        router.push('/dashboard');
-      }
-    } catch (error) {
-      console.error('Failed to register:', error);
-    }
+    // Get the guest's name from their session
+    const guestName = session?.user?.name || '';
+    
+    // Redirect to signin page with pre-filled email and name
+    const params = new URLSearchParams();
+    if (guestEmail) params.set('email', guestEmail);
+    if (guestName) params.set('name', guestName);
+    
+    router.push(`/auth/signin?${params.toString()}`);
   };
 
   if (!session?.user?.id) {

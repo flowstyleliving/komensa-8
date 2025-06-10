@@ -28,10 +28,12 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/messages') || // Allow messages API endpoints
     pathname.startsWith('/api/typing') || // Allow typing indicator API endpoints
     pathname.startsWith('/api/invite/') || // Allow invite API endpoints
+    pathname.startsWith('/api/waiting-room/') || // Allow waiting room API endpoints
     pathname.startsWith('/api/feedback') || // Allow feedback API endpoints
     pathname.startsWith('/tests/api/') || // Allow test/debug API endpoints
     pathname.startsWith('/invite/') || // Allow invite pages
     pathname === '/auth/signin' ||
+    pathname === '/auth/register' || // Allow guest registration page
     pathname === '/test-phone' || // Allow phone verification test page
     pathname === '/test-chat' || // Allow chat modal test page
     pathname === '/test-signin' || // Allow signin test page
@@ -104,6 +106,18 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // For guest users, allow access to waiting room for their specific chat
+  if (token.isGuest && pathname.startsWith('/waiting-room/')) {
+    const chatIdFromPath = pathname.split('/waiting-room/')[1]?.split('/')[0];
+    if (chatIdFromPath && chatIdFromPath !== token.chatId) {
+      console.log('[Middleware] Guest trying to access unauthorized waiting room:', pathname);
+      return NextResponse.json({ error: 'Access denied - guests can only access their invited chat waiting room' }, { status: 403 });
+    }
+    // Allow access to waiting room for their chat
+    console.log('[Middleware] Allowing guest waiting room access for their chat:', pathname);
+    return NextResponse.next();
+  }
+
   // For guest users, allow access to feedback pages for their specific chat
   if (token.isGuest && pathname.startsWith('/feedback/')) {
     const chatIdFromPath = pathname.split('/feedback/')[1]?.split('/')[0];
@@ -123,8 +137,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Guests cannot access dashboard or other protected routes (except chat, feedback, and signin)
-  if (token.isGuest && !pathname.startsWith('/chat/') && !pathname.startsWith('/feedback/') && pathname !== '/auth/signin') {
+  // Guests cannot access dashboard or other protected routes (except chat, waiting-room, feedback, and signin)
+  if (token.isGuest && !pathname.startsWith('/chat/') && !pathname.startsWith('/waiting-room/') && !pathname.startsWith('/feedback/') && pathname !== '/auth/signin') {
     console.log('[Middleware] Guest trying to access unauthorized route:', pathname, {
       isGuest: token.isGuest,
       chatId: token.chatId
@@ -157,6 +171,7 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - auth/signin (signin page)
+     * - auth/register (registration page)
      * - test-phone (phone verification test page)
      * - images (public images)
      * - sounds (public sounds)
@@ -165,7 +180,7 @@ export const config = {
      * This matcher is a broad-stroke. The logic inside the middleware function
      * provides more granular control.
      */
-    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chat/|api/chats/|api/messages|api/typing|api/invite/|api/feedback|invite/|_next/static|_next/image|favicon.ico|auth/signin|test-phone|images|sounds|demo).*)',
+    '/((?!api/auth/|api/demo/|demo/api/|api/phone/|api/users/|api/chat/|api/chats/|api/messages|api/typing|api/invite/|api/feedback|invite/|_next/static|_next/image|favicon.ico|auth/signin|auth/register|test-phone|images|sounds|demo).*)',
   ],
 };
 

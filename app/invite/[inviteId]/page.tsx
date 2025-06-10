@@ -61,23 +61,22 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
   const [joining, setJoining] = useState(false);
   const [joinStep, setJoinStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [joinSuccessful, setJoinSuccessful] = useState(false);
 
   // Join steps for better UX
   const joinSteps = [
-    'Creating your guest profile...',
+    'Creating your guest session...',
     'Adding you to the conversation...',
-    'Setting up AI mediator...',
-    'Preparing welcome message...',
-    'Almost ready!'
+    'Setting up the waiting room...',
+    'Preparing your experience...'
   ];
 
   // Tips to show during loading
   const loadingTips = [
-    '💡 The AI mediator will help facilitate balanced conversation',
-    '🎯 You\'ll take turns speaking to ensure everyone is heard',
-    '🛡️ This is a safe space for authentic dialogue',
-    '✨ Your voice matters in this conversation',
-    '🚀 Get ready for meaningful connection!'
+    'Please wait while we create your temporary account',
+    'Almost there! Getting the conversation ready...',
+    'Setting up your personalized chat experience...',
+    'Finalizing your entry to the conversation...'
   ];
 
   // Auto-advance join steps for visual progress
@@ -99,6 +98,11 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
 
   // Validate invite on page load
   useEffect(() => {
+    // Skip validation if join was successful to prevent "already used" message
+    if (joinSuccessful) {
+      return;
+    }
+    
     const validateInvite = async () => {
       try {
         console.log('[Invite] Validating invite:', {
@@ -106,7 +110,8 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
           sessionStatus: session.status,
           userId: session?.data?.user?.id,
           isGuest: session?.data?.user?.isGuest,
-          sessionChatId: session?.data?.user?.chatId
+          sessionChatId: session?.data?.user?.chatId,
+          joinSuccessful
         });
         
         const response = await fetch(`/api/invite/validate?inviteId=${encodeURIComponent(inviteId)}`);
@@ -156,7 +161,7 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
     if (session.status !== 'loading') {
       validateInvite();
     }
-  }, [inviteId, session.status, router]);
+  }, [inviteId, session.status, router, joinSuccessful]);
 
   const handleJoinChat = async () => {
     if (!guestName.trim()) {
@@ -186,6 +191,9 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
 
       if (response.ok) {
         console.log('[Invite] Guest session created, forcing session refresh before redirect');
+        
+        // Mark join as successful to prevent re-validation
+        setJoinSuccessful(true);
         
         // Force session refresh to load the new guest session data
         // This is critical to prevent the "guest user can't type" issue

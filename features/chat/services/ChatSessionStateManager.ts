@@ -274,6 +274,23 @@ export class ChatSessionStateManager {
         }
       });
 
+      // Cache completion status in Redis for real-time access
+      try {
+        const { redis } = await import('@/lib/redis');
+        await redis.setex(
+          `completion:${this.chatId}:${userId}`, 
+          3600, // 1 hour TTL
+          JSON.stringify({
+            userId,
+            completionType,
+            completedAt: new Date().toISOString()
+          })
+        );
+        console.log(`[ChatSessionStateManager] Cached completion status in Redis: ${userId}`);
+      } catch (redisError) {
+        console.warn(`[ChatSessionStateManager] Failed to cache completion in Redis:`, redisError);
+      }
+
       // Refresh completion state
       const completionStatus = await this.fetchCompletionStatus();
 

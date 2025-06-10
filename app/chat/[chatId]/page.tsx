@@ -108,7 +108,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     
     checkChatInitiation();
   }, [chatId, status, router]);
-
+  
   useEffect(() => {
     if (!chatId || checkingInitiation) return;
     const fetchInitialState = async () => {
@@ -178,9 +178,35 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   
   const userId = session?.user?.id || '';
   const humanParticipants = participants.filter((p) => p.id !== 'assistant');
-  const headerNames = humanParticipants.length > 0 
-    ? humanParticipants.map((p) => p.display_name || 'Unknown User').join(' & ') + ' + AI Mediator'
-    : 'Loading participants... + AI Mediator';
+  
+  // More robust header names logic
+  const getHeaderNames = () => {
+    // Check if we're still loading participants
+    if (status === 'loading' || !chatId) {
+      return 'Loading... + AI Mediator';
+    }
+    
+    if (humanParticipants.length === 0) {
+      // Only show loading if we truly have no participants
+      return 'Loading participants... + AI Mediator';
+    }
+    
+    // Get participant names, falling back to better defaults
+    const participantNames = humanParticipants.map((p) => {
+      if (p.display_name) {
+        return p.display_name;
+      }
+      // Better fallback for guests and users without display names
+      if (p.id.startsWith('guest_')) {
+        return 'Guest User';
+      }
+      return 'User';
+    });
+    
+    return participantNames.join(' & ') + ' + AI Mediator';
+  };
+  
+  const headerNames = getHeaderNames();
   
   console.log('[ChatPage] Render debug:', {
     participantsTotal: participants.length,
@@ -188,7 +214,9 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     headerNames,
     currentUserId: userId,
     isAssistantTyping: isAssistantTyping,
-    shouldShowTypingIndicator: isAssistantTyping && true
+    shouldShowTypingIndicator: isAssistantTyping && true,
+    status: status,
+    chatId: chatId
   });
   
   // Check if current user is typing to conditionally show vizcue
