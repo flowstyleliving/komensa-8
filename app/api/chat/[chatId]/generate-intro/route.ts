@@ -24,6 +24,21 @@ export async function POST(
       return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
     }
 
+    // Show AI thinking indicator FIRST - before any locks or checks
+    // This ensures all users see the thinking indicator regardless of who wins the race
+    try {
+      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+      const channelName = getChatChannelName(chatId);
+      
+      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
+        isTyping: true,
+        chatId
+      });
+      console.log('[AI Intro] AI thinking indicator sent (before lock check)');
+    } catch (error) {
+      console.error('[AI Intro] Failed to send AI thinking indicator:', error);
+    }
+
     // Check if introduction already exists or is being generated
     const existingIntro = await prisma.event.findFirst({
       where: {
@@ -38,6 +53,21 @@ export async function POST(
 
     if (existingIntro) {
       console.log('[AI Intro] Introduction already exists');
+      
+      // Turn off thinking indicator since no generation needed
+      try {
+        const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+        const channelName = getChatChannelName(chatId);
+        
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
+          isTyping: false,
+          chatId
+        });
+        console.log('[AI Intro] AI thinking indicator turned off (intro exists)');
+      } catch (error) {
+        console.error('[AI Intro] Failed to turn off AI thinking indicator:', error);
+      }
+      
       return NextResponse.json({ 
         success: true, 
         message: 'Introduction already exists',
@@ -58,8 +88,9 @@ export async function POST(
       });
       
       if (!lockAcquired) {
-        console.log('[AI Intro] Another process is already generating introduction');
-        // Wait a moment and check if intro was created
+        console.log('[AI Intro] Another process is already generating introduction - waiting for completion');
+        // Don't turn off thinking indicator - let the lock holder handle it
+        // Just wait and check if intro was created
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const newIntro = await prisma.event.findFirst({
@@ -105,20 +136,6 @@ export async function POST(
     }
 
     console.log('[AI Intro] Found waiting room answers, generating prompt...');
-
-    // Show AI thinking indicator
-    try {
-      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
-      const channelName = getChatChannelName(chatId);
-      
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
-        isTyping: true,
-        chatId
-      });
-      console.log('[AI Intro] AI thinking indicator sent');
-    } catch (error) {
-      console.error('[AI Intro] Failed to send AI thinking indicator:', error);
-    }
 
     // Generate AI introduction
     const prompt = generateMediatorIntroPrompt(
