@@ -153,6 +153,9 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
     if (!chatId || !readinessStatus.waitingForOther) return;
 
     console.log('[Waiting Room] Setting up polling fallback...');
+    let pusherEventReceived = false;
+    let bothReadyDetectedAt: number | null = null;
+    
     const pollInterval = setInterval(async () => {
       try {
         console.log('[Waiting Room] Polling for chat initiation...');
@@ -162,7 +165,23 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
           if (data.bothReady) {
             console.log('[Waiting Room] Both ready detected via polling - waiting for CHAT_INITIATED event...');
             setReadinessStatus(data);
-            // Don't redirect here - wait for CHAT_INITIATED Pusher event
+            
+            // Track when we first detected both ready
+            if (!bothReadyDetectedAt) {
+              bothReadyDetectedAt = Date.now();
+              console.log('[Waiting Room] Started waiting for CHAT_INITIATED event...');
+            }
+            
+            // Safety mechanism: If no Pusher event after 10 seconds, redirect anyway
+            const waitTime = Date.now() - bothReadyDetectedAt;
+            if (waitTime > 10000 && !pusherEventReceived) {
+              console.log('[Waiting Room] SAFETY: No CHAT_INITIATED event after 10s, redirecting anyway...');
+              router.push(`/chat/${chatId}`);
+              return;
+            }
+          } else {
+            // Reset if no longer both ready
+            bothReadyDetectedAt = null;
           }
         }
       } catch (error) {
@@ -170,9 +189,23 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
       }
     }, 3000); // Poll every 3 seconds
 
+    // Listen for the Pusher event to know when to stop waiting
+    const channel = pusherClient.channel(`chat-${chatId}`);
+    const chatInitiatedHandler = () => {
+      pusherEventReceived = true;
+      console.log('[Waiting Room] CHAT_INITIATED event received, marking as handled');
+    };
+    
+    if (channel) {
+      channel.bind('chat-initiated', chatInitiatedHandler);
+    }
+
     return () => {
-      console.log('[Waiting Room] Clearing polling interval');
+      console.log('[Waiting Room] Clearing polling interval and event handlers');
       clearInterval(pollInterval);
+      if (channel) {
+        channel.unbind('chat-initiated', chatInitiatedHandler);
+      }
     };
   }, [chatId, readinessStatus.waitingForOther, router]);
 
@@ -297,7 +330,16 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
           console.log('[Waiting Room Frontend] Both ready after submit - starting chat initiation...');
           // Show a processing state and wait for CHAT_INITIATED event
           setReadinessStatus(prev => ({ ...prev, bothReady: true }));
-          // Don't auto-redirect - let the Pusher event handle it
+          
+          // Safety mechanism: If no Pusher event within 15 seconds, redirect anyway
+          setTimeout(() => {
+            console.log('[Waiting Room Frontend] SAFETY: Checking if still waiting after submit...');
+            // Check if we're still on the waiting room page (not redirected by Pusher)
+            if (window.location.pathname.includes('/waiting-room/')) {
+              console.log('[Waiting Room Frontend] SAFETY: Still on waiting room after 15s, redirecting...');
+              router.push(`/chat/${chatId}`);
+            }
+          }, 15000);
         }
       } else {
         const errorData = await response.json().catch(() => ({}));
