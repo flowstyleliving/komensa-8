@@ -24,19 +24,50 @@ export async function POST(
       return NextResponse.json({ error: 'Not a participant' }, { status: 403 });
     }
 
-    // Show AI thinking indicator FIRST - before any locks or checks
-    // This ensures all users see the thinking indicator regardless of who wins the race
+    // Use Redis to coordinate thinking indicator globally - prevent race conditions
+    let thinkingIndicatorOwner = false;
     try {
-      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
-      const channelName = getChatChannelName(chatId);
+      const { redis } = await import('@/lib/redis');
+      const thinkingKey = `ai-intro-thinking:${chatId}`;
       
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
-        isTyping: true,
-        chatId
+      // Try to acquire thinking indicator ownership (expires in 90 seconds)
+      const thinkingAcquired = await redis.set(thinkingKey, session.user.id, {
+        px: 90000, // 90 second expiration
+        nx: true   // Only set if not exists
       });
-      console.log('[AI Intro] AI thinking indicator sent (before lock check)');
+      
+      if (thinkingAcquired) {
+        thinkingIndicatorOwner = true;
+        console.log('[AI Intro] Acquired thinking indicator ownership');
+        
+        // Send thinking indicator
+        const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+        const channelName = getChatChannelName(chatId);
+        
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
+          isTyping: true,
+          chatId
+        });
+        console.log('[AI Intro] AI thinking indicator sent');
+      } else {
+        console.log('[AI Intro] Another user is already handling thinking indicator');
+      }
     } catch (error) {
-      console.error('[AI Intro] Failed to send AI thinking indicator:', error);
+      console.error('[AI Intro] Failed to coordinate thinking indicator:', error);
+      // Fallback: send thinking indicator anyway
+      try {
+        const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+        const channelName = getChatChannelName(chatId);
+        
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
+          isTyping: true,
+          chatId
+        });
+        console.log('[AI Intro] AI thinking indicator sent (fallback)');
+        thinkingIndicatorOwner = true; // Assume ownership for cleanup
+      } catch (fallbackError) {
+        console.error('[AI Intro] Failed to send fallback thinking indicator:', fallbackError);
+      }
     }
 
     // Check if introduction already exists or is being generated
@@ -54,18 +85,26 @@ export async function POST(
     if (existingIntro) {
       console.log('[AI Intro] Introduction already exists');
       
-      // Turn off thinking indicator since no generation needed
-      try {
-        const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
-        const channelName = getChatChannelName(chatId);
-        
-        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
-          isTyping: false,
-          chatId
-        });
-        console.log('[AI Intro] AI thinking indicator turned off (intro exists)');
-      } catch (error) {
-        console.error('[AI Intro] Failed to turn off AI thinking indicator:', error);
+      // Only turn off thinking indicator if we own it
+      if (thinkingIndicatorOwner) {
+        try {
+          const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+          const channelName = getChatChannelName(chatId);
+          
+          await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
+            isTyping: false,
+            chatId
+          });
+          console.log('[AI Intro] AI thinking indicator turned off (intro exists)');
+          
+          // Release thinking indicator ownership
+          const { redis } = await import('@/lib/redis');
+          const thinkingKey = `ai-intro-thinking:${chatId}`;
+          await redis.del(thinkingKey);
+          console.log('[AI Intro] Released thinking indicator ownership');
+        } catch (error) {
+          console.error('[AI Intro] Failed to turn off AI thinking indicator:', error);
+        }
       }
       
       return NextResponse.json({ 
@@ -221,28 +260,39 @@ To begin, perhaps you could each share a bit more about what brought you here to
       console.error('[AI Intro] Failed to send message via Pusher:', pusherError);
     }
 
-    // Turn off AI thinking indicator
-    try {
-      const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
-      const channelName = getChatChannelName(chatId);
-      
-      await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
-        isTyping: false,
-        chatId
-      });
-      console.log('[AI Intro] AI thinking indicator turned off');
-    } catch (error) {
-      console.error('[AI Intro] Failed to turn off AI thinking indicator:', error);
+    // Turn off AI thinking indicator (only if we own it)
+    if (thinkingIndicatorOwner) {
+      try {
+        const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
+        const channelName = getChatChannelName(chatId);
+        
+        await pusherServer.trigger(channelName, PUSHER_EVENTS.ASSISTANT_TYPING, {
+          isTyping: false,
+          chatId
+        });
+        console.log('[AI Intro] AI thinking indicator turned off');
+      } catch (error) {
+        console.error('[AI Intro] Failed to turn off AI thinking indicator:', error);
+      }
     }
 
-    // Release Redis lock
+    // Release Redis locks
     try {
       const { redis } = await import('@/lib/redis');
+      
+      // Release generation lock
       const lockKey = `ai-intro-lock:${chatId}`;
       await redis.del(lockKey);
       console.log('[AI Intro] Released generation lock');
+      
+      // Release thinking indicator ownership (if we own it)
+      if (thinkingIndicatorOwner) {
+        const thinkingKey = `ai-intro-thinking:${chatId}`;
+        await redis.del(thinkingKey);
+        console.log('[AI Intro] Released thinking indicator ownership');
+      }
     } catch (redisError) {
-      console.error('[AI Intro] Failed to release Redis lock:', redisError);
+      console.error('[AI Intro] Failed to release Redis locks:', redisError);
     }
 
     return NextResponse.json({
@@ -254,20 +304,12 @@ To begin, perhaps you could each share a bit more about what brought you here to
   } catch (error) {
     console.error('[AI Intro] Error generating introduction:', error);
     
-    // Release Redis lock on error
-    try {
-      const { chatId } = await params;
-      const { redis } = await import('@/lib/redis');
-      const lockKey = `ai-intro-lock:${chatId}`;
-      await redis.del(lockKey);
-      console.log('[AI Intro] Released generation lock on error');
-    } catch (redisError) {
-      console.error('[AI Intro] Failed to release Redis lock on error:', redisError);
-    }
+    const { chatId } = await params;
     
-    // Turn off thinking indicator on error
+    // Turn off thinking indicator on error (only if we own it)
+    // Note: We need to check if thinkingIndicatorOwner exists in this scope
     try {
-      const { chatId } = await params;
+      // For error cases, we'll always try to turn off thinking indicator as a safety measure
       const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
       const channelName = getChatChannelName(chatId);
       
@@ -275,8 +317,26 @@ To begin, perhaps you could each share a bit more about what brought you here to
         isTyping: false,
         chatId
       });
+      console.log('[AI Intro] AI thinking indicator turned off on error');
     } catch (pusherError) {
       console.error('[AI Intro] Failed to turn off thinking indicator on error:', pusherError);
+    }
+    
+    // Release all Redis locks on error
+    try {
+      const { redis } = await import('@/lib/redis');
+      
+      // Release generation lock
+      const lockKey = `ai-intro-lock:${chatId}`;
+      await redis.del(lockKey);
+      console.log('[AI Intro] Released generation lock on error');
+      
+      // Release thinking indicator ownership
+      const thinkingKey = `ai-intro-thinking:${chatId}`;
+      await redis.del(thinkingKey);
+      console.log('[AI Intro] Released thinking indicator ownership on error');
+    } catch (redisError) {
+      console.error('[AI Intro] Failed to release Redis locks on error:', redisError);
     }
 
     return NextResponse.json(
