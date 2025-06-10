@@ -179,7 +179,7 @@ export async function GET(request: NextRequest) {
           description: `You've been invited to join a chat`,
           timestamp: invite.expires_at,
           priority: 'medium',
-          actionUrl: `/invite/${invite.chat_id}`,
+          actionUrl: `/invite/${invite.id}`,
           unread: !userReadNotifications.has(notificationId)
         };
       }),

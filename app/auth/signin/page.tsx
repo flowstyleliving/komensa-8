@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Mail, Eye, EyeOff, User, Lock } from "lucide-react"
+import { Mail, Eye, EyeOff, User, Lock, Users } from "lucide-react"
 import KomensaLogoPath from "@/public/images/komensa-logo.png"
 import Link from "next/link"
 import Image from "next/image"
@@ -78,6 +78,7 @@ export default function SignInPage() {
   useEffect(() => {
     const emailParam = searchParams.get('email');
     const messageParam = searchParams.get('message');
+    const fromInvite = searchParams.get('from') === 'invite';
     
     if (emailParam) {
       setEmail(emailParam);
@@ -310,6 +311,19 @@ export default function SignInPage() {
           </CardHeader>
 
           <CardContent className="space-y-6">
+            {/* Special banner for invite-based signup */}
+            {searchParams.get('from') === 'invite' && (
+              <div className="bg-[#7BAFB0]/10 border border-[#7BAFB0]/20 rounded-lg p-4 space-y-2">
+                <div className="flex items-center space-x-2 text-sm text-[#3C4858]">
+                  <Users className="w-4 h-4 text-[#7BAFB0]" />
+                  <span className="font-medium">Joining from an invite</span>
+                </div>
+                <p className="text-xs text-[#3C4858]/80 leading-relaxed">
+                  After creating your account, you'll enter our Waiting Room where you and the other participant will prepare for a meaningful conversation together.
+                </p>
+              </div>
+            )}
+
             {error && (
               <Alert className="border-[#E39AA7] bg-[#E39AA7]/10">
                 <AlertDescription className="text-[#3C4858]">{error}</AlertDescription>

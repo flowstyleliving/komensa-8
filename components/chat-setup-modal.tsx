@@ -71,11 +71,36 @@ const InviteLinkComponent = ({ inviteUrl, chatId, onClose }: { inviteUrl: string
 
   const copyToClipboard = async () => {
     try {
+      // Try clipboard API first
       await navigator.clipboard.writeText(inviteUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
+    } catch (clipboardErr) {
+      // Fallback: create a temporary input element and select the text
+      const tempInput = document.createElement('input');
+      tempInput.value = inviteUrl;
+      tempInput.style.position = 'absolute';
+      tempInput.style.left = '-9999px';
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      tempInput.setSelectionRange(0, 99999); // For mobile devices
+      
+      try {
+        // Try the older execCommand method
+        const successful = document.execCommand('copy');
+        if (successful) {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } else {
+          // Show the URL to user for manual copy
+          alert(`Please copy this invite link manually:\n\n${inviteUrl}`);
+        }
+      } catch (execErr) {
+        // Last resort: show the URL to user
+        alert(`Please copy this invite link manually:\n\n${inviteUrl}`);
+      } finally {
+        document.body.removeChild(tempInput);
+      }
     }
   };
 
@@ -693,7 +718,7 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
         {currentStep !== 'creating' && currentStep !== 'invite-success' && (
           <Button
             variant="outline"
-            className="w-full rounded-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-3 sm:py-2.5 mt-4 text-base sm:text-sm font-medium touch-manipulation"
+            className="w-full rounded-xl border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-3 sm:py-2.5 mt-4 text-base sm:text-sm font-medium touch-manipulation"
             onClick={onClose}
             disabled={isCreatingChat}
           >

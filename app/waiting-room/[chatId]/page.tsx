@@ -172,13 +172,56 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   };
 
   const copyInviteLink = async () => {
-    const inviteLink = `${window.location.origin}/invite/${chatId}`;
     try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      // Generate a proper invite for this chat
+      const response = await fetch('/api/invite/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.inviteUrl) {
+        try {
+          // Try clipboard API first
+          await navigator.clipboard.writeText(data.inviteUrl);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch (clipboardErr) {
+          // Fallback: create a temporary input element and select the text
+          const tempInput = document.createElement('input');
+          tempInput.value = data.inviteUrl;
+          tempInput.style.position = 'absolute';
+          tempInput.style.left = '-9999px';
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          tempInput.setSelectionRange(0, 99999); // For mobile devices
+          
+          try {
+            // Try the older execCommand method
+            const successful = document.execCommand('copy');
+            if (successful) {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            } else {
+              // Show the URL to user for manual copy
+              alert(`Please copy this invite link manually:\n\n${data.inviteUrl}`);
+            }
+          } catch (execErr) {
+            // Last resort: show the URL to user
+            alert(`Please copy this invite link manually:\n\n${data.inviteUrl}`);
+          } finally {
+            document.body.removeChild(tempInput);
+          }
+        }
+      } else {
+        console.error('Failed to generate invite link:', data.error);
+        alert('Failed to generate invite link. Please try again.');
+      }
     } catch (err) {
       console.error('Failed to copy link:', err);
+      alert('Failed to generate invite link. Please try again.');
     }
   };
 

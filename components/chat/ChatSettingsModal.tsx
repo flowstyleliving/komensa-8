@@ -191,11 +191,36 @@ export function ChatSettingsModal({
     if (!inviteLink) return;
     
     try {
+      // Try clipboard API first
       await navigator.clipboard.writeText(inviteLink);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy invite link:', error);
+    } catch (clipboardErr) {
+      // Fallback: create a temporary input element and select the text
+      const tempInput = document.createElement('input');
+      tempInput.value = inviteLink;
+      tempInput.style.position = 'absolute';
+      tempInput.style.left = '-9999px';
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      tempInput.setSelectionRange(0, 99999); // For mobile devices
+      
+      try {
+        // Try the older execCommand method
+        const successful = document.execCommand('copy');
+        if (successful) {
+          setIsCopied(true);
+          setTimeout(() => setIsCopied(false), 2000);
+        } else {
+          // Show the URL to user for manual copy
+          alert(`Please copy this invite link manually:\n\n${inviteLink}`);
+        }
+      } catch (execErr) {
+        // Last resort: show the URL to user
+        alert(`Please copy this invite link manually:\n\n${inviteLink}`);
+      } finally {
+        document.body.removeChild(tempInput);
+      }
     }
   };
 

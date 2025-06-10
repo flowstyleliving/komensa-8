@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Heart, MessageCircle, ArrowRight, Clock, Users } from 'lucide-react';
+import { AlertCircle, Heart, MessageCircle, ArrowRight, Clock, Users, CheckCircle, User } from 'lucide-react';
 
 interface InviteValidation {
   valid: boolean;
@@ -15,6 +15,7 @@ interface InviteValidation {
   expired?: boolean;
   used?: boolean;
   chatInactive?: boolean;
+  alreadyParticipant?: boolean;
 }
 
 // Loading animation component
@@ -54,6 +55,7 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
   const { inviteId } = use(params);
   const router = useRouter();
   const session = useSession();
+  const searchParams = useSearchParams();
   
   const [validation, setValidation] = useState<InviteValidation | null>(null);
   const [loading, setLoading] = useState(true);
@@ -117,7 +119,11 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
         const response = await fetch(`/api/invite/validate?inviteId=${encodeURIComponent(inviteId)}`);
         const data = await response.json();
         
-        console.log('[Invite] Validation response:', data);
+        console.log('[Invite] Validation response:', {
+          status: response.status,
+          ok: response.ok,
+          data
+        });
         
         if (response.ok) {
           setValidation(data);
@@ -162,6 +168,62 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
       validateInvite();
     }
   }, [inviteId, session.status, router, joinSuccessful]);
+
+  // Auto-redirect if already authenticated (but only for specific cases)
+  useEffect(() => {
+    // Only redirect if we have a valid session AND validation is complete
+    if (session.status === 'authenticated' && session.data?.user && validation && !loading) {
+      // For guest users, only redirect if they're already in this specific chat
+      if ((session.data.user as any)?.isGuest && (session.data.user as any)?.chatId) {
+        // Check if the guest is already in the chat that this invite is for
+        if ((session.data.user as any).chatId === validation.chatId) {
+          console.log('[Invite] Guest user already in this chat, redirecting to waiting room');
+          router.push(`/waiting-room/${(session.data.user as any).chatId}`);
+          return;
+        } else {
+          // Guest is in a different chat, let them see the invite page
+          console.log('[Invite] Guest user is in different chat, showing invite page');
+          return;
+        }
+      } 
+      
+      // For signed-in non-guest users, check if they're already a participant
+      if (validation.alreadyParticipant) {
+        console.log('[Invite] User already participant, redirecting to waiting room');
+        router.push(`/waiting-room/${validation.chatId}`);
+        return;
+      }
+      
+      // For signed-in non-guest users who aren't participants yet, auto-join
+      if (validation.valid) {
+        console.log('[Invite] Signed-in user detected, automatically joining chat');
+        const autoJoinChat = async () => {
+          try {
+            const response = await fetch('/api/invite/join', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ inviteId }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+              console.log('[Invite] Successfully joined chat, redirecting to waiting room');
+              router.push(`/waiting-room/${data.chatId}`);
+            } else {
+              console.error('[Invite] Failed to join chat:', data.error);
+              // Stay on invite page to show error
+            }
+          } catch (error) {
+            console.error('[Invite] Error joining chat:', error);
+            // Stay on invite page to show error
+          }
+        };
+
+        autoJoinChat();
+      }
+    }
+  }, [session.status, session.data?.user, router, searchParams, validation, loading, inviteId]);
 
   const handleJoinChat = async () => {
     if (!guestName.trim()) {
@@ -217,7 +279,7 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
   };
 
   const handleSignUp = () => {
-    router.push('/auth/signin');
+    router.push('/auth/signin?from=invite');
   };
 
   const getErrorInfo = () => {
@@ -284,82 +346,102 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
     );
   }
 
-  // Valid invite - show guest join form
+  // Check if user is already a participant and show appropriate message
+  if (validation?.alreadyParticipant) {
+    return (
+      <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
+        <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
+          <div className="text-center space-y-6">
+            <div className="mx-auto w-16 h-16 bg-[#7BAFB0]/20 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-8 h-8 text-[#7BAFB0]" />
+            </div>
+            
+            <div>
+              <h2 className="text-xl font-semibold text-[#3C4858] mb-2">You're Already In!</h2>
+              <p className="text-[#3C4858]/70 text-sm">
+                You're already a participant in this conversation.
+              </p>
+            </div>
+
+            <Button
+              onClick={() => router.push(`/waiting-room/${validation.chatId}`)}
+              className="w-full bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white hover:from-[#C99BA4] hover:to-[#6D9E9F] transition-all duration-300"
+            >
+              <MessageCircle className="w-4 h-4 mr-2" />
+              Go to Waiting Room
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Valid invite - show enhanced guest join form with psychological preparation
   return (
     <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-6 space-y-6 rounded-xl shadow-lg">
-        {loading ? (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center space-x-2">
-              <LoadingSpinner size="lg" />
-              <span className="text-lg font-medium">Validating invite...</span>
+      <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
+        <div className="text-center space-y-6">
+          <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center">
+            <Users className="w-8 h-8 text-[#D8A7B1]" />
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-semibold text-[#3C4858] mb-2">Join the Conversation</h2>
+            <p className="text-[#3C4858]/70 text-sm mb-4">
+              You've been invited to a mediated conversation. Before diving in, we'll prepare you in our Waiting Room.
+            </p>
+            
+            {/* Waiting Room Preview */}
+            <div className="bg-[#7BAFB0]/10 border border-[#7BAFB0]/20 rounded-lg p-4 text-left space-y-2">
+              <div className="flex items-center space-x-2 text-sm text-[#3C4858]">
+                <Clock className="w-4 h-4 text-[#7BAFB0]" />
+                <span className="font-medium">What happens next:</span>
+              </div>
+              <ul className="text-xs text-[#3C4858]/80 space-y-1 ml-6">
+                <li>• Share your intentions and communication style</li>
+                <li>• Wait for the other participant to get ready</li>
+                <li>• Begin your mediated conversation together</li>
+              </ul>
             </div>
           </div>
-        ) : validation?.valid ? (
-          <div className="space-y-6">
-            <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold">Join the Conversation</h1>
-              <p className="text-[#3C4858]/60">You've been invited to join a meaningful dialogue</p>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="guestName">Your Name</Label>
+              <Input
+                id="guestName"
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Enter your name"
+                className="rounded-lg"
+                disabled={joining}
+              />
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="guestName">Your Name</Label>
-                <Input
-                  id="guestName"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="rounded-lg"
-                  disabled={joining}
-                />
+            {error && (
+              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{error}</span>
               </div>
+            )}
 
-              {error && (
-                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>{error}</span>
+            <Button
+              onClick={handleJoinChat}
+              disabled={joining || !guestName.trim()}
+              className="w-full rounded-lg bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white hover:from-[#C99BA4] hover:to-[#6D9E9F] transition-all duration-300"
+            >
+              {joining ? (
+                <div className="flex items-center space-x-2">
+                  <LoadingSpinner size="sm" />
+                  <span>{joinSteps[joinStep]}</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Enter Waiting Room</span>
                 </div>
               )}
-
-              <Button
-                onClick={handleJoinChat}
-                disabled={joining || !guestName.trim()}
-                className="w-full rounded-lg"
-              >
-                {joining ? (
-                  <div className="flex items-center space-x-2">
-                    <LoadingSpinner size="sm" />
-                    <span>{joinSteps[joinStep]}</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-2">
-                    <MessageCircle className="w-4 h-4" />
-                    <span>Join as Guest</span>
-                  </div>
-                )}
-              </Button>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-[#3C4858]/10"></div>
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="px-2 bg-white text-[#3C4858]/60">or</span>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleSignUp}
-                variant="outline"
-                className="w-full rounded-lg"
-              >
-                <div className="flex items-center space-x-2">
-                  <Heart className="w-4 h-4" />
-                  <span>Create Account</span>
-                </div>
-              </Button>
-            </div>
+            </Button>
 
             {joining && (
               <div className="space-y-4">
@@ -369,21 +451,14 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
                 </p>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="space-y-4 text-center">
-            <div className="p-3 bg-red-50 text-red-600 rounded-lg">
-              {getErrorInfo()}
+            
+            <div className="text-center">
+              <p className="text-xs text-[#3C4858]/60 leading-relaxed">
+                By joining, you'll enter our Waiting Room where both participants prepare together for a more meaningful conversation.
+              </p>
             </div>
-            <Button
-              onClick={() => router.push('/')}
-              variant="outline"
-              className="w-full rounded-lg"
-            >
-              Return Home
-            </Button>
           </div>
-        )}
+        </div>
       </Card>
     </div>
   );
