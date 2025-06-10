@@ -186,16 +186,12 @@ export class ConversationOrchestrator extends TurnManager {
         userAgent
       });
       
-      const result = await aiService.generate();
+      const result = await aiService.generateAndStore();
       
-      if (result.error) {
-        console.error(`[ConversationOrchestrator] AI response failed: ${result.error}`);
-      } else {
-        console.log(`[ConversationOrchestrator] AI response completed: ${result.content.length} chars`);
-        
-        // Update turn state after AI response
-        await this.handleAIResponseComplete();
-      }
+      console.log(`[ConversationOrchestrator] AI response completed: ${result.content.length} chars`);
+      
+      // Update turn state after AI response
+      await this.handleAIResponseComplete();
       
     } catch (error) {
       console.error(`[ConversationOrchestrator] AI response failed:`, error);

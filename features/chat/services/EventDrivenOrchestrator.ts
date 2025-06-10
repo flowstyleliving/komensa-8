@@ -417,38 +417,19 @@ class AIResponseHandler implements EventHandler {
       });
       
       const startTime = Date.now();
-      const result = await aiService.generate();
+      const result = await aiService.generateAndStore();
       const duration = Date.now() - startTime;
 
-      if (result.error) {
-        console.error(`[${this.name}] AI response failed: ${result.error}`);
-        await this.orchestrator.getEventBus().emit({
-          type: DOMAIN_EVENTS.AI_RESPONSE_FAILED,
-          chatId: event.chatId,
-          timestamp: new Date(),
-          data: { replyId, error: result.error },
-          correlationId: event.correlationId,
-          source: 'ai_service'
-        });
-      } else {
-        // Store AI message and emit completion event
-        const stateManager = this.orchestrator.getStateManager();
-        const aiMessage = await stateManager.addMessage({
-          content: result.content,
-          senderId: 'assistant',
-          type: 'message'
-        });
-
-        const completedEvent = EventBuilder.aiResponseCompleted(
-          event.chatId,
-          replyId,
-          result.content,
-          aiMessage.id,
-          duration,
-          event.correlationId
-        );
-        await this.orchestrator.getEventBus().emit(completedEvent);
-      }
+      // AI service now stores the message directly, so we just emit the completion event
+      const completedEvent = EventBuilder.aiResponseCompleted(
+        event.chatId,
+        replyId,
+        result.content,
+        result.id,
+        duration,
+        event.correlationId
+      );
+      await this.orchestrator.getEventBus().emit(completedEvent);
       
       
     } catch (error) {

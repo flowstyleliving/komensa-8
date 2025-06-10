@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       userMessage
     });
     
-    const result = await aiService.generate();
+    const result = await aiService.generateAndStore();
 
     return NextResponse.json({
       success: true,
