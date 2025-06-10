@@ -209,42 +209,18 @@ export class DemoTurnManager {
       return 'assistant';
     }
 
-    // For demo chats, we need to get virtual user IDs from turn state since they're not in DB
-    const turnState = await prisma.chatTurnState.findUnique({
-      where: { chat_id: this.chatId }
-    });
-
-    if (turnState?.next_user_id) {
-      // Check if the current turn user matches the requested role
-      const currentUserRole = await this.getRoleForUserId(turnState.next_user_id);
-      if (currentUserRole === role) {
-        return turnState.next_user_id;
-      }
-
-      // If looking for the other demo user, generate a virtual ID
-      if (role === DEMO_ROLES.USER_A && turnState.next_user_id.startsWith('demo-jordan-')) {
-        return turnState.next_user_id.replace('demo-jordan-', 'demo-michael-');
-      } else if (role === DEMO_ROLES.JORDAN && turnState.next_user_id.startsWith('demo-michael-')) {
-        return turnState.next_user_id.replace('demo-michael-', 'demo-jordan-');
-      }
-    }
-
-    // Fallback to database query for non-demo chats
-    let displayNameQuery: string;
+    // For demo chats, use consistent virtual IDs based on chat ID
+    // This ensures we always get the same virtual IDs for each demo chat
+    const chatIdSuffix = this.chatId.slice(-8); // Use last 8 chars of chat ID for consistency
+    
     if (role === DEMO_ROLES.USER_A) {
-      displayNameQuery = 'Michael';
+      return `demo-michael-${chatIdSuffix}`;
     } else if (role === DEMO_ROLES.JORDAN) {
-      displayNameQuery = 'Jordan';
-    } else {
-      console.warn('[DemoTurnManager] Unknown role for getUserIdForRole:', role);
-      return null;
+      return `demo-jordan-${chatIdSuffix}`;
     }
 
-    const participant = await prisma.chatParticipant.findFirst({
-      where: { chat_id: this.chatId, user: { display_name: displayNameQuery } },
-      select: { user_id: true }
-    });
-    return participant?.user_id || null;
+    console.warn('[DemoTurnManager] Unknown role for getUserIdForRole:', role);
+    return null;
   }
 
   private async clearStaleTypingIndicators(newActiveUserId?: string): Promise<void> {

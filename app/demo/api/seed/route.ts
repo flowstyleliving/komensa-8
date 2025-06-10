@@ -32,22 +32,7 @@ export async function GET(req: Request) {
     console.log('[Demo Seed] Starting demo chat creation...');
     console.log('[Demo Seed] Database URL configured:', !!process.env.DATABASE_URL);
 
-    // 1. Use static demo user IDs (no database creation)
-    console.log('[Demo Seed] Using static demo user IDs...');
-    const user1 = {
-      id: 'demo-michael-' + uuidv4().slice(0, 8), // Short unique ID for this session
-      display_name: 'Michael',
-    };
-    
-    const user2 = {
-      id: 'demo-jordan-' + uuidv4().slice(0, 8), // Short unique ID for this session  
-      display_name: 'Jordan',
-    };
-    
-    console.log('[Demo Seed] Demo user1 (Michael):', user1.id, user1.display_name);
-    console.log('[Demo Seed] Demo user2 (Jordan):', user2.id, user2.display_name);
-
-    // 2. Create a demo chat without database participants (participants are virtual)
+    // 1. Create a demo chat first to get the chat ID
     console.log('[Demo Seed] Creating demo chat...');
     let newChat;
     
@@ -59,14 +44,6 @@ export async function GET(req: Request) {
           turn_taking: 'strict',
           status: 'active',
           // No participants needed - demo users are virtual
-          turn_state: {
-            create: {
-              next_user_id: user1.id, // Start with Michael (virtual demo user)
-              next_role: 'user_a',
-              turn_queue: ['user_a', 'mediator', 'jordan', 'mediator'],
-              current_turn_index: 0
-            } as any
-          }
         },
       });
       console.log('[Demo Seed] Created demo chat:', newChat.id);
@@ -75,7 +52,41 @@ export async function GET(req: Request) {
       throw error;
     }
 
-    // 3. Prepare system prompt for AI context (not stored as visible message)
+    // 2. Use consistent virtual demo user IDs based on chat ID
+    console.log('[Demo Seed] Creating consistent virtual demo user IDs...');
+    const chatIdSuffix = newChat.id.slice(-8); // Use last 8 chars for consistency
+    const user1 = {
+      id: `demo-michael-${chatIdSuffix}`,
+      display_name: 'Michael',
+    };
+    
+    const user2 = {
+      id: `demo-jordan-${chatIdSuffix}`,
+      display_name: 'Jordan',
+    };
+    
+    console.log('[Demo Seed] Demo user1 (Michael):', user1.id, user1.display_name);
+    console.log('[Demo Seed] Demo user2 (Jordan):', user2.id, user2.display_name);
+
+    // 3. Create the turn state with the consistent virtual user ID
+    console.log('[Demo Seed] Creating turn state...');
+    try {
+      await prisma.chatTurnState.create({
+        data: {
+          chat_id: newChat.id,
+          next_user_id: user1.id, // Start with Michael (virtual demo user)
+          next_role: 'user_a',
+          turn_queue: ['user_a', 'mediator', 'jordan', 'mediator'],
+          current_turn_index: 0
+        } as any
+      });
+      console.log('[Demo Seed] Created turn state with Michael starting');
+    } catch (error) {
+      console.error('[Demo Seed] Failed to create turn state:', error);
+      throw error;
+    }
+
+    // 4. Prepare system prompt for AI context (not stored as visible message)
     console.log('[Demo Seed] Preparing system prompt for AI context...');
     const filledPrompt = SYSTEM_PROMPT
       .replace("{{participants}}", `"${user1.display_name || 'Michael'}", "${user2.display_name || 'Jordan'}"`)
@@ -83,7 +94,7 @@ export async function GET(req: Request) {
     
     console.log('[Demo Seed] System prompt prepared for AI context (not visible in chat)');
 
-    // 4. Add the initial AI welcome message (this will be visible)
+    // 5. Add the initial AI welcome message (this will be visible)
     console.log('[Demo Seed] Creating initial AI welcome message...');
     
     // Create a smart greeting that detects if this is a solo start or multi-participant
@@ -119,7 +130,7 @@ export async function GET(req: Request) {
       throw error;
     }
 
-    // 5. Configure AI assistants for this demo
+    // 6. Configure AI assistants for this demo
     console.log('[Demo Seed] Configuring AI assistants...');
     // Keep the mediator assistant from .env
     if (process.env.OPENAI_ASSISTANT_ID) {
@@ -132,7 +143,7 @@ export async function GET(req: Request) {
     const jordanAssistantId = 'asst_NaNyg64IlU3rbkA9kdldzZJC';
     console.log(`[Demo Seed] Jordan (AI User) configured: ${jordanAssistantId}`);
 
-    // 6. Redirect with the demo user ID (Alex) and session
+    // 7. Redirect with the demo user ID (Alex) and session
     console.log('[Demo Seed] Setting up redirect...');
     const url = new URL(`/demo/${newChat.id}`, req.url);
     

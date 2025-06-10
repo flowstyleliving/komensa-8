@@ -100,8 +100,13 @@ export default function DemoChatPage({ params }: { params: Promise<{ chatId: str
     }
     return undefined;
   })() : undefined);
-  const humanParticipants = participants.filter((p) => p.id !== 'assistant');
-  const headerNames = humanParticipants.map((p) => p.display_name).join(' & ') + ' + AI Mediator';
+  
+  // Hardcode participants for demo
+  const humanParticipants = [
+    { id: 'demo-user-1', display_name: 'Michael' },
+    { id: 'demo-user-2', display_name: 'Jordan' }
+  ];
+  const headerNames = 'Michael & Jordan + AI Mediator';
   return (
     <div className="min-h-screen bg-[#F9F7F4]">
       <nav className="bg-white/80 backdrop-blur-sm border-b border-[#3C4858]/10 sticky top-0 z-50">

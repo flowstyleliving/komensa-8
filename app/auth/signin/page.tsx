@@ -68,9 +68,9 @@ export default function SignInPage() {
         console.log('[SignIn] Guest user detected, redirecting to waiting room');
         router.push(`/waiting-room/${session.user.chatId}`);
       } else {
-        console.log('[SignIn] User already authenticated, redirecting to dashboard');
-        router.push('/dashboard');
-      }
+      console.log('[SignIn] User already authenticated, redirecting to dashboard');
+      router.push('/dashboard');
+    }
     }
   }, [status, router, session, searchParams]);
 

@@ -583,7 +583,7 @@ export function ChatSettingsModal({
                     <div className="flex items-center gap-2 text-green-700 mb-2">
                       <CheckCircle className="h-4 w-4" />
                       <span className="text-sm font-medium">Both Participants Complete!</span>
-                    </div>
+                      </div>
                     <div className="flex items-center gap-2 text-green-600">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span className="text-xs">Generating summary automatically...</span>
