@@ -45,13 +45,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     },
     include: { 
       participants: {
-        include: { user: true }
+        include: { 
+          user: {
+            select: {
+              id: true,
+              display_name: true,
+              name: true,
+              email: true
+            }
+          }
+        }
       },
       events: {
         where: { type: 'chat_created' },
         take: 1
       }
     }
+  });
+
+  console.log('[Chat State] Initial chat query result:', {
+    chatId,
+    userId,
+    foundChat: !!chat,
+    participantCount: chat?.participants?.length || 0,
+    participantsDetail: chat?.participants?.map(p => ({
+      user_id: p.user_id,
+      role: p.role,
+      user_display_name: p.user?.display_name,
+      user_name: p.user?.name,
+      user_email: p.user?.email,
+      user_object: p.user
+    })) || []
   });
 
   // GUEST USER RACE CONDITION FIX: Retry for guest users who might have just been added
@@ -140,8 +164,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   // Get participant information for the response
   const participants = chat.participants.map(p => ({
     id: p.user_id,
-    display_name: p.user?.display_name || 'Unknown User'
+    display_name: p.user?.display_name || p.user?.name || 'Unknown User'
   }));
+
+  console.log('[Chat State] Returning participants:', {
+    chatId,
+    participantCount: participants.length,
+    participants: participants.map(p => ({ id: p.id, display_name: p.display_name })),
+    rawData: chat.participants.map(p => ({ 
+      user_id: p.user_id, 
+      user_display_name: p.user?.display_name,
+      user_name: p.user?.name 
+    }))
+  });
 
   return NextResponse.json({
     messages,

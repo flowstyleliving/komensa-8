@@ -39,6 +39,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     isAssistantTyping,
     typingUsers,
     currentTurn,
+    participants,
     sendMessage,
     canSendMessage,
     recoverFromStuckAI
@@ -61,7 +62,6 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const { playReceiveNotification, playSendNotification } = useNotificationSound();
   const previousMessageCount = useRef(messages.length);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
   const [participantMap, setParticipantMap] = useState<Record<string, string>>({});
   const lastSentMessageRef = useRef<string | null>(null);
   
@@ -109,65 +109,17 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     checkChatInitiation();
   }, [chatId, status, router]);
   
+  // Update participant map when participants change
   useEffect(() => {
-    if (!chatId || checkingInitiation) return;
-    const fetchInitialState = async () => {
-      try {
-        console.log('[ChatPage] Fetching initial state for chat:', chatId);
-        const res = await fetch(`/api/chat/${chatId}/state`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        const state = await res.json();
-        console.log('[ChatPage] Received state:', {
-          participantsCount: state.participants?.length || 0,
-          participants: state.participants,
-          messages: state.messages?.length || 0
-        });
-        
-        if (state.participants && Array.isArray(state.participants)) {
-          // Add assistant to participants if not already present
-          const participantsWithAssistant = [...state.participants];
-          if (!participantsWithAssistant.find(p => p.id === 'assistant')) {
-            participantsWithAssistant.push({
-              id: 'assistant',
-              display_name: 'AI Mediator',
-              role: 'assistant'
-            });
-          }
-          
-          setParticipants(participantsWithAssistant);
-          console.log('[ChatPage] Set participants with assistant:', participantsWithAssistant);
-          
-          const participantMap = participantsWithAssistant.reduce((acc: Record<string, string>, p: any) => {
-            acc[p.id] = p.display_name;
-            return acc;
-          }, {});
-          setParticipantMap(participantMap);
-          console.log('[ChatPage] Set participant map:', participantMap);
-        } else {
-          console.warn('[ChatPage] No participants data received or invalid format');
-        }
-      } catch (error) {
-        console.error('[ChatPage] Failed to fetch initial state:', error);
-      }
-    };
-    fetchInitialState();
-
-    // Subscribe to real-time participant updates
-    const { pusherClient, getChatChannelName, PUSHER_EVENTS } = require('@/lib/pusher');
-    const channelName = getChatChannelName(chatId);
-    const channel = pusherClient.subscribe(channelName);
-    
-    // Handle participant joining
-    channel.bind(PUSHER_EVENTS.PARTICIPANT_JOINED, (data: any) => {
-      console.log('[ChatPage] Participant joined, refreshing participant list');
-      fetchInitialState(); // Refresh participant data
-    });
-
-    return () => {
-      channel.unbind(PUSHER_EVENTS.PARTICIPANT_JOINED);
-      pusherClient.unsubscribe(channelName);
-    };
-  }, [chatId]);
+    if (participants && Array.isArray(participants)) {
+      const participantMap = participants.reduce((acc: Record<string, string>, p: any) => {
+        acc[p.id] = p.display_name;
+        return acc;
+      }, {});
+      setParticipantMap(participantMap);
+      console.log('[ChatPage] Updated participant map from useChat:', participantMap);
+    }
+  }, [participants]);
 
   // Show summary when it becomes available
   useEffect(() => {

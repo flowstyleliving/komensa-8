@@ -32,7 +32,8 @@ export function useChat(chatId: string) {
     messages: [] as ChatMessage[],
     currentTurn: null as TurnState | null,
     isAssistantTyping: false,
-    typingUsers: new Set<string>()
+    typingUsers: new Set<string>(),
+    participants: [] as any[]
   });
   const [lastActivity, setLastActivity] = useState(Date.now());
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -414,6 +415,7 @@ export function useChat(chatId: string) {
     isAssistantTyping: data.isAssistantTyping,
     typingUsers: data.typingUsers,
     currentTurn: data.currentTurn,
+    participants: data.participants || [],
     sendMessage,
     canSendMessage,
     recoverFromStuckAI
