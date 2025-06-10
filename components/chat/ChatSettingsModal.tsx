@@ -602,8 +602,8 @@ export function ChatSettingsModal({
                   </div>
                 </div>
 
-                {/* Show auto-summary generation when both users are complete */}
-                {completionData?.allComplete && !completionData?.isCompleted && (
+                {/* Show auto-summary generation when both users are complete OR when summary is being generated */}
+                {(completionData?.allComplete && !completionData?.isCompleted) || isGenerating ? (
                   <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                     <div className="flex items-center gap-2 text-green-700 mb-2">
                       <CheckCircle className="h-4 w-4" />
@@ -614,7 +614,7 @@ export function ChatSettingsModal({
                       <span className="text-xs">Generating summary automatically...</span>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
           </div>
