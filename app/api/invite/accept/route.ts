@@ -228,18 +228,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Set session cookie that's compatible with NextAuth in all environments
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isSecure = process.env.NEXTAUTH_URL?.startsWith('https://') || isProduction;
-    
-    // In production with HTTPS, NextAuth expects __Secure- prefix for session cookies
-    const cookieName = isSecure 
+    // Use the EXACT same logic as NextAuth configuration and middleware
+    const cookieName = process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https://')
       ? '__Secure-next-auth.session-token'
       : 'next-auth.session-token';
+    
+    const isSecure = process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://');
 
     console.log('[Invite Accept] Setting session cookie:', {
       cookieName,
-      isProduction,
       isSecure,
+      nodeEnv: process.env.NODE_ENV,
       nextAuthUrl: process.env.NEXTAUTH_URL
     });
 
