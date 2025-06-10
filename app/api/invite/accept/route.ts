@@ -233,26 +233,43 @@ export async function POST(request: NextRequest) {
 
     // Set session cookie that's compatible with NextAuth in all environments
     // Use the EXACT same logic as NextAuth configuration and middleware
-    const cookieName = process.env.NODE_ENV === 'production' && process.env.NEXTAUTH_URL?.startsWith('https://')
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isHttps = process.env.NEXTAUTH_URL?.startsWith('https://') || request.headers.get('x-forwarded-proto') === 'https';
+    const useSecure = isProduction && isHttps;
+    
+    // NextAuth cookie naming logic
+    const cookieName = useSecure 
       ? '__Secure-next-auth.session-token'
       : 'next-auth.session-token';
-    
-    const isSecure = process.env.NODE_ENV === 'production' || process.env.NEXTAUTH_URL?.startsWith('https://');
 
     console.log('[Invite Accept] Setting session cookie:', {
       cookieName,
-      isSecure,
+      useSecure,
+      isProduction,
+      isHttps,
       nodeEnv: process.env.NODE_ENV,
-      nextAuthUrl: process.env.NEXTAUTH_URL
+      nextAuthUrl: process.env.NEXTAUTH_URL,
+      forwardedProto: request.headers.get('x-forwarded-proto')
     });
 
-    response.cookies.set(cookieName, sessionToken, {
+    // Set both cookie variants to ensure compatibility
+    const cookieOptions = {
       httpOnly: true,
-      secure: isSecure,
-      sameSite: 'lax',
+      secure: useSecure,
+      sameSite: 'lax' as const,
       maxAge: 24 * 60 * 60, // 24 hours
       path: '/'
-    });
+    };
+
+    response.cookies.set(cookieName, sessionToken, cookieOptions);
+    
+    // Also set the non-secure version in case of misconfiguration
+    if (useSecure) {
+      response.cookies.set('next-auth.session-token', sessionToken, {
+        ...cookieOptions,
+        secure: false
+      });
+    }
 
     return response;
 

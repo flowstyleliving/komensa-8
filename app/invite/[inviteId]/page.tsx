@@ -252,24 +252,30 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
       const data = await response.json();
 
       if (response.ok) {
-        console.log('[Invite] Guest session created, forcing session refresh before redirect');
+        console.log('[Invite] Guest session created successfully:', {
+          sessionToken: data.sessionToken ? 'received' : 'missing',
+          chatId: data.chatId,
+          guestUserId: data.guestUserId
+        });
         
         // Mark join as successful to prevent re-validation
         setJoinSuccessful(true);
         
-        // Force session refresh to load the new guest session data
-        // This is critical to prevent the "guest user can't type" issue
-        try {
-          await session.update();
-          console.log('[Invite] Session update successful');
-        } catch (sessionError) {
-          console.warn('[Invite] Session update failed, proceeding anyway:', sessionError);
-        }
+        // Force page reload to ensure session cookie is properly loaded
+        // This is more reliable than session.update() in production
+        console.log('[Invite] Setting up redirect with delay to ensure cookie propagation');
         
-        console.log('[Invite] Session refreshed, redirecting to waiting room');
+        // Store redirect info in localStorage for after reload
+        localStorage.setItem('invite_redirect', JSON.stringify({
+          chatId: data.chatId,
+          timestamp: Date.now()
+        }));
         
-        // Navigate with replace to avoid back button issues and ensure clean session state
-        router.replace(`/waiting-room/${data.chatId}`);
+        // Small delay to ensure cookie is set before redirect
+        setTimeout(() => {
+          console.log('[Invite] Redirecting to waiting room after cookie delay');
+          window.location.href = `/waiting-room/${data.chatId}`;
+        }, 200);
       } else {
         setError(data.error || 'Failed to join chat');
       }

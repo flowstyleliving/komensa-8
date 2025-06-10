@@ -47,10 +47,32 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
     isReady: false
   });
 
-  // Resolve params
+  // Resolve params and handle invite redirects
   useEffect(() => {
     params.then(resolvedParams => {
       setChatId(resolvedParams.chatId);
+      
+      // Check for invite redirect from localStorage
+      const inviteRedirect = localStorage.getItem('invite_redirect');
+      if (inviteRedirect) {
+        try {
+          const redirectData = JSON.parse(inviteRedirect);
+          // Clear the redirect data
+          localStorage.removeItem('invite_redirect');
+          
+          // Check if this is the expected redirect (within 30 seconds)
+          const isRecentRedirect = Date.now() - redirectData.timestamp < 30000;
+          const isCorrectChat = redirectData.chatId === resolvedParams.chatId;
+          
+          if (isRecentRedirect && isCorrectChat) {
+            console.log('[Waiting Room] Detected redirect from invite accept:', redirectData);
+            // Let normal flow continue - session should be available now
+          }
+        } catch (e) {
+          console.warn('[Waiting Room] Failed to parse invite redirect data:', e);
+          localStorage.removeItem('invite_redirect');
+        }
+      }
     });
   }, [params]);
 
