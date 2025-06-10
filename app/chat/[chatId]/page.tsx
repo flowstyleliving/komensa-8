@@ -415,6 +415,17 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
         onGenerateSummary={handleGenerateSummary}
         onResetAI={recoverFromStuckAI}
         onResetTurn={handleResetTurn}
+        onUpdateTurnStyle={async (newStyle: string) => {
+          console.log(`[ChatPage] Turn style updated to: ${newStyle}`);
+          // Pusher will handle the real-time turn state update,
+          // but let's also refresh the session to be sure
+          if (newStyle === 'strict') {
+            // Small delay to let the API initialize turn state
+            setTimeout(() => {
+              window.location.reload();
+            }, 500);
+          }
+        }}
         participants={participants}
       />
 

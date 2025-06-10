@@ -213,6 +213,8 @@ export function ChatSettingsModal({
         if (onUpdateTurnStyle) {
           await onUpdateTurnStyle(newStyle);
         }
+        
+        // Note: Turn state updates will be handled automatically via Pusher events
       } else {
         console.error('Failed to update turn style');
       }
@@ -322,19 +324,20 @@ export function ChatSettingsModal({
                   label: 'Strict Turns',
                   description: 'Round-robin turns with AI facilitating each exchange',
                   icon: '⏰'
-                },
-                {
-                  value: 'moderated',
-                  label: 'AI Moderated',
-                  description: 'AI manages who speaks when based on context',
-                  icon: '🤖'
-                },
-                {
-                  value: 'rounds',
-                  label: 'Round System',
-                  description: 'Turn-based with AI responding only after complete rounds',
-                  icon: '🔄'
                 }
+                // Temporarily disabled turn modes - will be enabled later
+                // {
+                //   value: 'moderated',
+                //   label: 'AI Moderated',
+                //   description: 'AI manages who speaks when based on context',
+                //   icon: '🤖'
+                // },
+                // {
+                //   value: 'rounds',
+                //   label: 'Round System',
+                //   description: 'Turn-based with AI responding only after complete rounds',
+                //   icon: '🔄'
+                // }
               ].map((option) => (
                 <div
                   key={option.value}

@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const isExpired = invite.expires_at < now;
-    const isUsed = invite.accepted_at !== null;
+    // Allow multiple uses of the same invite - don't check for accepted_at
+    // const isUsed = invite.accepted_at !== null;
 
     if (isExpired) {
       return NextResponse.json(
@@ -57,12 +58,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (isUsed) {
-      return NextResponse.json(
-        { error: 'Invite has already been used' },
-        { status: 409 }
-      );
-    }
+    // Remove the "already used" check to allow multiple people to use the same invite
+    // if (isUsed) {
+    //   return NextResponse.json(
+    //     { error: 'Invite has already been used' },
+    //     { status: 409 }
+    //   );
+    // }
 
     // Verify the chat still exists and is active
     const chat = await prisma.chat.findUnique({
@@ -89,11 +91,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Mark invite as accepted
-    await prisma.chatInvite.update({
-      where: { id: invite.id },
-      data: { accepted_at: now }
-    });
+    // Mark invite as accepted (first time only, but allow subsequent uses)
+    if (!invite.accepted_at) {
+      await prisma.chatInvite.update({
+        where: { id: invite.id },
+        data: { accepted_at: now }
+      });
+    }
 
     // Create a guest user record in the database FIRST (before creating participant)
     try {

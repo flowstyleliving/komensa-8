@@ -220,12 +220,25 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
     router.push('/auth/signin');
   };
 
+  const getErrorInfo = () => {
+    if (validation?.expired) {
+      return 'This invite link has expired. Please request a new one.';
+    }
+    if (validation?.used) {
+      return 'This invite link has already been used. Please request a new one.';
+    }
+    if (validation?.chatInactive) {
+      return 'This conversation is no longer active.';
+    }
+    return 'Invalid or expired invite link. Please check the URL and try again.';
+  };
+
   // Loading state (authentication + validation)
   if (loading || session.status === 'loading') {
     return (
       <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
         <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-4 flex flex-col items-center justify-center">
             <LoadingSpinner size="lg" />
             <p className="text-[#3C4858]/70">
               {session.status === 'loading' ? 'Checking authentication...' : 'Validating your invite...'}
@@ -238,55 +251,17 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
 
   // Invalid invite states
   if (!validation?.valid) {
-    const getErrorInfo = () => {
-      if (validation?.expired) {
-        return {
-          icon: <Clock className="w-8 h-8 text-amber-500" />,
-          title: 'Invite Expired',
-          message: 'This invite link has expired. Invite links are valid for 24 hours.',
-          action: 'Sign up to create your own chats'
-        };
-      }
-      
-      if (validation?.used) {
-        return {
-          icon: <Users className="w-8 h-8 text-[#7BAFB0]" />,
-          title: 'Invite Already Used',
-          message: 'This invite has already been used. Each invite can only be used once.',
-          action: 'Sign up to join more conversations'
-        };
-      }
-      
-      if (validation?.chatInactive) {
-        return {
-          icon: <MessageCircle className="w-8 h-8 text-gray-500" />,
-          title: 'Chat Unavailable',
-          message: 'The chat associated with this invite is no longer available.',
-          action: 'Sign up to create your own chats'
-        };
-      }
-      
-      return {
-        icon: <AlertCircle className="w-8 h-8 text-red-500" />,
-        title: 'Invalid Invite',
-        message: 'This invite link is not valid or may have been corrupted.',
-        action: 'Sign up to create your own chats'
-      };
-    };
-
-    const errorInfo = getErrorInfo();
-
     return (
       <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
         <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
           <div className="text-center space-y-6">
             <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              {errorInfo.icon}
+              <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
             
             <div>
-              <h2 className="text-xl font-semibold text-[#3C4858] mb-2">{errorInfo.title}</h2>
-              <p className="text-[#3C4858]/70 text-sm">{errorInfo.message}</p>
+              <h2 className="text-xl font-semibold text-[#3C4858] mb-2">Invalid Invite</h2>
+              <p className="text-[#3C4858]/70 text-sm">{getErrorInfo()}</p>
             </div>
 
             <div className="bg-[#FFFBF5] border border-[#D8A7B1]/30 rounded-lg p-4">
@@ -301,8 +276,7 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
               onClick={handleSignUp}
               className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
             >
-              {errorInfo.action}
-              <ArrowRight className="w-4 h-4 ml-2" />
+              Sign Up
             </Button>
           </div>
         </Card>
@@ -313,131 +287,103 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
   // Valid invite - show guest join form
   return (
     <div className="min-h-screen bg-[#F9F7F4] flex items-center justify-center p-4">
-      <Card className="bg-[#FFFBF5] p-8 rounded-lg shadow-xl w-full max-w-md">
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-[#D8A7B1]/20 rounded-full flex items-center justify-center mb-4">
-              <Heart className="w-8 h-8 text-[#D8A7B1]" />
-            </div>
-            <h2 className="text-xl font-semibold text-[#3C4858] mb-2">You're Invited to a Conversation</h2>
-            <p className="text-[#3C4858]/70 text-sm">
-              Someone has invited you to join a meaningful, AI-mediated dialogue on Komensa.
-            </p>
-          </div>
-
-          {/* About Komensa */}
-          <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
-            <h3 className="font-medium text-[#3C4858] text-sm mb-2">What is Komensa?</h3>
-            <p className="text-xs text-[#3C4858]/70 mb-3">
-              Komensa creates safe spaces for intimate conversations. Our AI mediator helps facilitate 
-              turn-taking, ensures everyone is heard, and guides meaningful dialogue.
-            </p>
-            <div className="space-y-1 text-xs text-[#3C4858]/60">
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-[#D8A7B1] rounded-full"></div>
-                <span>AI-guided conversation flow</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-[#D8A7B1] rounded-full"></div>
-                <span>Psychological safety first</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-1.5 h-1.5 bg-[#D8A7B1] rounded-full"></div>
-                <span>Structured turn-taking</span>
-              </div>
+      <Card className="w-full max-w-md p-6 space-y-6 rounded-xl shadow-lg">
+        {loading ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-center space-x-2">
+              <LoadingSpinner size="lg" />
+              <span className="text-lg font-medium">Validating invite...</span>
             </div>
           </div>
-
-          {/* Guest Name Input */}
-          <div>
-            <Label htmlFor="guest-name" className="text-sm font-medium text-[#3C4858] mb-2 block">
-              Enter your name to join
-            </Label>
-            <Input
-              id="guest-name"
-              placeholder="Your name"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              className="border-[#3C4858]/20 focus:border-[#D8A7B1] bg-white"
-              disabled={joining}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !joining) {
-                  handleJoinChat();
-                }
-              }}
-            />
-            <p className="text-xs text-[#3C4858]/60 mt-1">
-              This is how other participants will see you in the conversation.
-            </p>
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <p className="text-sm text-red-600">{error}</p>
+        ) : validation?.valid ? (
+          <div className="space-y-6">
+            <div className="text-center space-y-2">
+              <h1 className="text-2xl font-bold">Join the Conversation</h1>
+              <p className="text-[#3C4858]/60">You've been invited to join a meaningful dialogue</p>
             </div>
-          )}
 
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            {joining ? (
-              // Enhanced loading state during join process
-              <div className="space-y-4">
-                <div className="bg-[#F9F7F4] border border-[#D8A7B1]/30 rounded-lg p-4">
-                  <div className="flex items-center justify-center mb-3">
-                    <LoadingSpinner size="md" />
-                    <span className="ml-3 text-[#3C4858] font-medium">{joinSteps[joinStep]}</span>
-                  </div>
-                  <JoinProgress step={joinStep} totalSteps={joinSteps.length} />
-                  
-                  {/* Loading tip */}
-                  <div className="mt-4 p-3 bg-[#FFFBF5] border border-[#D8A7B1]/20 rounded-lg">
-                    <p className="text-xs text-[#3C4858]/70 text-center">
-                      {loadingTips[joinStep]}
-                    </p>
-                  </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="guestName">Your Name</Label>
+                <Input
+                  id="guestName"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Enter your name"
+                  className="rounded-lg"
+                  disabled={joining}
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{error}</span>
                 </div>
-                
-                <Button
-                  disabled
-                  className="w-full bg-[#D8A7B1]/60 text-white py-2.5 cursor-not-allowed"
-                >
-                  <LoadingSpinner size="sm" />
-                  <span className="ml-2">Joining...</span>
-                </Button>
-              </div>
-            ) : (
+              )}
+
               <Button
                 onClick={handleJoinChat}
-                disabled={!guestName.trim()}
-                className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-2.5"
+                disabled={joining || !guestName.trim()}
+                className="w-full rounded-lg"
               >
-                Join as Guest
-                <MessageCircle className="w-4 h-4 ml-2" />
+                {joining ? (
+                  <div className="flex items-center space-x-2">
+                    <LoadingSpinner size="sm" />
+                    <span>{joinSteps[joinStep]}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Join as Guest</span>
+                  </div>
+                )}
               </Button>
-            )}
 
-            {!joining && (
-              <div className="text-center">
-                <p className="text-xs text-[#3C4858]/60 mb-2">Already have an account?</p>
-                <Button
-                  onClick={handleSignUp}
-                  variant="outline"
-                  size="sm"
-                  className="border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4]"
-                >
-                  Sign In Instead
-                </Button>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[#3C4858]/10"></div>
+                </div>
+                <div className="relative flex justify-center text-xs">
+                  <span className="px-2 bg-white text-[#3C4858]/60">or</span>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSignUp}
+                variant="outline"
+                className="w-full rounded-lg"
+              >
+                <div className="flex items-center space-x-2">
+                  <Heart className="w-4 h-4" />
+                  <span>Create Account</span>
+                </div>
+              </Button>
+            </div>
+
+            {joining && (
+              <div className="space-y-4">
+                <JoinProgress step={joinStep} totalSteps={joinSteps.length} />
+                <p className="text-sm text-center text-[#3C4858]/60">
+                  {loadingTips[joinStep]}
+                </p>
               </div>
             )}
           </div>
-
-          {/* Footer Note */}
-          <div className="text-center text-xs text-[#3C4858]/50 pt-4 border-t border-[#3C4858]/10">
-            By joining, you agree to participate respectfully in this mediated conversation.
+        ) : (
+          <div className="space-y-4 text-center">
+            <div className="p-3 bg-red-50 text-red-600 rounded-lg">
+              {getErrorInfo()}
+            </div>
+            <Button
+              onClick={() => router.push('/')}
+              variant="outline"
+              className="w-full rounded-lg"
+            >
+              Return Home
+            </Button>
           </div>
-        </div>
+        )}
       </Card>
     </div>
   );

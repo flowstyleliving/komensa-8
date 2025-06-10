@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth-options';
 import { prisma } from '@/lib/prisma';
 import { RealtimeEventService } from '@/features/chat/services/RealtimeEventService';
+import { TurnManager } from '@/features/chat/services/turnManager';
 
 // Helper function to create system message for turn style changes
 async function createTurnStyleSystemMessage(
@@ -142,14 +143,69 @@ export async function PATCH(
     const newSettings = { ...currentSettings, ...body };
     const previousTurnStyle = currentSettings.turnStyle || 'flexible';
 
+    // Update both the chat settings and the turn_taking field for consistency
     const updatedChat = await prisma.chat.update({
       where: { id: chatId },
-      data: { settings: newSettings },
+      data: { 
+        settings: newSettings,
+        turn_taking: body.turnStyle || 'flexible'
+      },
       select: { settings: true }
     });
 
-    // Create system message if turn style changed
+    // Initialize turn state if switching to strict/rounds mode
     if (body.turnStyle && body.turnStyle !== previousTurnStyle) {
+      if (body.turnStyle === 'strict' || body.turnStyle === 'rounds') {
+        console.log(`[Chat Settings] Initializing ${body.turnStyle} turn mode for chat ${chatId}`);
+        
+        try {
+          const turnManager = new TurnManager(chatId);
+          
+          // Get participants in order (sorted for consistency)
+          const participants = await prisma.chatParticipant.findMany({
+            where: { chat_id: chatId },
+            select: { user_id: true },
+            orderBy: { user_id: 'asc' } // Sort for consistent ordering
+          });
+          
+          const participantIds = participants.map(p => p.user_id);
+          
+          if (participantIds.length > 0) {
+            // Initialize turn state with first participant
+            await prisma.chatTurnState.upsert({
+              where: { chat_id: chatId },
+              update: {
+                next_user_id: participantIds[0],
+                next_role: 'user',
+                turn_queue: participantIds,
+                current_turn_index: 0,
+                updated_at: new Date()
+              },
+              create: {
+                chat_id: chatId,
+                next_user_id: participantIds[0],
+                next_role: 'user',
+                turn_queue: participantIds,
+                current_turn_index: 0
+              }
+            });
+            
+            console.log(`[Chat Settings] Turn state initialized - first turn: ${participantIds[0]}`);
+            
+            // Broadcast turn update
+            const realtimeService = new RealtimeEventService(chatId);
+            await realtimeService.broadcastTurnUpdate({
+              next_user_id: participantIds[0],
+              next_role: 'user',
+              timestamp: new Date().toISOString()
+            });
+          }
+        } catch (turnError) {
+          console.error(`[Chat Settings] Failed to initialize turn state:`, turnError);
+        }
+      }
+      
+      // Create system message for turn style change
       await createTurnStyleSystemMessage(chatId, session.user.id, previousTurnStyle, body.turnStyle);
     }
 

@@ -32,13 +32,14 @@ export async function GET(request: NextRequest) {
 
     const now = new Date();
     const isExpired = invite.expires_at < now;
-    const isUsed = invite.accepted_at !== null;
+    // Allow multiple uses of the same invite - don't check for accepted_at
+    // const isUsed = invite.accepted_at !== null;
 
-    if (isExpired || isUsed) {
+    if (isExpired) {
       return NextResponse.json({
         valid: false,
         expired: isExpired,
-        used: isUsed,
+        used: false, // Always false since we allow multiple uses
         chatId: invite.chat_id
       });
     }

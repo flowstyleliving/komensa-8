@@ -57,7 +57,7 @@ const LoadingSpinner = ({ size = 'md', color = 'primary' }: { size?: 'sm' | 'md'
 
 // Pulsing dots animation
 const PulsingDots = () => (
-  <div className="flex space-x-1">
+  <div className="flex justify-center space-x-1">
     <div className="w-2 h-2 bg-[#D8A7B1] rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
     <div className="w-2 h-2 bg-[#D8A7B1] rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
     <div className="w-2 h-2 bg-[#D8A7B1] rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
@@ -693,7 +693,7 @@ export default function ChatSetupModal({ isOpen, onClose, onCreateChat }: ChatSe
         {currentStep !== 'creating' && currentStep !== 'invite-success' && (
           <Button
             variant="outline"
-            className="w-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-3 sm:py-2.5 mt-4 text-base sm:text-sm font-medium touch-manipulation"
+            className="w-full rounded-full border-[#3C4858]/30 text-[#3C4858]/80 hover:bg-[#F9F7F4] py-3 sm:py-2.5 mt-4 text-base sm:text-sm font-medium touch-manipulation"
             onClick={onClose}
             disabled={isCreatingChat}
           >

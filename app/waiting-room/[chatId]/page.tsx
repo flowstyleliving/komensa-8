@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Heart, Users, Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { Heart, Users, Clock, CheckCircle, Loader2, Copy, Check } from 'lucide-react';
 import { WaitingRoomAnswers, DEFAULT_QUESTIONS, WaitingRoomQuestion } from '@/lib/waiting-room';
 import { pusherClient } from '@/lib/pusher';
 
@@ -23,6 +23,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showFormDespiteOtherReady, setShowFormDespiteOtherReady] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [readinessStatus, setReadinessStatus] = useState({
     userReady: false,
     bothReady: false,
@@ -56,12 +57,11 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   useEffect(() => {
     if (!chatId || status === 'loading') return;
     
-    // More robust authentication check that handles guest sessions properly
-    if (status === 'unauthenticated' || (!session?.user?.id && status === 'authenticated')) {
+    // Let middleware handle authentication - only redirect if explicitly unauthenticated
+    if (status === 'unauthenticated') {
       console.log('[Waiting Room] No valid session, redirecting to signin:', { 
         status, 
-        hasSession: !!session, 
-        hasUserId: !!session?.user?.id 
+        hasSession: !!session
       });
       router.push('/auth/signin');
       return;
@@ -169,6 +169,17 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
 
   const handleInputChange = (field: keyof WaitingRoomAnswers, value: string) => {
     setAnswers(prev => ({ ...prev, [field]: value }));
+  };
+
+  const copyInviteLink = async () => {
+    const inviteLink = `${window.location.origin}/invite/${chatId}`;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
   };
 
   const handleSubmit = async () => {
@@ -348,6 +359,25 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
             <p className="text-xs text-[#3C4858]/60">
               Your conversation will begin automatically when both participants are ready.
             </p>
+
+            {/* Discrete invite link */}
+            <div className="mt-4 pt-4 border-t border-[#D8A7B1]/10">
+              <div className="flex items-center justify-between text-xs text-[#3C4858]/50">
+                <span>Share invite link</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyInviteLink}
+                  className="h-6 px-2 text-xs text-[#3C4858]/50 hover:text-[#3C4858]/70"
+                >
+                  {copied ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <Copy className="h-3 w-3" />
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
@@ -439,7 +469,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
             <Button
               onClick={handleSubmit}
               disabled={!isFormValid() || submitting}
-              className="w-full bg-[#D8A7B1] hover:bg-[#C99BA4] text-white py-3 text-lg"
+              className="w-full bg-gradient-to-r from-[#D8A7B1] to-[#7BAFB0] text-white hover:from-[#C99BA4] hover:to-[#6D9E9F] transition-all duration-300 px-8 py-3 text-lg font-medium"
             >
               {submitting ? (
                 <div className="flex items-center space-x-2">
@@ -459,6 +489,31 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
                 Please complete all required fields to continue
               </p>
             )}
+
+            {/* Discrete invite link */}
+            <div className="mt-6 pt-4 border-t border-[#D8A7B1]/10">
+              <div className="flex items-center justify-between text-xs text-[#3C4858]/50">
+                <span>Need to share the invite link?</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyInviteLink}
+                  className="h-6 px-2 text-xs text-[#3C4858]/50 hover:text-[#3C4858]/70"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="h-3 w-3 mr-1" />
+                      <span>Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3 w-3 mr-1" />
+                      <span>Copy link</span>
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
