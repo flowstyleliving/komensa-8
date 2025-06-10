@@ -253,8 +253,14 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#3C4858]/70">Total Chats</span>
+                  <span className="text-sm text-[#3C4858]/70">Completed Chats</span>
                   <span className="text-sm font-medium text-[#7BAFB0]">
+                    {chats.filter(chat => chat.status === 'completed').length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#3C4858]/70">Total Chats</span>
+                  <span className="text-sm font-medium text-[#D9C589]">
                     {chats.length}
                   </span>
                 </div>
@@ -305,9 +311,9 @@ export default function DashboardPage() {
                     color="#D8A7B1" 
                   />
                   <ProgressStats 
-                    title="Total Chats" 
-                    value={chats.length.toString()} 
-                    change={chats.length > 0 ? `+${chats.length}` : ""} 
+                    title="Completed Chats" 
+                    value={chats.filter(chat => chat.status === 'completed').length.toString()} 
+                    change={chats.filter(chat => chat.status === 'completed').length > 0 ? `+${chats.filter(chat => chat.status === 'completed').length}` : ""} 
                     color="#7BAFB0" 
                   />
                   <ProgressStats 
@@ -422,6 +428,8 @@ export default function DashboardPage() {
                           colorB="#7BAFB0"
                           isYourTurn={true} // TODO: Implement turn checking logic
                           chatId={chat.id}
+                          status={chat.status}
+                          isCompleted={chat.status === 'completed'}
                         />
                       );
                     })}

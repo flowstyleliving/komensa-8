@@ -259,14 +259,17 @@ export default function InvitePage({ params }: { params: Promise<{ inviteId: str
         
         // Force session refresh to load the new guest session data
         // This is critical to prevent the "guest user can't type" issue
-        await session.update();
+        try {
+          await session.update();
+          console.log('[Invite] Session update successful');
+        } catch (sessionError) {
+          console.warn('[Invite] Session update failed, proceeding anyway:', sessionError);
+        }
         
         console.log('[Invite] Session refreshed, redirecting to waiting room');
         
-        // Small delay to ensure session update propagates
-        setTimeout(() => {
-          router.push(`/waiting-room/${data.chatId}`);
-        }, 100);
+        // Navigate with replace to avoid back button issues and ensure clean session state
+        router.replace(`/waiting-room/${data.chatId}`);
       } else {
         setError(data.error || 'Failed to join chat');
       }

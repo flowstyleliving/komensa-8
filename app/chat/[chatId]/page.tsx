@@ -34,6 +34,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const router = useRouter();
   const [checkingInitiation, setCheckingInitiation] = useState(true);
   const [introGenerationAttempted, setIntroGenerationAttempted] = useState(false);
+  const [chatStatus, setChatStatus] = useState<string>('active');
   const chat = useChat(chatId);
   const {
     messages,
@@ -83,6 +84,27 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     }
   }, [messages, playReceiveNotification, session?.user?.id]);
   
+  // Check chat status for completion
+  useEffect(() => {
+    if (!chatId) return;
+    
+    const checkChatStatus = async () => {
+      try {
+        const response = await fetch(`/api/chat/${chatId}/complete`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.isCompleted) {
+            setChatStatus('completed');
+          }
+        }
+      } catch (error) {
+        console.error('[ChatPage] Error checking chat status:', error);
+      }
+    };
+    
+    checkChatStatus();
+  }, [chatId]);
+
   // Check if chat has been initiated, redirect to waiting room if not
   useEffect(() => {
     if (!chatId || status === 'loading') return;
@@ -279,6 +301,14 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
               <div className="hidden md:flex items-center space-x-2 text-[#3C4858]/60">
                 <span>/</span>
                 <span>AI Mediation Session</span>
+                {chatStatus === 'completed' && (
+                  <>
+                    <span>/</span>
+                    <span className="px-2 py-1 text-xs rounded-full bg-[#7BAFB0]/20 text-[#7BAFB0] font-medium">
+                      Completed
+                    </span>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
@@ -371,8 +401,14 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
           <div className="max-w-4xl mx-auto">
             <ChatInput
               onSend={handleSendMessage}
-              disabled={!canSendMessage()}
-              placeholder={canSendMessage() ? "Share your thoughts..." : "Waiting for your turn..."}
+              disabled={!canSendMessage() || chatStatus === 'completed'}
+              placeholder={
+                chatStatus === 'completed' 
+                  ? "This conversation has been completed" 
+                  : canSendMessage() 
+                    ? "Share your thoughts..." 
+                    : "Waiting for your turn..."
+              }
               topContent={isCurrentUserTyping ? null : getVizCueContent()}
               currentTurn={currentTurn}
               participants={participants}

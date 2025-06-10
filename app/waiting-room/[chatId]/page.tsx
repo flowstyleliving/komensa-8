@@ -24,6 +24,7 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   const [submitting, setSubmitting] = useState(false);
   const [showFormDespiteOtherReady, setShowFormDespiteOtherReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sessionCheckAttempts, setSessionCheckAttempts] = useState(0);
   const [readinessStatus, setReadinessStatus] = useState({
     userReady: false,
     bothReady: false,
@@ -53,22 +54,40 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
     });
   }, [params]);
 
-  // Load initial data
+  // Load initial data with retry logic for guest sessions
   useEffect(() => {
     if (!chatId || status === 'loading') return;
     
-    // Let middleware handle authentication - only redirect if explicitly unauthenticated
+    // For unauthenticated sessions, retry a few times to allow guest session to load
     if (status === 'unauthenticated') {
-      console.log('[Waiting Room] No valid session, redirecting to signin:', { 
+      console.log('[Waiting Room] No valid session, attempt:', sessionCheckAttempts + 1, { 
         status, 
-        hasSession: !!session
+        hasSession: !!session,
+        chatId
       });
-      router.push('/auth/signin');
-      return;
+      
+      // Allow up to 3 attempts over 3 seconds for guest session to load
+      if (sessionCheckAttempts < 3) {
+        const timeoutId = setTimeout(() => {
+          setSessionCheckAttempts(prev => prev + 1);
+        }, 1000);
+        
+        return () => clearTimeout(timeoutId);
+      } else {
+        // After 3 attempts, redirect to signin
+        console.log('[Waiting Room] Still unauthenticated after 3 attempts, redirecting to signin');
+        router.push('/auth/signin');
+        return;
+      }
+    }
+
+    // Reset attempts counter when we have a valid session
+    if (sessionCheckAttempts > 0) {
+      setSessionCheckAttempts(0);
     }
 
     loadWaitingRoomStatus();
-  }, [chatId, session, status]);
+  }, [chatId, session, status, sessionCheckAttempts]);
 
   // Set up Pusher for real-time updates
   useEffect(() => {
