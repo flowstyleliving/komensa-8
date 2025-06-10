@@ -184,52 +184,69 @@ ${conversationText}`;
 }
 
 // GET: Retrieve existing summary for the chat
-export async function GET(request: NextRequest, { params }: { params: Promise<{ chatId: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ chatId: string }> }
+) {
   try {
-    const { chatId } = await params;
     const session = await getServerSession(authOptions);
-    
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // For guest users, verify they have access to this specific chat
-    if (session.user.isGuest && session.user.chatId !== chatId) {
-      return NextResponse.json({ error: 'Access denied - guests can only access their invited chat' }, { status: 403 });
+    const { chatId } = await params;
+
+    // Check if user is participant in this chat
+    const chat = await prisma.chat.findFirst({
+      where: {
+        id: chatId,
+        participants: {
+          some: {
+            user_id: session.user.id
+          }
+        }
+      },
+      include: {
+        participants: {
+          include: {
+            user: true
+          }
+        }
+      }
+    });
+
+    if (!chat) {
+      return NextResponse.json({ error: 'Chat not found or not authorized' }, { status: 404 });
     }
 
-    // Get existing summary
-    const summaryEvent = await prisma.event.findFirst({
-      where: { 
+    // Get message count
+    const messageCount = await prisma.event.count({
+      where: {
         chat_id: chatId,
-        type: 'summary_generated'
-      },
-      orderBy: { created_at: 'desc' }
+        type: 'message'
+      }
     });
 
-    if (!summaryEvent) {
-      return NextResponse.json({ 
-        error: 'No summary found for this chat',
-        hasSummary: false
-      }, { status: 404 });
-    }
+    // Get participant names
+    const participantNames = chat.participants
+      .map(p => p.user?.display_name || p.user?.name || 'Unknown')
+      .filter(name => name !== 'Unknown');
 
-    const summaryData = summaryEvent.data as any;
+    const summary = {
+      chatId,
+      participantCount: chat.participants.length,
+      participants: participantNames,
+      messageCount,
+      createdAt: chat.created_at,
+      status: 'active' // Could be enhanced with actual status tracking
+    };
 
-    return NextResponse.json({
-      summary: summaryData.summary,
-      generatedAt: summaryData.generatedAt,
-      summaryId: summaryEvent.id,
-      hasSummary: true
-    });
+    return NextResponse.json(summary);
 
-  } catch (error: any) {
-    console.error('Error retrieving summary:', error);
+  } catch (error) {
+    console.error('[Chat Summary] Error:', error);
     return NextResponse.json(
-      { 
-        error: 'Failed to retrieve summary',
-        details: error.message 
-      },
+      { error: 'Failed to get chat summary' },
       { status: 500 }
     );
   }

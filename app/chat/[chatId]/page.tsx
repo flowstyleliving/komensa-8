@@ -33,6 +33,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
   const { data: session, status } = useSession();
   const router = useRouter();
   const [checkingInitiation, setCheckingInitiation] = useState(true);
+  const [introGenerationAttempted, setIntroGenerationAttempted] = useState(false);
   const chat = useChat(chatId);
   const {
     messages,
@@ -98,6 +99,31 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
             router.push(`/waiting-room/${chatId}`);
             return;
           }
+          
+          // Chat is initiated - generate AI introduction if needed
+          if (!introGenerationAttempted) {
+            console.log('[ChatPage] Chat initiated, generating AI introduction...');
+            setIntroGenerationAttempted(true);
+            
+            try {
+              const introResponse = await fetch(`/api/chat/${chatId}/generate-intro`, {
+                method: 'POST'
+              });
+              
+              if (introResponse.ok) {
+                const introData = await introResponse.json();
+                console.log('[ChatPage] AI introduction response:', introData.success ? 'success' : 'already exists');
+              } else if (introResponse.status === 423) {
+                console.log('[ChatPage] AI introduction generation in progress by another user');
+              } else {
+                console.log('[ChatPage] AI introduction failed with status:', introResponse.status);
+              }
+            } catch (introError) {
+              console.error('[ChatPage] Error generating AI introduction:', introError);
+            }
+          } else {
+            console.log('[ChatPage] AI introduction generation already attempted, skipping');
+          }
         }
       } catch (error) {
         console.error('[ChatPage] Error checking chat initiation:', error);
@@ -107,7 +133,7 @@ export default function ChatPage({ params }: { params: Promise<{ chatId: string 
     };
     
     checkChatInitiation();
-  }, [chatId, status, router]);
+  }, [chatId, status, router, introGenerationAttempted]);
   
   // Update participant map when participants change
   useEffect(() => {

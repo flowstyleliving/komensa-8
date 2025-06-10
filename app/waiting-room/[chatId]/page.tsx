@@ -119,9 +119,9 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
         if (response.ok) {
           const data = await response.json();
           if (data.bothReady) {
-            console.log('[Waiting Room] Both ready detected via polling - redirecting...');
-            clearInterval(pollInterval);
-            router.push(`/chat/${chatId}`);
+            console.log('[Waiting Room] Both ready detected via polling - waiting for CHAT_INITIATED event...');
+            setReadinessStatus(data);
+            // Don't redirect here - wait for CHAT_INITIATED Pusher event
           }
         }
       } catch (error) {
@@ -143,11 +143,10 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
         const readinessData = await readinessResponse.json();
         setReadinessStatus(readinessData);
         
-        // If both ready, redirect to chat
+        // If both ready, wait for CHAT_INITIATED event instead of redirecting immediately
         if (readinessData.bothReady) {
-          console.log('[Waiting Room] Both ready detected, redirecting to chat...');
-          router.push(`/chat/${chatId}`);
-          return;
+          console.log('[Waiting Room] Both ready detected, waiting for CHAT_INITIATED event...');
+          // Don't redirect here - wait for CHAT_INITIATED Pusher event
         }
       }
 
@@ -226,9 +225,16 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
   };
 
   const handleSubmit = async () => {
-    if (!isFormValid()) return;
+    console.log('[Waiting Room Frontend] Submit clicked, form valid:', isFormValid());
+    console.log('[Waiting Room Frontend] Current answers:', answers);
+    
+    if (!isFormValid()) {
+      console.log('[Waiting Room Frontend] Form invalid, not submitting');
+      return;
+    }
 
     setSubmitting(true);
+    console.log('[Waiting Room Frontend] Making POST request to /api/waiting-room/ready');
     try {
       const response = await fetch('/api/waiting-room/ready', {
         method: 'POST',
@@ -239,21 +245,22 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
         })
       });
 
+      console.log('[Waiting Room Frontend] Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('[Waiting Room Frontend] Response data:', data);
         setReadinessStatus(data);
         
         if (data.bothReady) {
-          console.log('[Waiting Room] Both ready after submit - starting chat initiation...');
-          // Show a processing state to prevent user confusion
+          console.log('[Waiting Room Frontend] Both ready after submit - starting chat initiation...');
+          // Show a processing state and wait for CHAT_INITIATED event
           setReadinessStatus(prev => ({ ...prev, bothReady: true }));
-          // Give a moment for the backend to process, then redirect
-          setTimeout(() => {
-            router.push(`/chat/${chatId}`);
-          }, 2000);
+          // Don't auto-redirect - let the Pusher event handle it
         }
       } else {
-        console.error('Failed to submit answers');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to submit answers:', response.status, errorData);
       }
     } catch (error) {
       console.error('Error submitting answers:', error);
@@ -313,11 +320,11 @@ export default function WaitingRoomPage({ params }: WaitingRoomPageProps) {
 
             <div className="flex items-center justify-center space-x-2">
               <Loader2 className="w-5 h-5 text-[#7BAFB0] animate-spin" />
-              <span className="text-sm text-[#3C4858]/70">Starting conversation...</span>
+              <span className="text-sm text-[#3C4858]/70">AI Mediator is preparing your welcome message...</span>
             </div>
 
             <p className="text-xs text-[#3C4858]/60">
-              Please wait while we prepare your chat environment.
+              Please wait while we create a personalized introduction based on your preparation.
             </p>
           </div>
         </Card>

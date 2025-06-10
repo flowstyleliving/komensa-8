@@ -5,9 +5,16 @@ import { prisma } from '@/lib/prisma';
 import { WaitingRoomService, WaitingRoomAnswers } from '@/lib/waiting-room';
 
 export async function POST(request: NextRequest) {
+  console.log('[Waiting Room API] POST request received');
   try {
     const session = await getServerSession(authOptions);
+    console.log('[Waiting Room API] Session check:', { 
+      hasSession: !!session, 
+      userId: session?.user?.id 
+    });
+    
     if (!session?.user?.id) {
+      console.log('[Waiting Room API] Unauthorized - no session');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -16,7 +23,15 @@ export async function POST(request: NextRequest) {
       answers: WaitingRoomAnswers;
     };
 
+    console.log('[Waiting Room API] Request data:', { 
+      chatId, 
+      hasAnswers: !!answers,
+      answersReady: answers?.isReady,
+      userName: answers?.name
+    });
+
     if (!chatId || !answers) {
+      console.log('[Waiting Room API] Missing data - chatId:', !!chatId, 'answers:', !!answers);
       return NextResponse.json({ error: 'Missing chatId or answers' }, { status: 400 });
     }
 
@@ -48,39 +63,39 @@ export async function POST(request: NextRequest) {
     }
     
     // Check if both participants are ready and initiate chat if so
+    console.log('[Waiting Room API] About to check chat initiation for:', chatId);
     const initiation = await WaitingRoomService.initiateChatIfReady(chatId);
     
-    if (initiation.initiated && initiation.aiIntroduction) {
+    console.log('[Waiting Room API] Chat initiation result:', {
+      initiated: initiation.initiated,
+      hasAiIntroduction: !!initiation.aiIntroduction,
+      aiIntroductionLength: initiation.aiIntroduction?.length || 0,
+      error: initiation.error
+    });
+    
+    if (initiation.initiated) {
       console.log('[Waiting Room] Both participants ready - chat initiated');
-      
-      // Send AI introduction as first message
-      try {
-        await prisma.event.create({
-          data: {
-            chat_id: chatId,
-            type: 'message',
-            data: {
-              text: initiation.aiIntroduction,
-              sender: 'ai_mediator',
-              timestamp: new Date().toISOString(),
-              isSystemMessage: true
-            }
-          }
-        });
 
-        // Notify participants that chat is starting
+      // Notify participants that chat is starting
+      try {
         const { pusherServer, getChatChannelName, PUSHER_EVENTS } = await import('@/lib/pusher');
         const channelName = getChatChannelName(chatId);
         
         await pusherServer.trigger(channelName, PUSHER_EVENTS.CHAT_INITIATED, {
-          aiIntroduction: initiation.aiIntroduction,
-          initiatedAt: new Date().toISOString()
+          initiatedAt: new Date().toISOString(),
+          chatId
         });
         
-        console.log('[Waiting Room] Chat initiated successfully with AI introduction');
+        console.log('[Waiting Room] Chat initiated Pusher notification sent successfully');
       } catch (pusherNotificationError) {
         console.error('[Waiting Room] Failed to send chat initiation notification:', pusherNotificationError);
+        // Continue anyway - users can still access chat directly
       }
+    } else {
+      console.log('[Waiting Room] Chat not ready to initiate yet:', {
+        error: initiation.error,
+        bothReady: await WaitingRoomService.getReadinessState(chatId).then(state => state.bothReady)
+      });
     }
 
     // Get current status

@@ -90,8 +90,18 @@ export class WaitingRoomDatabaseService {
         user: {
           // Determine user type based on whether they're a guest user
           ...(userType === 'guest' 
-            ? { email: { contains: '@guest' } }
-            : { email: { not: { contains: '@guest' } } })
+            ? { 
+                OR: [
+                  { email: null },
+                  { email: { contains: '@guest' } }
+                ]
+              }
+            : { 
+                AND: [
+                  { email: { not: null } },
+                  { email: { not: { contains: '@guest' } } }
+                ]
+              })
         }
       },
       include: {
@@ -166,6 +176,6 @@ export class WaitingRoomDatabaseService {
 
     if (!participant) return null;
 
-    return participant.user.email?.includes('@guest') ? 'guest' : 'host';
+    return (!participant.user.email || participant.user.email.includes('@guest')) ? 'guest' : 'host';
   }
 } 

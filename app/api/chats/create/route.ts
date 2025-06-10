@@ -156,79 +156,9 @@ export async function POST(request: NextRequest) {
     await turnManager.initializeTurn(session.user.id);
     console.log('[Chat Creation] Turn management initialized - chat creator goes first');
 
-    // Generate initial AI mediator message with participant names
-    console.log('[Chat Creation] Generating initial AI message...');
-    
-    // Use just the first name to avoid AI confusion with full names
-    const creatorDisplayName = session.user.name || 'User';
-    const creatorFirstName = creatorDisplayName.split(' ')[0]; // Get just first name
-    
-    // Check if there are other actual participants (not including the creator)
-    const otherParticipants = chat.participants.filter(p => p.user_id !== session.user.id);
-    
-    let systemPrompt: string;
-    
-    if (otherParticipants.length > 0 && !withInvite) {
-      // There are pre-selected participants - use their names
-      const otherParticipantNames = otherParticipants.map(p => p.user?.display_name || 'Participant');
-      systemPrompt = `You are an AI mediator facilitating a conversation between ${creatorFirstName} and ${otherParticipantNames.join(' and ')}. 
-      Welcome them warmly and ask for context to help them begin sharing and try to get out what their intentions are for the conversation. 
-      Keep your message concise but welcoming. Focus on creating psychological safety.`;
-    } else {
-      // Solo start or invite-based chat - refer to partner generically
-      systemPrompt = `You are an AI mediator. ${creatorFirstName} is starting a conversation and will be inviting someone to join. 
-      Welcome ${creatorFirstName} warmly and ask them to share what they'd like to discuss and what they hope to achieve from this conversation. 
-      Let them know their partner will be invited to join after they share their initial thoughts. 
-      Keep your message concise but welcoming. Focus on creating psychological safety.`;
-    }
-
-    // Generate AI response
-    try {
-      const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt
-            }
-          ],
-          max_tokens: 200,
-          temperature: 0.7,
-        }),
-      });
-
-      if (aiResponse.ok) {
-        const aiData = await aiResponse.json();
-        const aiMessage = aiData.choices[0]?.message?.content;
-
-        if (aiMessage) {
-          // Save AI message to database
-          await prisma.event.create({
-            data: {
-              chat_id: chatId,
-              type: 'message',
-              data: {
-                content: aiMessage,
-                senderId: 'assistant'
-              },
-              seq: 1,
-            },
-          });
-          console.log('[Chat Creation] Initial AI message generated and saved');
-        }
-      } else {
-        console.error('[Chat Creation] Failed to generate AI message:', aiResponse.status);
-      }
-    } catch (aiError) {
-      console.error('[Chat Creation] Error generating AI message:', aiError);
-      // Don't fail the entire chat creation if AI message fails
-    }
+    // Note: AI welcome message generation is now handled in the waiting room
+    // after participants complete their setup questionnaire
+    console.log('[Chat Creation] Chat created successfully - AI message will be generated after waiting room setup');
 
     const response = {
       success: true,

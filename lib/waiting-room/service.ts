@@ -88,9 +88,19 @@ export class WaitingRoomService {
     error?: string;
   }> {
     try {
+      console.log(`[WaitingRoomService] Checking chat readiness for: ${chatId}`);
       const readinessState = await this.getReadinessState(chatId);
       
+      console.log(`[WaitingRoomService] Readiness state:`, {
+        bothReady: readinessState.bothReady,
+        hostReady: readinessState.hostAnswers?.isReady,
+        guestReady: readinessState.guestAnswers?.isReady,
+        hostName: readinessState.hostAnswers?.name,
+        guestName: readinessState.guestAnswers?.name
+      });
+      
       if (!readinessState.bothReady) {
+        console.log(`[WaitingRoomService] Chat not ready - bothReady: ${readinessState.bothReady}`);
         return { initiated: false };
       }
 
@@ -100,45 +110,13 @@ export class WaitingRoomService {
         return { initiated: true };
       }
 
-      // Generate AI introduction
-      let aiIntroduction = '';
-      if (readinessState.hostAnswers && readinessState.guestAnswers) {
-        const prompt = generateMediatorIntroPrompt(
-          readinessState.hostAnswers,
-          readinessState.guestAnswers
-        );
-
-        try {
-          const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'gpt-4',
-              messages: [{ role: 'system', content: prompt }],
-              max_tokens: 250,
-              temperature: 0.8,
-            }),
-          });
-
-          if (aiResponse.ok) {
-            const aiData = await aiResponse.json();
-            aiIntroduction = aiData.choices?.[0]?.message?.content || '';
-          }
-        } catch (aiError) {
-          console.error('Failed to generate AI introduction:', aiError);
-          // Continue without AI introduction
-        }
-      }
+      // Just mark chat as initiated - AI generation will happen in chat
 
       // Mark chat as initiated
       await WaitingRoomDatabaseService.markChatInitiated(chatId);
 
       return {
-        initiated: true,
-        aiIntroduction
+        initiated: true
       };
 
     } catch (error) {

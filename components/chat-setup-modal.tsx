@@ -486,7 +486,7 @@ const CreatingStep = ({ creationProgress }: { creationProgress: number }) => (
       {creationProgress > 60 && (
         <div className="flex items-center justify-center space-x-2">
           <CheckCircle className="w-4 h-4 text-[#D8A7B1] flex-shrink-0" />
-          <span>Generating AI welcome message</span>
+          <span>Preparing waiting room</span>
         </div>
       )}
       {creationProgress > 85 && (

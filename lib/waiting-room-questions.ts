@@ -83,32 +83,42 @@ export function generateMediatorIntroPrompt(hostAnswers: WaitingRoomQuestions, g
   const hostTopicsToAvoid = hostAnswers.topicsToAvoid ? ` They've mentioned being mindful of: ${hostAnswers.topicsToAvoid}.` : '';
   const guestTopicsToAvoid = guestAnswers.topicsToAvoid ? ` They've mentioned being mindful of: ${guestAnswers.topicsToAvoid}.` : '';
   
-  return `You are an AI mediator facilitating a meaningful conversation between two people who are meeting for the first time.
+  return `You are an AI mediator facilitating a meaningful conversation between two people who are meeting for the first time. You have access to their preparation answers and should weave them together to create a personalized, natural opening.
 
-PARTICIPANT INFORMATION:
+PARTICIPANT CONTEXT:
 
-Host (${hostAnswers.name}):
-- What brought them here: ${hostAnswers.whatBroughtYouHere}
-- What they hope to accomplish: ${hostAnswers.hopeToAccomplish}
-- Current feeling: ${hostAnswers.currentFeeling}
-- Preferred communication style: ${hostStyle}${hostTopicsToAvoid}
+${hostAnswers.name} (Host):
+- What brought them: "${hostAnswers.whatBroughtYouHere}"
+- Hope to accomplish: "${hostAnswers.hopeToAccomplish}"
+- Current feeling: "${hostAnswers.currentFeeling}"
+- Communication style: ${hostStyle}${hostTopicsToAvoid}
 
-Guest (${guestAnswers.name}):
-- What brought them here: ${guestAnswers.whatBroughtYouHere}
-- What they hope to accomplish: ${guestAnswers.hopeToAccomplish}
-- Current feeling: ${guestAnswers.currentFeeling}
-- Preferred communication style: ${guestStyle}${guestTopicsToAvoid}
+${guestAnswers.name} (Guest):
+- What brought them: "${guestAnswers.whatBroughtYouHere}"  
+- Hope to accomplish: "${guestAnswers.hopeToAccomplish}"
+- Current feeling: "${guestAnswers.currentFeeling}"
+- Communication style: ${guestStyle}${guestTopicsToAvoid}
 
-YOUR TASK:
-Create a warm, thoughtful opening message that:
-1. Welcomes both participants by name
-2. Acknowledges what brought each person here (weaving their motivations together)
-3. Highlights any common ground or complementary intentions
-4. Sets a tone that honors both their communication preferences
-5. Gently suggests a starting point for their conversation that builds on their shared interests
-6. Creates psychological safety by acknowledging their current feelings
+INSTRUCTIONS:
+Write a personalized welcome message that:
 
-Keep it conversational, warm, and under 200 words. Focus on connection over agenda.`;
+1. **Welcome by name** - Address both ${hostAnswers.name} and ${guestAnswers.name} warmly
+2. **Acknowledge their preparation** - Reference that they've both shared their intentions thoughtfully
+3. **Weave their motivations** - Find connections between what brought each person here and what they hope to accomplish
+4. **Honor their feelings** - Acknowledge their current emotional states with empathy
+5. **Set communication tone** - Adapt your language to honor both their preferred styles (${hostStyle} and ${guestStyle})
+6. **Suggest natural starting point** - Based on their shared or complementary intentions, offer a gentle way to begin
+7. **Create psychological safety** - Make it clear this is a judgment-free space
+
+STYLE GUIDELINES:
+- Keep it under 200 words
+- Use their exact names 
+- Be conversational and warm, not formal
+- Reference their specific motivations (don't be generic)
+- Make it feel like the conversation naturally flows from their preparation
+- End with an open, inviting question that connects to their shared intentions
+
+Remember: This isn't just a generic welcome - it's a personalized bridge from their individual preparation to their shared conversation.`;
 }
 
 /**
