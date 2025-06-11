@@ -619,8 +619,8 @@ export function ChatSettingsModal({
             )}
           </div>
 
-          {/* AI Troubleshooting Section */}
-          {onResetAI && (
+          {/* AI Troubleshooting Section - COMMENTED OUT FOR PRODUCTION */}
+          {/*onResetAI && (
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
                 <div className="p-2 bg-gradient-to-r from-[#D9C589]/20 to-[#D9C589]/10 rounded-lg">
@@ -657,10 +657,10 @@ export function ChatSettingsModal({
                 </div>
               </div>
             </div>
-          )}
+          )*/}
 
-          {/* Turn Management Section */}
-          {onResetTurn && (
+          {/* Turn Management Section - COMMENTED OUT FOR PRODUCTION */}
+          {/*onResetTurn && (
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 pb-3 border-b border-[#3C4858]/10">
                 <div className="p-2 bg-gradient-to-r from-[#D9C589]/20 to-[#D9C589]/10 rounded-lg">
@@ -697,7 +697,7 @@ export function ChatSettingsModal({
                 </div>
               </div>
             </div>
-          )}
+          )*/}
 
           {/* Future Settings Sections */}
           <div className="mt-8 pt-6 border-t border-[#3C4858]/10">

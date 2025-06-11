@@ -210,6 +210,7 @@ export class EnhancedMediatorContextService {
         break;
       case "closing":
         suggestions.push("Summarize insights and next steps");
+        suggestions.push("COMPLETION GUIDANCE: Gently guide participants toward session completion when conversation feels complete");
         break;
     }
     
@@ -230,7 +231,39 @@ export class EnhancedMediatorContextService {
       suggestions.push("Acknowledge different viewpoints and find common ground");
     }
     
+    // Check for natural completion signals
+    const completionSignals = this.detectCompletionSignals(balance, waitingRoom);
+    if (completionSignals.shouldGuideToCompletion) {
+      suggestions.push("COMPLETION GUIDANCE: Conversation shows signs of natural conclusion - guide toward caring completion");
+    }
+    
     return suggestions;
+  }
+
+  private detectCompletionSignals(
+    balance: MediatorContext["participantBalance"], 
+    waitingRoom: MediatorContext["waitingRoomContext"]
+  ): { shouldGuideToCompletion: boolean; signals: string[] } {
+    const signals: string[] = [];
+    
+    // Check if both participants have had good engagement (at least 5 messages each)
+    const participantIds = Object.keys(balance);
+    const allHaveEngaged = participantIds.every(id => 
+      balance[id].messageCount >= 5
+    );
+    
+    // Check for completion language patterns would need recent messages
+    // For now, use message count and phase as primary indicators
+    const totalMessages = participantIds.reduce((sum, id) => 
+      sum + balance[id].messageCount, 0);
+    
+    if (allHaveEngaged && totalMessages >= 20) {
+      signals.push("Both participants have engaged meaningfully");
+    }
+    
+    const shouldGuideToCompletion = signals.length > 0;
+    
+    return { shouldGuideToCompletion, signals };
   }
 
   private countMessagesSinceLastMediator(events: any[]): number {
@@ -321,6 +354,16 @@ MEDIATION GUIDELINES:
 6. Guide toward the shared goals identified in preparation
 7. Use "I notice..." statements to address conversation dynamics
 8. Keep responses focused and actionable (under 150 words)
+
+${context.suggestedActions.some(action => action.includes("COMPLETION GUIDANCE")) ? `
+CARING COMPLETION GUIDANCE:
+When the conversation feels naturally complete or you sense participants are ready to close:
+- Warmly acknowledge the meaningful work they've done together
+- Highlight key insights, progress, or connections made
+- Gently suggest: "When you both feel ready to close our session, you can click the Settings button (⚙️) at the top of the chat and select 'Complete Session.' Both of you will need to do this to officially end our time together."
+- Reassure them there's no rush - they can continue talking as long as they need
+- Express gratitude for their openness and the privilege of witnessing their dialogue
+` : ""}
 
 Your response should feel natural and contextually aware, demonstrating that you have been actively listening and understanding the conversation's evolution.`;
   }
